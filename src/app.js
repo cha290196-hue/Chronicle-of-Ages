@@ -1,7 +1,7 @@
 import {BASELINE,EXAMPLES,FIRST_YEAR,LAST_YEAR,displayYear,eventLabel,validYear} from './data.js';
 import {t} from './i18n.js';
 import {WorldCanvas} from './canvas.js';
-import {DEFAULT_CONFIG,PROVIDERS,safeConfig,configured,validEndpoint,makeId,simulate,askCore,generateImage,explainError,worldEvents,worldFacts,sanitizeWorldline,callChat} from './core.js';
+import {DEFAULT_CONFIG,PROVIDERS,IMAGE_PROVIDERS,withTextPreset,safeConfig,configured,imageConfigured,validEndpoint,makeId,simulate,askCore,generateImage,explainError,worldEvents,worldFacts,sanitizeWorldline,callChat} from './core.js';
 
 const $=id=>document.getElementById(id);
 const h=x=>String(x??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
@@ -29,7 +29,7 @@ const STATE_KEY='chronicle-of-ages-v1';const CONFIG_KEY='chronicle-of-ages-conne
 const root=$('app');
 function loadState(){try{const data=JSON.parse(localStorage.getItem(STATE_KEY)||'{}');const branches=Array.isArray(data.branches)?data.branches.slice(0,80).map(sanitizeWorldline).filter(Boolean):[];return {lang:data.lang==='zh'?'zh':'en',branches,activeId:branches.some(b=>b.id===data.activeId)?data.activeId:null,chats:typeof data.chats==='object'&&data.chats?data.chats:{},tab:'overview',selected:null,modal:null,busy:null,input:'',query:'',factQuery:'',formError:'',toast:null,mobilePanel:false,controller:null,questionBusy:false,imageBusy:false};}catch{return {lang:'en',branches:[],activeId:null,chats:{},tab:'overview',selected:null,modal:null,busy:null,input:'',query:'',factQuery:'',formError:'',toast:null,mobilePanel:false,controller:null,questionBusy:false,imageBusy:false}}}
 const state=loadState();
-let config;try{const saved=JSON.parse(localStorage.getItem(CONFIG_KEY)||'{}');config=safeConfig({...saved,key:saved.remember?saved.key:(sessionStorage.getItem('chronicle-key')||'')})}catch{config={...DEFAULT_CONFIG}}
+let config;try{const saved=JSON.parse(localStorage.getItem(CONFIG_KEY)||'{}');const key=saved.remember?saved.key:(sessionStorage.getItem('chronicle-key')||'');const imageKey=saved.remember?(saved.imageKey||(saved.imageModel?saved.key:'')):(sessionStorage.getItem('chronicle-image-key')||(saved.imageModel?key:''));config=safeConfig({...saved,key,imageKey})}catch{config={...DEFAULT_CONFIG}}
 let canvas,toastTimer,queryTimer;
 const tr=k=>t(state.lang,k);
 const active=()=>state.branches.find(b=>b.id===state.activeId)||null;
@@ -41,7 +41,7 @@ const factDesc=f=>state.lang==='zh'?(f.descriptionZh||f.descriptionEn):f.descrip
 function persist(){
  try{const data={version:1,lang:state.lang,branches:state.branches,activeId:state.activeId,chats:state.chats};localStorage.setItem(STATE_KEY,JSON.stringify(data));return true}catch{notify(tr('errStorage'),true);return false}
 }
-function persistConfig(){const c={...config};if(!c.remember)delete c.key;localStorage.setItem(CONFIG_KEY,JSON.stringify(c));if(!c.remember){if(c.key)sessionStorage.setItem('chronicle-key',c.key);else sessionStorage.removeItem('chronicle-key')}else sessionStorage.removeItem('chronicle-key')}
+function persistConfig(){const c={...config};if(!c.remember){delete c.key;delete c.imageKey}localStorage.setItem(CONFIG_KEY,JSON.stringify(c));for(const [name,key] of [['chronicle-key',config.key],['chronicle-image-key',config.imageKey]]){if(!config.remember&&key)sessionStorage.setItem(name,key);else sessionStorage.removeItem(name)}}
 function notify(message,error=false){const old=$('toast');if(old)old.remove();const div=document.createElement('div');div.className=`toast${error?' error':''}`;div.id='toast';div.setAttribute('role',error?'alert':'status');div.textContent=message;document.body.appendChild(div);clearTimeout(toastTimer);toastTimer=setTimeout(()=>div.remove(),3800)}
 function mount(){
  document.documentElement.lang=state.lang;
@@ -52,6 +52,7 @@ function mount(){
  root.addEventListener('click',handleClick);
  root.addEventListener('submit',handleSubmit);
  root.addEventListener('input',handleInput);
+ const overlay=$('overlay-root');overlay.addEventListener('click',handleClick);overlay.addEventListener('submit',handleSubmit);overlay.addEventListener('change',handleInput);
  document.addEventListener('keydown',handleKey);
  render();
 }
@@ -96,7 +97,16 @@ function renderCore(){const b=active();const key=b?.id||'baseline';const chat=Ar
  $('panel-content').innerHTML=`<div class="chat"><div class="chat-log" id="chat-log">${chat.length?chat.map(msg=>`<div class="chat-item ${msg.role==='user'?'user':'assistant'}"><span class="chat-role">${msg.role==='user'?'YOU':h(tr('central'))}</span><div class="chat-bubble">${h(msg.content)}</div></div>`).join(''):`<div class="line-accent"></div><span class="panel-eyebrow">${h(tr('coreTitle'))}</span><h2 class="panel-title">${h(worldTitle(b))}</h2><p class="panel-body">${h(tr('coreGreeting'))}</p><span class="badge">${h(tr('timeLimit'))}</span>`}</div><div class="chat-tools"><button data-action="image">${icon('image',13)} ${h(tr('image'))}</button><button data-action="clear-chat">${h(tr('clear'))}</button></div><form class="chat-form" id="core-form"><textarea name="core-question" maxlength="1800" rows="2" placeholder="${h(tr('ask'))}" aria-label="${h(tr('ask'))}" ${state.questionBusy?'disabled':''}></textarea><button type="submit" aria-label="${h(tr('send'))}" ${state.questionBusy?'disabled':''}>${icon('arrow',18)}</button></form></div>`;
  const log=$('chat-log');if(log)log.scrollTop=log.scrollHeight;
 }
-function renderOverlay(){const dest=$('overlay-root');if(state.modal==='settings'){
+function currentMode(c){return c.textEnabled?(c.imageEnabled?'both':'text'):'image'}
+function showConfigMode(form){
+ const mode=form.querySelector('[name="mode"]:checked')?.value||'text';
+ form.querySelector('[data-channel="text"]').hidden=mode==='image';
+ form.querySelector('[data-channel="image"]').hidden=mode==='text';
+ const probe=form.querySelector('[data-action="test-config"]');if(probe)probe.hidden=mode==='image';
+ for(const field of form.querySelectorAll('[data-channel="text"] input,[data-channel="text"] select'))field.disabled=mode==='image';
+ for(const field of form.querySelectorAll('[data-channel="image"] input,[data-channel="image"] select'))field.disabled=mode==='text';
+}
+function renderOverlay(){const dest=$('overlay-root');if(state.modal==='settings'){const mode=currentMode(config);
  dest.innerHTML=`<div class="backdrop" id="backdrop"><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title"><div class="dialog-head"><div><div class="panel-eyebrow">${h(tr('connection'))}</div><h2 class="dialog-title" id="dialog-title">${h(tr('provider'))}</h2></div><button class="panel-close" type="button" data-action="close-modal" aria-label="${h(tr('close'))}">${icon('close',20)}</button></div><form class="dialog-inner" id="settings-form"><div class="form-field"><label for="setting-provider">${h(tr('providerPreset'))}</label><select name="provider" id="setting-provider"><option value="openrouter" ${config.provider==='openrouter'?'selected':''}>${h(tr('openrouter'))}</option><option value="openai" ${config.provider==='openai'?'selected':''}>${h(tr('openai'))}</option><option value="custom" ${config.provider==='custom'?'selected':''}>${h(tr('custom'))}</option></select></div><div class="form-field"><label for="setting-endpoint">${h(tr('endpoint'))}</label><input id="setting-endpoint" name="endpoint" type="url" required spellcheck="false" value="${h(config.endpoint)}" placeholder="https://.../chat/completions"></div><div class="form-field"><label for="setting-model">${h(tr('model'))}</label><input id="setting-model" name="model" required maxlength="180" spellcheck="false" value="${h(config.model)}" placeholder="e.g. openai/gpt-4o-mini"></div><div class="form-field"><label for="setting-key">${h(tr('key'))}</label><input id="setting-key" name="key" type="password" autocomplete="off" spellcheck="false" value="${h(config.key)}" placeholder="sk-…"></div><div class="form-row"><div class="form-field"><label for="setting-imageModel">${h(tr('imageModel'))}</label><input id="setting-imageModel" name="imageModel" value="${h(config.imageModel)}" placeholder="e.g. gpt-image-1" spellcheck="false"></div><div class="form-field"><label for="setting-imageEndpoint">${h(tr('imageEndpoint'))}</label><input id="setting-imageEndpoint" name="imageEndpoint" value="${h(config.imageEndpoint)}" placeholder="https://.../images/generations" spellcheck="false"></div></div><label class="switch-row"><input type="checkbox" name="remember" ${config.remember?'checked':''}><span>${h(tr('remember'))}</span></label><p class="form-caption">${h(tr('apiHelp'))}</p><div class="form-error" id="settings-error"></div><div class="dialog-actions"><button type="button" class="secondary-btn" data-action="test-config">${h(tr('probe'))}</button><button type="submit" class="primary-btn">${h(tr('save'))} ${icon('arrow',14)}</button></div></form></div></div>`;
  }else dest.innerHTML='';
  if(state.busy)renderBusy();
@@ -121,10 +131,13 @@ function handleClick(event){const btn=event.target.closest('[data-action]');if(!
  if(action==='image'){state.tab='image';state.mobilePanel=true;renderNav();renderPanel();return}
  if(action==='export'){exportData();return}if(action==='import'){$('import-file').click();return}
  if(action==='test-config'){testConfig();return}
+ if(action==='deepseek-quick'){const form=$('settings-form');if(!form)return;const preset=withTextPreset(extractConfig(form),'deepseek',val==='deepseek-v4-pro'?'deepseek-v4-pro':'deepseek-flash');const modeBefore=form.querySelector('[name=mode]:checked')?.value||'text';form.querySelector(`[name=mode][value=${modeBefore==='both'?'both':'text'}]`).checked=true;showConfigMode(form);$('setting-provider').value='deepseek';$('setting-endpoint').value=preset.endpoint;$('setting-model').value=preset.model;$('setting-key').focus();$('settings-error').textContent=tr('deepseekReady');return}
  if(action==='clear-chat'){const key=active()?.id||'baseline';state.chats[key]=[];persist();renderPanel();return}
 }
 function handleInput(e){if(e.target.id==='history-input'){state.input=e.target.value;return}if(e.target.id==='fact-query'){state.factQuery=e.target.value;clearTimeout(queryTimer);queryTimer=setTimeout(()=>{const b=active();if(!b)return;const records=worldFacts(state.branches,b).filter(f=>JSON.stringify(f).toLowerCase().includes(state.factQuery.toLowerCase()));if($('fact-results'))$('fact-results').innerHTML=factList(records)},70);return}
- if(e.target.id==='setting-provider'){const newType=e.target.value;const preset=PROVIDERS[newType];if(preset){$('setting-endpoint').value=preset.endpoint;$('setting-imageEndpoint').value=preset.imageEndpoint}return}}
+ if(e.target.name==='mode'){showConfigMode($('settings-form'));$('settings-error').textContent='';return}
+ if(e.target.id==='setting-provider'){const preset=PROVIDERS[e.target.value];if(preset){$('setting-endpoint').value=preset.endpoint;if(preset.model)$('setting-model').value=preset.model}return}
+ if(e.target.id==='setting-imageProvider'){const preset=IMAGE_PROVIDERS[e.target.value];if(preset)$('setting-imageEndpoint').value=preset.imageEndpoint;return}}
 async function handleSubmit(event){event.preventDefault();const id=event.target.id;
  if(id==='simulate-form')return startSimulation();
  if(id==='settings-form')return saveConfig(event.target);
@@ -133,8 +146,13 @@ async function handleSubmit(event){event.preventDefault();const id=event.target.
  if(id==='image-form')return submitImage(event.target);
 }
 function handleKey(event){if(event.key==='Escape'&&state.modal){state.modal=null;renderOverlay();return}if(event.key==='Escape'&&state.mobilePanel){state.mobilePanel=false;$('panel').classList.remove('mobile-open');return}if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){if(event.target.id==='history-input'){event.preventDefault();startSimulation()}else if(event.target.name==='core-question'){event.preventDefault();$('core-form')?.requestSubmit()}}}
-function extractConfig(form){const data=new FormData(form);return safeConfig({provider:data.get('provider'),endpoint:data.get('endpoint'),model:data.get('model'),key:data.get('key'),imageEndpoint:data.get('imageEndpoint'),imageModel:data.get('imageModel'),remember:data.has('remember')})}
-function saveConfig(form){const next=extractConfig(form);if(!validEndpoint(next.endpoint)){const el=$('settings-error');if(el)el.textContent=explainError(new Error('INVALID_ENDPOINT'),state.lang);return}if(next.imageEndpoint&&!validEndpoint(next.imageEndpoint)){const el=$('settings-error');if(el)el.textContent=explainError(new Error('INVALID_ENDPOINT'),state.lang);return}config=next;try{persistConfig()}catch{notify(tr('errStorage'),true)}state.modal=null;renderOverlay();notify(tr('savingDone'))}
+function extractConfig(form){const data=new FormData(form),mode=data.get('mode')||'text';return safeConfig({
+ provider:mode==='image'?config.provider:data.get('provider'),endpoint:mode==='image'?config.endpoint:data.get('endpoint'),model:mode==='image'?config.model:data.get('model'),key:mode==='image'?config.key:data.get('key'),
+ imageProvider:mode==='text'?config.imageProvider:data.get('imageProvider'),imageEndpoint:mode==='text'?config.imageEndpoint:data.get('imageEndpoint'),imageModel:mode==='text'?config.imageModel:data.get('imageModel'),imageKey:mode==='text'?config.imageKey:data.get('imageKey'),
+ textEnabled:mode!=='image',imageEnabled:mode!=='text',remember:data.has('remember')})}
+function saveConfig(form){const next=extractConfig(form);const err=$('settings-error');
+ if((next.textEnabled&&!validEndpoint(next.endpoint))||(next.imageEnabled&&!validEndpoint(next.imageEndpoint))){err.textContent=explainError(new Error('INVALID_ENDPOINT'),state.lang);return}
+ config=next;try{persistConfig()}catch{notify(tr('errStorage'),true)}state.modal=null;renderOverlay();notify(tr('savingDone'))}
 async function testConfig(){const next=extractConfig($('settings-form'));const err=$('settings-error');if(!configured(next)){err.textContent=explainError(new Error('NOT_CONFIGURED'),state.lang);return}const btn=document.querySelector('[data-action="test-config"]');btn.disabled=true;btn.textContent=tr('testing');const ac=new AbortController();const timer=setTimeout(()=>ac.abort(),18000);
  try{await callChat(next,[{role:'user',content:'Reply with OK.'}],{signal:ac.signal,maxTokens:32,temperature:0});err.textContent=tr('tested')}catch(e){err.textContent=explainError(e,state.lang)}finally{clearTimeout(timer);btn.disabled=false;btn.textContent=tr('probe')}
 }
@@ -148,7 +166,7 @@ async function submitQuestion(form){if(state.questionBusy)return;const input=for
  catch(e){history.push({role:'assistant',content:explainError(e,state.lang)});persist()}
  finally{state.questionBusy=false;if(state.tab==='core')renderPanel()}
 }
-async function submitImage(form){if(state.imageBusy)return;const input=String(new FormData(form).get('image-prompt')||'').trim();if(!input)return;if(!active()){notify(tr('noBranch'),true);return}if(!config.imageModel){state.modal='settings';renderOverlay();notify(tr('imageModel'),true);return}
+async function submitImage(form){if(state.imageBusy)return;const input=String(new FormData(form).get('image-prompt')||'').trim();if(!input)return;if(!active()){notify(tr('noBranch'),true);return}if(!imageConfigured(config)){state.modal='settings';renderOverlay();notify(tr('imageConfigRequired'),true);return}
  state.imageBusy=true;renderPanel();const controller=new AbortController();try{const result=await generateImage({prompt:input,branch:active(),config,signal:controller.signal});active().image=result;persist();notify(tr('complete'))}catch(e){notify(explainError(e,state.lang),true)}finally{state.imageBusy=false;renderPanel()}
 }
 function editableContainer(kind,id){const b=active();if(!b)return null;let direct=kind==='fact'?b.facts:b.events,shared=kind==='fact'?b.inherited?.facts:b.inherited?.events;return direct.find(x=>x.id===id)?direct:shared?.find(x=>x.id===id)?shared:null}
