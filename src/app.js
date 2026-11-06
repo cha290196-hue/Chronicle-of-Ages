@@ -52,7 +52,6 @@ function mount(){
  root.addEventListener('click',handleClick);
  root.addEventListener('submit',handleSubmit);
  root.addEventListener('input',handleInput);
- const overlay=$('overlay-root');overlay.addEventListener('click',handleClick);overlay.addEventListener('submit',handleSubmit);overlay.addEventListener('change',handleInput);
  document.addEventListener('keydown',handleKey);
  render();
 }
