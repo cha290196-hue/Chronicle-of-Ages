@@ -9,7 +9,9 @@
 
   [Open web application](https://cha290196-hue.github.io/Chronicle-of-Ages/) · [Source code](https://github.com/cha290196-hue/Chronicle-of-Ages) · [Report an issue](https://github.com/cha290196-hue/Chronicle-of-Ages/issues)
 
-  <sub>ENGLISH / 中文 &nbsp; · &nbsp; BROWSER APPLICATION</sub>
+  <a href="README.md"><b>English</b></a> &nbsp; · &nbsp; <a href="README.zh-CN.md"><b>简体中文</b></a>
+
+  <sub>BROWSER APPLICATION</sub>
 </div>
 
 ---
@@ -95,18 +97,21 @@ cd Chronicle-of-Ages
 python3 -m http.server 8080
 ```
 
-Open `http://localhost:8080`. The chronology is available immediately. To calculate new worldlines, open **Settings** and provide a supported text model:
+Open `http://localhost:8080`. The chronology is available immediately. To calculate new worldlines, open **Settings**, select **Text only** (or **Text + images**), and configure a text model. **Image generation is optional.**
 
 | Field | Example |
 | :--- | :--- |
-| Provider | OpenRouter / OpenAI / custom OpenAI-compatible API |
-| Chat completions URL | `https://openrouter.ai/api/v1/chat/completions` |
-| Text model | A model available to your account |
-| API key | Your own provider-issued key |
-| Image endpoint | Optional, when the provider supports compatible image generation |
-| Image model | Optional image model identifier |
+| Channel | Text only / Images only / Text + images |
+| Text provider | DeepSeek / OpenRouter / OpenAI / custom OpenAI-compatible API |
+| DeepSeek shortcut | **DeepSeek Flash** (`deepseek-flash`) or **DeepSeek V4 Pro** (`deepseek-v4-pro`) |
+| DeepSeek chat endpoint | `https://api.deepseek.com/chat/completions` (filled automatically) |
+| Text API key | Your own DeepSeek or other provider key |
+| Image provider | OpenRouter / OpenAI / custom endpoint, configured separately |
+| Image endpoint / model / key | Required **only if** image generation is enabled |
 
-API requests are sent directly from the browser. The model endpoint must permit browser-origin requests (CORS). API keys are session-only by default; optional local persistence is available in Settings. For a public deployment, use a provider credential intended for client-side use or an independent authenticated proxy with appropriate limits. **No project API key is included.**
+**DeepSeek setup:** Select **Text only** → **DeepSeek Flash** → enter your DeepSeek API key → **Save**. You can simulate history and ask the computation core without configuring images. Choosing **Text + images** keeps the image service independent; DeepSeek text API is not an image-generation endpoint. **Images only** saves an image connection without a text model, but creating new worldlines still requires a text model.
+
+API requests are sent directly from the browser. The model endpoint must permit browser-origin requests (CORS). Text and image API keys are separate and are session-only by default; optional local persistence is available in Settings. For a public deployment, use a provider credential intended for client-side use or an independent authenticated proxy with appropriate limits. **No project API key is included.**
 
 ## Interaction
 
@@ -147,6 +152,7 @@ Architecture and interface patterns were informed by the following materials; im
 - [Generative Agents: Interactive Simulacra of Human Behavior](https://doi.org/10.1145/3586183.3606763) — memory, planning and reflection as stateful computational patterns.
 - [vis-timeline](https://github.com/visjs/vis-timeline) — interactive chronological navigation and pan/zoom conventions.
 - [OpenAI Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs) — techniques for machine-readable model results.
+- [DeepSeek API documentation](https://api-docs.deepseek.com/) — current model IDs, compatible chat completions endpoint, and JSON output.
 - [GitHub Pages custom workflows](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages) — static publishing workflow.
 
 ---
