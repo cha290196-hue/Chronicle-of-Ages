@@ -142,3 +142,14 @@
  .examples{display:none}.composer textarea{min-height:38px;max-height:45px}
  .stage-bottomright{left:14px;right:auto;bottom:calc(var(--mobile-dock-height) + 24px)}
 }
+
+/* Mobile chronology controls and immersive mode */
+@media (min-width:681px){.top-tools>[data-action="fullscreen"]{display:none}}
+@media (max-width:680px){
+ .logo-mark,.stage-top,.stage-bottomright,.stage-bottomleft{display:none!important}
+ .logo{min-width:0;gap:0}
+ .logo-type{gap:0}
+ .top-tools>[data-action="fullscreen"]{width:38px;height:38px;flex:none;padding:0;display:grid;place-items:center;color:#555}
+ .top-tools>[data-action="fullscreen"] span{display:none}
+ .top-tools>[data-action="fullscreen"] svg{width:18px;height:18px}
+}
