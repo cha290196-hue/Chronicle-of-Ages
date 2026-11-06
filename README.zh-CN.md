@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/app-icon.png?v=20261107t" width="68" height="68" alt="岁月史书图标" />
+  <img src="assets/app-icon.png?v=20261107alpha" width="68" height="68" alt="岁月史书图标" />
 
   # 岁月史书
 
