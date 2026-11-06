@@ -119,7 +119,7 @@ function renderBusy(){let host=$('busy-overlay');if(!state.busy){host?.remove();
  host.innerHTML=`<div class="busy-card"><div class="busy-index">${h(tr('loading'))} &nbsp;/&nbsp; ${String(s.index+1).padStart(2,'0')}</div><div class="busy-title">${h(tr(s.phase==='validation'?'validation':s.phase==='synthesis'?'synthesis':'propagation'))}</div><p class="panel-body" style="margin-bottom:0">${h(s.input)}</p><div class="busy-line"><span style="width:${progress}%"></span></div><div class="busy-foot"><span>${s.phase==='propagation'?`${s.index+1} / ${s.total}`:h(tr('phase'))}</span><button type="button" data-action="stop" id="stop-calculation">${h(tr('abort'))}</button></div></div>`;host.querySelector('[data-action="stop"]').addEventListener('click',()=>state.controller?.abort());
 }
 function handleClick(event){const btn=event.target.closest('[data-action]');if(!btn)return;const action=btn.dataset.action,val=btn.dataset.value;
- if(action==='tab'){state.tab=val;state.selected=null;state.mobilePanel=true;renderNav();renderPanel();return}
+ if(action==='tab'){state.tab=val;state.selected=null;state.mobilePanel=val!=='overview';renderNav();renderPanel();return}
  if(action==='close-panel'||action==='close-mobile-panel'){state.mobilePanel=false;state.tab='overview';renderNav();renderPanel();return}
  if(action==='settings'){state.modal='settings';renderOverlay();return}if(action==='close-modal'){state.modal=null;renderOverlay();return}
  if(action==='language'){state.input=$('history-input')?.value||state.input;state.lang=val;persist();render();return}
