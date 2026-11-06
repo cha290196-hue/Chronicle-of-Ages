@@ -153,3 +153,9 @@
  .top-tools>[data-action="fullscreen"] span{display:none}
  .top-tools>[data-action="fullscreen"] svg{width:18px;height:18px}
 }
+
+/* Mobile navigation label typography: explicit longhand to avoid invalid font shorthand */
+@media (max-width:680px){
+ .rail button .nav-short-label{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-weight:600;font-size:9px;line-height:1.15;letter-spacing:-.01em;white-space:nowrap;min-width:0;text-align:center}
+}
+@media (max-width:355px){.rail button .nav-short-label{font-size:8px}}
