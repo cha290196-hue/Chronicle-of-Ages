@@ -1,11 +1,21 @@
 import {BASELINE,FIRST_YEAR,LAST_YEAR,PHYSICAL_CONSTANTS,validYear} from './data.js';
 
-export const DEFAULT_CONFIG={provider:'openrouter',endpoint:'https://openrouter.ai/api/v1/chat/completions',model:'',imageEndpoint:'https://openrouter.ai/api/v1/images',imageModel:'',key:'',remember:false};
+export const DEFAULT_CONFIG={provider:'openrouter',endpoint:'https://openrouter.ai/api/v1/chat/completions',model:'',key:'',textEnabled:true,imageEnabled:false,imageProvider:'openrouter',imageEndpoint:'https://openrouter.ai/api/v1/images',imageModel:'',imageKey:'',remember:false};
 export const PROVIDERS={
- openrouter:{endpoint:'https://openrouter.ai/api/v1/chat/completions',imageEndpoint:'https://openrouter.ai/api/v1/images'},
- openai:{endpoint:'https://api.openai.com/v1/chat/completions',imageEndpoint:'https://api.openai.com/v1/images/generations'},
- custom:{endpoint:'',imageEndpoint:''}
+ deepseek:{endpoint:'https://api.deepseek.com/chat/completions',model:'deepseek-flash'},
+ openrouter:{endpoint:'https://openrouter.ai/api/v1/chat/completions',model:''},
+ openai:{endpoint:'https://api.openai.com/v1/chat/completions',model:''},
+ custom:{endpoint:'',model:''}
 };
+export const IMAGE_PROVIDERS={
+ openrouter:{imageEndpoint:'https://openrouter.ai/api/v1/images'},
+ openai:{imageEndpoint:'https://api.openai.com/v1/images/generations'},
+ custom:{imageEndpoint:''}
+};
+export function withTextPreset(value,provider,model){
+ const preset=PROVIDERS[provider];if(!preset)return safeConfig(value);
+ return safeConfig({...value,provider,endpoint:preset.endpoint,model:model||preset.model||value?.model||'',textEnabled:true});
+}
 export const makeId=()=>globalThis.crypto?.randomUUID?.()||`w-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 const truncate=(s,n=1200)=>String(s??'').trim().slice(0,n);
 const plain=(s)=>truncate(s,2400);
@@ -16,13 +26,19 @@ const toText=(v)=>typeof v==='string'?v:'';
 
 export function safeConfig(value={}){
  const c={...DEFAULT_CONFIG,...value};
- c.provider=['openrouter','openai','custom'].includes(c.provider)?c.provider:'custom';
+ c.provider=Object.hasOwn(PROVIDERS,c.provider)?c.provider:'custom';
+ c.imageProvider=Object.hasOwn(IMAGE_PROVIDERS,c.imageProvider)?c.imageProvider:'custom';
+ c.textEnabled=c.textEnabled!==false;
+ // Old saved profiles with an image model remain enabled after migration.
+ c.imageEnabled=typeof value?.imageEnabled==='boolean'?value.imageEnabled:!!value?.imageModel;
  c.endpoint=String(c.endpoint||'').trim();c.imageEndpoint=String(c.imageEndpoint||'').trim();
  c.model=String(c.model||'').trim().slice(0,180);c.imageModel=String(c.imageModel||'').trim().slice(0,180);
- c.key=String(c.key||'').trim().slice(0,1000);c.remember=Boolean(c.remember);
+ c.key=String(c.key||'').trim().slice(0,1000);c.imageKey=String(c.imageKey||'').trim().slice(0,1000);
+ c.remember=Boolean(c.remember);
  return c;
 }
-export function configured(c){return !!(c?.endpoint&&c?.model&&c?.key)}
+export function configured(c){return !!(c?.textEnabled!==false&&c?.endpoint&&c?.model&&c?.key)}
+export function imageConfigured(c){return !!(c?.imageEnabled&&c?.imageEndpoint&&c?.imageModel&&c?.imageKey)}
 export function validEndpoint(value){
  try{const url=new URL(value);return url.protocol==='https:'||(url.protocol==='http:'&&['localhost','127.0.0.1','[::1]'].includes(url.hostname))}catch{return false}
 }
@@ -39,7 +55,8 @@ export function explainError(error,lang='en'){
  if(error?.name==='AbortError'||error?.message==='ABORTED')return lang==='zh'?'推演已停止。':'Simulation stopped.';
  if(error?.message==='INVALID_JSON'||error?.message==='BAD_RESPONSE')return lang==='zh'?'模型返回格式无效，请重试或更换模型。':'The model returned invalid structured data. Try another model.';
  if(error?.message==='INVALID_ENDPOINT')return lang==='zh'?'接口地址必须是 HTTPS（本机允许 HTTP）。':'Use an HTTPS API endpoint (HTTP allowed for localhost).';
- if(error?.message==='NOT_CONFIGURED')return lang==='zh'?'请在设置中填写接口、模型和密钥。':'Enter the API endpoint, model and key in Settings.';
+ if(error?.message==='NOT_CONFIGURED')return lang==='zh'?'请先配置文本模型的接口、模型和密钥。':'Configure the text model endpoint, model and key first.';
+ if(error?.message==='IMAGE_NOT_CONFIGURED')return lang==='zh'?'请先在设置中启用并填写生图模型配置。':'Enable and configure an image model in Settings first.';
  if(error?.message==='ANCHOR_PRECEDES_PARENT')return lang==='zh'?'修改早于当前世界线的起点，请先选中现实基线或更早的世界线。':'The change predates the active worldline. Select the baseline or an earlier ancestor first.';
  if(error?.message==='ANCHOR_INVALID')return lang==='zh'?'修改没有有效的地球历史锚点。':'The change has no valid Earth history anchor.';
  if(error?.message==='EMPTY_RESPONSE')return lang==='zh'?'模型没有返回内容。':'The model returned no content.';
@@ -53,6 +70,7 @@ export async function callChat(config,messages,{signal,json=false,temperature=.3
  if(!validEndpoint(c.endpoint))throw new Error('INVALID_ENDPOINT');
  const body={model:c.model,messages,temperature,max_tokens:maxTokens,stream:false};
  if(json)body.response_format={type:'json_object'};
+ if(c.provider==='deepseek'){body.thinking={type:json?'disabled':'enabled'};if(!json)body.max_tokens=Math.max(maxTokens,8192)}
  const doCall=async(format)=>{
   const options={method:'POST',headers:{'content-type':'application/json','authorization':`Bearer ${c.key}`},body:JSON.stringify(format?body:{...body,response_format:undefined}),signal};
   if(c.provider==='openrouter')options.headers['HTTP-Referer']=location.origin;
@@ -178,10 +196,10 @@ export async function askCore({question,branch,branches,config,lang='en',history
  return await callChat(config,[{role:'system',content:system},...history.slice(-8).map(x=>({role:x.role==='assistant'?'assistant':'user',content:truncate(x.content,2500)})),{role:'user',content:truncate(question,1800)}],{signal,temperature:.5,maxTokens:1900});
 }
 export async function generateImage({prompt,branch,config,signal}){
- const c=safeConfig(config);if(!c.key||!c.imageModel||!validEndpoint(c.imageEndpoint))throw new Error('NOT_CONFIGURED');
+ const c=safeConfig(config);if(!imageConfigured(c))throw new Error('IMAGE_NOT_CONFIGURED');if(!validEndpoint(c.imageEndpoint))throw new Error('INVALID_ENDPOINT');
  const context=branch?`${branch.titleEn}. ${branch.summaryEn} Key historical features: ${branch.events.slice(-10).map(e=>e.en).join('; ')}.`:'Recorded Earth history';
  const payload={model:c.imageModel,prompt:`Illustrate this specific Earth timeline with historically and materially consistent details. ${context} Requested view: ${truncate(prompt,1100)}. Documentary visual treatment, no text labels.`,size:'1024x1024',n:1};
- const response=await fetch(c.imageEndpoint,{method:'POST',headers:{'content-type':'application/json',authorization:`Bearer ${c.key}`},body:JSON.stringify(payload),signal});
+ const response=await fetch(c.imageEndpoint,{method:'POST',headers:{'content-type':'application/json',authorization:`Bearer ${c.imageKey}`},body:JSON.stringify(payload),signal});
  if(!response.ok){let msg='';try{msg=(await response.json())?.error?.message||''}catch{}throw new Error(`HTTP ${response.status}${msg?`: ${msg.slice(0,180)}`:''}`)}
  const json=await response.json(),image=json?.data?.[0];
  if(!image)throw new Error('EMPTY_RESPONSE');
