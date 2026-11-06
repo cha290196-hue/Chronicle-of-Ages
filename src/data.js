@@ -1,0 +1,57 @@
+export const FIRST_YEAR = -3200;
+export const LAST_YEAR = 2026;
+export const BASELINE = [
+  [-3200,'First writing systems','最早的文字系统','The earliest known writing systems emerge in Mesopotamia.','美索不达米亚出现已知最早的文字系统之一。','civilization'],
+  [-2560,'Great Pyramid of Giza','吉萨大金字塔','The Great Pyramid is completed around this period in ancient Egypt.','古埃及吉萨大金字塔约于这一时期建成。','civilization'],
+  [-1754,'Code of Hammurabi','汉谟拉比法典','The Babylonian law code is compiled during Hammurabi’s reign.','汉谟拉比统治时期编纂了巴比伦法典。','governance'],
+  [-776,'Ancient Olympic Games','古代奥林匹克运动会','Traditional date of the earliest recorded Olympic Games.','传统纪年中最早有记载的古奥运会。','culture'],
+  [-551,'Birth of Confucius','孔子诞生','Traditional birth year of the Chinese philosopher Confucius.','中国思想家孔子的传统诞生年份。','culture'],
+  [-509,'Roman Republic','罗马共和国','Traditional founding date of the Roman Republic.','罗马共和国建立的传统纪年。','governance'],
+  [-221,'Qin unifies China','秦统一六国','The Qin state unifies the warring states under Qin Shi Huang.','秦始皇统一六国，建立秦朝。','governance'],
+  [-44,'Assassination of Julius Caesar','凯撒遇刺','Julius Caesar is assassinated in Rome.','尤利乌斯·凯撒在罗马遇刺。','conflict'],
+  [105,'Papermaking improvements','造纸术改进','Cai Lun is traditionally credited with improvements to papermaking.','传统记载蔡伦改进造纸工艺。','technology'],
+  [313,'Edict of Milan','米兰敕令','Roman emperors proclaim religious toleration for Christianity.','罗马皇帝颁布有关基督教信仰自由的敕令。','governance'],
+  [476,'Fall of Western Roman Empire','西罗马帝国灭亡','Romulus Augustulus is deposed; a conventional marker for the fall.','罗慕路斯·奥古斯都鲁斯被废黜，通常视为西罗马帝国终结。','governance'],
+  [618,'Tang dynasty begins','唐朝建立','The Tang dynasty is founded in China.','唐朝建立。','governance'],
+  [800,'Charlemagne crowned','查理曼加冕','Charlemagne is crowned emperor in Rome.','查理曼在罗马加冕为皇帝。','governance'],
+  [960,'Song dynasty begins','宋朝建立','The Song dynasty is founded in China.','宋朝建立。','governance'],
+  [1066,'Norman Conquest','诺曼征服','William of Normandy defeats Harold II at Hastings.','诺曼底的威廉在黑斯廷斯战役中击败哈罗德二世。','conflict'],
+  [1206,'Mongol Empire founded','蒙古帝国建立','Temüjin is proclaimed Genghis Khan at a Mongol assembly.','铁木真被推举为成吉思汗，蒙古帝国兴起。','governance'],
+  [1271,'Yuan dynasty proclaimed','元朝国号确立','Kublai Khan formally establishes the Yuan dynastic name.','忽必烈正式建国号为元。','governance'],
+  [1347,'Black Death spreads','黑死病蔓延','The Black Death reaches Mediterranean Europe.','黑死病传播至地中海沿岸的欧洲地区。','society'],
+  [1453,'Fall of Constantinople','君士坦丁堡陷落','Ottoman forces capture Constantinople.','奥斯曼军队攻占君士坦丁堡。','conflict'],
+  [1492,'Columbus reaches the Caribbean','哥伦布抵达加勒比地区','Christopher Columbus’s first Atlantic voyage reaches the Caribbean.','哥伦布首次跨大西洋航行抵达加勒比海地区。','exploration'],
+  [1517,'Protestant Reformation','宗教改革','Martin Luther circulates his Ninety-five Theses.','马丁·路德提出《九十五条论纲》。','culture'],
+  [1609,'Galileo observes the sky','伽利略天文观测','Galileo begins telescopic astronomical observations.','伽利略开始进行望远镜天文观测。','science'],
+  [1648,'Peace of Westphalia','威斯特伐利亚和约','Treaties help end the Thirty Years’ War in Europe.','一系列条约促成欧洲三十年战争结束。','governance'],
+  [1687,'Newton publishes Principia','牛顿发表《原理》','Isaac Newton publishes Philosophiæ Naturalis Principia Mathematica.','牛顿出版《自然哲学的数学原理》。','science'],
+  [1776,'US Declaration of Independence','美国《独立宣言》','The Declaration of Independence is adopted by the Continental Congress.','大陆会议通过《独立宣言》。','governance'],
+  [1789,'French Revolution','法国大革命','The French Revolution begins.','法国大革命爆发。','governance'],
+  [1804,'Napoleon becomes emperor','拿破仑称帝','Napoleon crowns himself Emperor of the French.','拿破仑加冕为法兰西人的皇帝。','governance'],
+  [1859,'On the Origin of Species','《物种起源》出版','Charles Darwin publishes On the Origin of Species.','达尔文出版《物种起源》。','science'],
+  [1861,'American Civil War','美国内战','The American Civil War begins.','美国内战爆发。','conflict'],
+  [1914,'First World War','第一次世界大战','The First World War begins.','第一次世界大战爆发。','conflict'],
+  [1917,'Russian Revolution','俄国革命','Revolutions transform the Russian state.','俄国革命改变其国家政权。','governance'],
+  [1939,'Second World War','第二次世界大战','The Second World War begins in Europe.','第二次世界大战在欧洲爆发。','conflict'],
+  [1945,'World War II ends · United Nations','二战结束与联合国成立','The Second World War ends; the United Nations is established.','第二次世界大战结束，联合国成立。','governance'],
+  [1949,'People’s Republic of China founded','中华人民共和国成立','The People’s Republic of China is proclaimed.','中华人民共和国宣告成立。','governance'],
+  [1957,'Sputnik 1','斯普特尼克一号','The Soviet Union launches the first artificial Earth satellite.','苏联发射第一颗人造地球卫星。','technology'],
+  [1969,'Apollo 11 Moon landing','阿波罗11号登月','Humans first land on the Moon.','人类首次登上月球。','exploration'],
+  [1989,'Fall of Berlin Wall','柏林墙倒塌','The Berlin Wall is opened amid political upheaval.','柏林墙在政治变革中开放。','governance'],
+  [1991,'Dissolution of the Soviet Union','苏联解体','The Soviet Union ceases to exist.','苏维埃社会主义共和国联盟解体。','governance'],
+  [2001,'September 11 attacks','九一一事件','Coordinated terrorist attacks take place in the United States.','美国发生九一一恐怖袭击事件。','conflict'],
+  [2008,'Global financial crisis','全球金融危机','A major financial crisis spreads through global markets.','重大金融危机冲击全球市场。','society'],
+  [2012,'Higgs boson discovery','希格斯玻色子发现','CERN collaborations announce discovery of a Higgs-like boson.','欧洲核子研究中心实验合作组宣布发现类希格斯玻色子。','science'],
+  [2020,'COVID-19 pandemic','新冠疫情','The WHO characterizes COVID-19 as a pandemic.','世界卫生组织宣布新冠疫情构成全球大流行。','society'],
+  [2022,'Webb telescope first images','韦布望远镜首批图像','The James Webb Space Telescope releases its first full-color science images.','詹姆斯·韦布空间望远镜发布首批全彩科学图像。','science'],
+].map(([year,en,zh,descriptionEn,descriptionZh,category],index)=>({id:`real-${index}`,year,en,zh,descriptionEn,descriptionZh,category,origin:'recorded',source:'Baseline record'}));
+export const EXAMPLES=[
+ {en:'What if Constantinople had not fallen in 1453?',zh:'如果1453年君士坦丁堡没有陷落？',year:1453},
+ {en:'In 1234, an extraterrestrial fleet arrives on Earth.',zh:'公元1234年，一支外星舰队抵达地球。',year:1234},
+ {en:'What if the speed of light were 1% lower from 1687 onward?',zh:'如果从1687年开始光速降低1%？',year:1687},
+ {en:'What if the Apollo 11 mission failed in 1969?',zh:'如果1969年阿波罗11号任务失败？',year:1969},
+];
+export function displayYear(y,lang='en'){const n=Math.trunc(Number(y));if(!Number.isFinite(n))return '—'; if(n<0)return lang==='zh'?`公元前${Math.abs(n)}年`:`${Math.abs(n).toLocaleString('en-US')} BCE`;return lang==='zh'?`公元${n}年`:`${n.toLocaleString('en-US')} CE`;}
+export function validYear(v){return Number.isInteger(v)&&v>=FIRST_YEAR&&v<=LAST_YEAR&&v!==0;}
+export function eventLabel(event,lang='en'){return lang==='zh'?(event.zh||event.title||event.en):(event.en||event.title||event.zh);}
+export const PHYSICAL_CONSTANTS = ['speed of light','gravitational constant','Planck constant','fine-structure constant','electron mass','proton mass','elementary charge','cosmological constant','光速','引力常数','普朗克常数','精细结构常数','电子质量','质子质量','基本电荷','宇宙学常数'];
