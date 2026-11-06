@@ -7,7 +7,7 @@ export class WorldCanvas{
   this.year=1680;this.zoom=.36;this.vertical=0;this.drag=null;this.hit=[];this.branches=[];this.active=null;this.lang='en';this.pointers=new Map();this.pinching=null;this.hover=null;this.width=1;this.height=1;this.dpr=1;this._raf=0;
   this.resizeObserver=new ResizeObserver(()=>this.resize());this.resizeObserver.observe(element);
   element.addEventListener('pointerdown',e=>this.pointerDown(e));element.addEventListener('pointermove',e=>this.pointerMove(e));element.addEventListener('pointerup',e=>this.pointerUp(e));element.addEventListener('pointercancel',e=>this.pointerUp(e));
-  element.addEventListener('wheel',e=>this.wheel(e),{passive:false});element.addEventListener('dblclick',e=>{const item=this.nearest(e.offsetX,e.offsetY);if(item?.event)this.focus(item.event.year,Math.max(.38,this.zoom));});
+  element.addEventListener('wheel',e=>this.wheel(e),{passive:false});element.addEventListener('dblclick',e=>{const item=this.nearest(e.offsetX,e.offsetY);if(item?.cluster)this.zoomCluster(item);else if(item?.event)this.focus(item.event.year,Math.max(.38,this.zoom));});
   this.resize();
  }
  dispose(){this.resizeObserver.disconnect();cancelAnimationFrame(this._raf)}
@@ -22,11 +22,12 @@ export class WorldCanvas{
  fit(){this.zoom=clamp((this.width-160)/(LAST_YEAR-FIRST_YEAR),.025,12);this.year=(FIRST_YEAR+LAST_YEAR)/2;this.vertical=0;this.invalidate();this.onYear(this.year)}
  zoomAt(factor,x=this.width/2){const before=this.at(x);this.zoom=clamp(this.zoom*factor,.025,12);this.year=before-(x-this.width*.54)/this.zoom;this.invalidate();this.onYear(this.year)}
  nearest(x,y){let closest=null,best=22;for(const h of this.hit){const d=Math.hypot(h.x-x,h.y-y);if(d<best){closest=h;best=d}}return closest}
+ zoomCluster(item){const events=item?.cluster;if(!events?.length)return;const from=events[0].year,to=events.at(-1).year;if(this.zoom>=11.99){this.onEvent(events[0],item.branchId);return}this.focus(Math.round((from+to)/2),Math.max(this.zoom*2.8,Math.min(12,72/Math.max(to-from,1))))}
  pointerDown(e){if(e.button!==0&&e.pointerType==='mouse')return;this.el.setPointerCapture?.(e.pointerId);this.pointers.set(e.pointerId,{x:e.offsetX,y:e.offsetY});if(this.pointers.size===2){const p=[...this.pointers.values()];this.pinching={distance:Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y),zoom:this.zoom};this.drag=null;return}this.drag={x:e.offsetX,y:e.offsetY,year:this.year,vertical:this.vertical,moved:false};this.el.style.cursor='grabbing'}
  pointerMove(e){if(this.pointers.has(e.pointerId))this.pointers.set(e.pointerId,{x:e.offsetX,y:e.offsetY});if(this.pointers.size>=2&&this.pinching){const p=[...this.pointers.values()],d=Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y);const mid=(p[0].x+p[1].x)/2;this.zoomAt((this.pinching.zoom*clamp(d/Math.max(this.pinching.distance,1),.25,4))/this.zoom,mid);return}
- if(this.drag){const dx=e.offsetX-this.drag.x,dy=e.offsetY-this.drag.y;if(Math.hypot(dx,dy)>5)this.drag.moved=true;this.year=this.drag.year-dx/this.zoom;this.vertical=clamp(this.drag.vertical+dy,-900,900);this.invalidate();this.onYear(this.year)}else{const item=this.nearest(e.offsetX,e.offsetY);this.hover=item;this.el.style.cursor=item?'pointer':'grab';this.invalidate();const tip=document.getElementById('canvas-tooltip');if(tip){if(item){tip.hidden=false;tip.textContent=item.event?`${displayYear(item.event.year,this.lang)} · ${eventLabel(item.event,this.lang)}`:(this.lang==='zh'?'选择世界线':'Select worldline');tip.style.left=`${clamp(e.offsetX+18,8,this.width-230)}px`;tip.style.top=`${clamp(e.offsetY-20,8,this.height-54)}px`}else tip.hidden=true}}
+ if(this.drag){const dx=e.offsetX-this.drag.x,dy=e.offsetY-this.drag.y;if(Math.hypot(dx,dy)>5)this.drag.moved=true;this.year=this.drag.year-dx/this.zoom;this.vertical=clamp(this.drag.vertical+dy,-900,900);this.invalidate();this.onYear(this.year)}else{const item=this.nearest(e.offsetX,e.offsetY);this.hover=item;this.el.style.cursor=item?'pointer':'grab';this.invalidate();const tip=document.getElementById('canvas-tooltip');if(tip){if(item){tip.hidden=false;tip.textContent=item.cluster?(item.cluster.length+' '+(this.lang==='zh'?'个事件 · 点击放大':'events · click to zoom')):item.event?`${displayYear(item.event.year,this.lang)} · ${eventLabel(item.event,this.lang)}`:(this.lang==='zh'?'选择世界线':'Select worldline');tip.style.left=`${clamp(e.offsetX+18,8,this.width-230)}px`;tip.style.top=`${clamp(e.offsetY-20,8,this.height-54)}px`}else tip.hidden=true}}
  }
- pointerUp(e){this.pointers.delete(e.pointerId);const prior=this.drag;this.drag=null;if(this.pointers.size<2)this.pinching=null;this.el.style.cursor='grab';if(prior&&!prior.moved){const hit=this.nearest(e.offsetX,e.offsetY);if(hit?.event)this.onEvent(hit.event,hit.branchId);else if(hit?.branchId)this.onBranch(hit.branchId)}else if(prior)this.onYear(this.year)}
+ pointerUp(e){this.pointers.delete(e.pointerId);const prior=this.drag;this.drag=null;if(this.pointers.size<2)this.pinching=null;this.el.style.cursor='grab';if(prior&&!prior.moved){const hit=this.nearest(e.offsetX,e.offsetY);if(hit?.cluster)this.zoomCluster(hit);else if(hit?.event)this.onEvent(hit.event,hit.branchId);else if(hit?.branchId)this.onBranch(hit.branchId)}else if(prior)this.onYear(this.year)}
  wheel(e){e.preventDefault();const factor=Math.exp(-e.deltaY*.0012);this.zoomAt(factor,e.offsetX)}
  draw(){const ctx=this.ctx,w=this.width,h=this.height;if(!w||!h)return;
   ctx.clearRect(0,0,w,h);ctx.fillStyle='#fafaf9';ctx.fillRect(0,0,w,h);
@@ -49,21 +50,41 @@ export class WorldCanvas{
  ctx.fillStyle=muted?'#b8b8b7':'#21211f';ctx.beginPath();ctx.arc(clamp(x1,-100,this.width+100),y,3,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.arc(clamp(x2,-100,this.width+100),y,4,0,Math.PI*2);ctx.fill();
  if(x1<this.width-90&&x2>0){ctx.font='600 10px system-ui';ctx.letterSpacing='1px';ctx.textAlign='left';ctx.fillStyle=muted?'#aaa':'#414141';ctx.fillText(this.lang==='zh'?'现实世界线 / 001':'REALITY / 001',clamp(x1+22,16,this.width-150),y-23)}
  }
- nodes(events,y,branchId,unmuted){const ctx=this.ctx;const visible=events.filter(e=>this.x(e.year)>-60&&this.x(e.year)<this.width+60).sort((a,b)=>a.year-b.year);
+
+ nodes(events,y,branchId,unmuted){
+  const ctx=this.ctx;
+  const visible=events.filter(e=>this.x(e.year)>-25&&this.x(e.year)<this.width+25).sort((a,b)=>a.year-b.year);
+  const clusters=[];
+  // Coalesce nearby timestamps at this zoom. Click a group to inspect its period.
+  for(const e of visible){
+   const x=this.x(e.year),last=clusters.at(-1);
+   if(last&&x-last.firstX<18&&this.zoom<11.99){last.events.push(e);last.xSum+=x}
+   else clusters.push({events:[e],firstX:x,xSum:x});
+  }
   const rows=[{dy:-53,right:-999},{dy:-103,right:-999},{dy:-153,right:-999}];
-  for(const e of visible){const x=this.x(e.year),current=this.hover?.event?.id===e.id,isActive=unmuted||branchId===this.active,r=current?6:4;
-   ctx.fillStyle='#fafaf9';ctx.strokeStyle=isActive?'#151515':'#a5a5a5';ctx.lineWidth=current?2.8:2;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();ctx.stroke();
-   ctx.beginPath();ctx.arc(x,y,1.2,0,Math.PI*2);ctx.fillStyle=isActive?'#1d1d1d':'#bcbcbc';ctx.fill();this.hit.push({x,y,event:e,branchId});
+  for(const group of clusters){
+   const x=group.xSum/group.events.length,e=group.events[0],grouped=group.events.length>1;
+   const current=grouped?this.hover?.cluster===group.events:this.hover?.event?.id===e.id;
+   const isActive=unmuted||branchId===this.active;
+   const radius=grouped?5.6:current?6:4;
+   ctx.fillStyle='#fafaf9';ctx.strokeStyle=isActive?'#151515':'#aaa';ctx.lineWidth=current?2.7:grouped?2.3:1.9;
+   ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);ctx.fill();ctx.stroke();
+   if(!grouped){ctx.beginPath();ctx.arc(x,y,1.2,0,Math.PI*2);ctx.fillStyle=isActive?'#1d1d1d':'#bcbcbc';ctx.fill()}
+   this.hit.push(grouped?{x,y,cluster:group.events,branchId}:{x,y,event:e,branchId});
+   if(grouped){
+    if(group.events.length>2){ctx.textAlign='center';ctx.textBaseline='bottom';ctx.font='600 9px system-ui';ctx.fillStyle=isActive?'#656563':'#b4b4b1';ctx.fillText(String(group.events.length),x,y-11)}
+    continue;
+   }
    if(this.zoom<.14||x<12||x>this.width-12)continue;
-   const title=eventLabel(e,this.lang);const maxLength=this.zoom<.45?19:26;const shortened=title.length>maxLength?title.slice(0,maxLength-1)+'…':title;
-   ctx.font='500 10.5px system-ui';let width=Math.min(170,Math.max(66,ctx.measureText(shortened).width+5));
+   const title=eventLabel(e,this.lang),maxLength=this.zoom<.45?19:26;
+   const shortened=title.length>maxLength?title.slice(0,maxLength-1)+'…':title;
+   ctx.font='500 10.5px system-ui';const width=Math.min(170,Math.max(66,ctx.measureText(shortened).width+5));
    const left=clamp(x+10,12,Math.max(12,this.width-width-12));
-   // The three label tracks have independent horizontal occupancy; dots remain visible at all scales.
    const row=rows.find(track=>y+track.dy>150&&y+track.dy<this.height-130&&left>track.right+16);
    if(!row)continue;
    const top=y+row.dy;
    ctx.strokeStyle=isActive?'#c4c4c1':'#e0e0dd';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x,y-8);ctx.lineTo(x,top+14);ctx.lineTo(left-2,top+14);ctx.stroke();
-   ctx.textAlign='left';ctx.textBaseline='middle';ctx.fillStyle=isActive?'#40403c':'#9a9a96';ctx.font=`${current?'600':'500'} 10.5px system-ui`;ctx.fillText(shortened,left,top,width);
+   ctx.textAlign='left';ctx.textBaseline='middle';ctx.fillStyle=isActive?'#40403c':'#9a9a96';ctx.font=(current?'600':'500')+' 10.5px system-ui';ctx.fillText(shortened,left,top,width);
    ctx.font='9px system-ui';ctx.fillStyle=isActive?'#999994':'#c1c1bd';ctx.fillText(displayYear(e.year,this.lang),left,top+16,width);
    row.right=left+width;
   }
