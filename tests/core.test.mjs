@@ -46,3 +46,33 @@ test('model rejection leaves no worldline created',async()=>{
  globalThis.fetch=async()=>({ok:true,json:async()=>({choices:[{message:{content:JSON.stringify({valid:false,anchorYear:1234,reasonEn:'Not Earth-bound'})}}]})});
  try{await assert.rejects(()=>simulate({prompt:'Change unknown planet X',config:cfg}),/ANCHOR_INVALID/)}finally{globalThis.fetch=oldFetch}
 });
+test('DeepSeek one-click preset uses current official chat endpoint and never changes image configuration',async()=>{
+ const {withTextPreset,PROVIDERS,imageConfigured}=await import('../src/core.js');
+ const source=safeConfig({textEnabled:false,imageEnabled:true,imageProvider:'custom',imageEndpoint:'https://image.example.com/v1/images/generations',imageModel:'graphic-x',imageKey:'img-only-secret'});
+ const next=withTextPreset(source,'deepseek');
+ assert.equal(PROVIDERS.deepseek.model,'deepseek-flash');
+ assert.equal(next.endpoint,'https://api.deepseek.com/chat/completions');
+ assert.equal(next.model,'deepseek-flash');
+ assert.equal(next.textEnabled,true);
+ assert.equal(next.imageEndpoint,source.imageEndpoint);
+ assert.equal(next.imageKey,'img-only-secret');
+ assert.ok(imageConfigured(next));
+ assert.equal(withTextPreset(next,'deepseek','deepseek-v4-pro').model,'deepseek-v4-pro');
+});
+
+test('text-only mode ignores missing image API, and image-only keeps its own secret',async()=>{
+ const {imageConfigured,generateImage}=await import('../src/core.js');
+ const text=safeConfig({...cfg,textEnabled:true,imageEnabled:false,imageModel:'',imageKey:''});
+ assert.ok(configured(text));assert.ok(!imageConfigured(text));
+ const image=safeConfig({provider:'deepseek',endpoint:'',model:'',key:'',textEnabled:false,imageEnabled:true,imageProvider:'custom',imageEndpoint:'https://example.com/v1/images/generations',imageModel:'image-model',imageKey:'image-only-key'});
+ assert.ok(!configured(image));assert.ok(imageConfigured(image));
+ const prior=globalThis.fetch;let usedHeader='',usedModel='';
+ globalThis.fetch=async(_url,opts)=>{usedHeader=opts.headers.authorization;usedModel=JSON.parse(opts.body).model;return {ok:true,json:async()=>({data:[{b64_json:'ZmFrZQ=='}]})}};
+ try{const out=await generateImage({prompt:'A bridge',branch:null,config:image});assert.equal(usedHeader,'Bearer image-only-key');assert.equal(usedModel,'image-model');assert.match(out.data,/^data:image\/png;base64,/)}finally{globalThis.fetch=prior}
+});
+
+test('DeepSeek structured requests use JSON output and disable thinking to preserve token budget',async()=>{
+ const {callChat}=await import('../src/core.js');const prior=globalThis.fetch;let body;
+ globalThis.fetch=async(_url,opts)=>{body=JSON.parse(opts.body);return {ok:true,json:async()=>({choices:[{message:{content:'{"ok":true}'}}]})}};
+ try{const config=safeConfig({provider:'deepseek',endpoint:'https://api.deepseek.com/chat/completions',model:'deepseek-flash',key:'sample'});const result=await callChat(config,[{role:'user',content:'JSON only'}],{json:true});assert.deepEqual(result,{ok:true});assert.deepEqual(body.thinking,{type:'disabled'});assert.deepEqual(body.response_format,{type:'json_object'});}finally{globalThis.fetch=prior}
+});
