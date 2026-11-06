@@ -14,6 +14,18 @@
 
 ---
 
+<div align="center">
+  <img src="assets/preview-desktop.png" alt="Chronicle of Ages timeline and worldline workspace" width="100%" />
+  <br />
+  <sub>CHRONOLOGY / DESKTOP WORKSPACE</sub>
+</div>
+
+<details>
+<summary>Mobile interface</summary>
+<br />
+<div align="center"><img src="assets/preview-mobile.png" alt="Mobile timeline and worldline workspace" width="300" /></div>
+</details>
+
 ## Overview
 
 Chronicle of Ages is a browser-based environment for exploring Earth's recorded chronology and computing divergent historical worldlines. The original history remains immutable. New worlds are created by introducing dated changes; their derived events, technologies, people and institutions are recorded as editable local knowledge.
