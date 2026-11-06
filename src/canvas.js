@@ -4,7 +4,7 @@ const clamp=(n,lo,hi)=>Math.min(hi,Math.max(lo,n));
 export class WorldCanvas{
  constructor(element,{onEvent=()=>{},onBranch=()=>{},onYear=()=>{}}={}){
   this.el=element;this.ctx=element.getContext('2d');this.onEvent=onEvent;this.onBranch=onBranch;this.onYear=onYear;
-  this.year=1680;this.zoom=.36;this.vertical=0;this.drag=null;this.hit=[];this.branches=[];this.active=null;this.lang='en';this.pointers=new Map();this.pinching=null;this.hover=null;this.width=1;this.height=1;this.dpr=1;this._raf=0;
+  this.mobile=window.matchMedia('(max-width: 680px)').matches;this.year=this.mobile?1:1680;this.zoom=.36;this.vertical=0;this.drag=null;this.hit=[];this.branches=[];this.active=null;this.lang='en';this.pointers=new Map();this.pinching=null;this.hover=null;this.width=1;this.height=1;this.dpr=1;this._raf=0;
   this.resizeObserver=new ResizeObserver(()=>this.resize());this.resizeObserver.observe(element);
   element.addEventListener('pointerdown',e=>this.pointerDown(e));element.addEventListener('pointermove',e=>this.pointerMove(e));element.addEventListener('pointerup',e=>this.pointerUp(e));element.addEventListener('pointercancel',e=>this.pointerUp(e));
   element.addEventListener('wheel',e=>this.wheel(e),{passive:false});element.addEventListener('dblclick',e=>{const item=this.nearest(e.offsetX,e.offsetY);if(item?.cluster)this.zoomCluster(item);else if(item?.event)this.focus(item.event.year,Math.max(.38,this.zoom));});
@@ -14,13 +14,13 @@ export class WorldCanvas{
  setState(branches,active,lang){this.branches=branches||[];this.active=active;this.lang=lang;this.invalidate()}
  resize(){const r=this.el.getBoundingClientRect();if(!r.width||!r.height)return;this.width=r.width;this.height=r.height;this.dpr=Math.min(2.5,window.devicePixelRatio||1);this.el.width=Math.floor(r.width*this.dpr);this.el.height=Math.floor(r.height*this.dpr);this.ctx.setTransform(this.dpr,0,0,this.dpr,0,0);this.invalidate()}
  invalidate(){if(!this._raf)this._raf=requestAnimationFrame(()=>{this._raf=0;this.draw()})}
- x(y){return this.width*.54+(y-this.year)*this.zoom}
- at(x){return this.year+(x-this.width*.54)/this.zoom}
- baseY(){return this.height*.59+this.vertical}
+ x(y){return this.width*(this.mobile?.5:.54)+(y-this.year)*this.zoom}
+ at(x){return this.year+(x-this.width*(this.mobile?.5:.54))/this.zoom}
+ baseY(){return (this.mobile?(this.height-68)*.5:this.height*.59)+this.vertical}
  laneY(index){return this.baseY()-144-index*114}
  focus(year,zoom=this.zoom){if(Number.isFinite(year)){this.year=year;this.zoom=clamp(zoom,.025,12);this.vertical=0;this.invalidate();this.onYear(this.year)}}
  fit(){this.zoom=clamp((this.width-160)/(LAST_YEAR-FIRST_YEAR),.025,12);this.year=(FIRST_YEAR+LAST_YEAR)/2;this.vertical=0;this.invalidate();this.onYear(this.year)}
- zoomAt(factor,x=this.width/2){const before=this.at(x);this.zoom=clamp(this.zoom*factor,.025,12);this.year=before-(x-this.width*.54)/this.zoom;this.invalidate();this.onYear(this.year)}
+ zoomAt(factor,x=this.width/2){const before=this.at(x);this.zoom=clamp(this.zoom*factor,.025,12);this.year=before-(x-this.width*(this.mobile?.5:.54))/this.zoom;this.invalidate();this.onYear(this.year)}
  nearest(x,y){let closest=null,best=22;for(const h of this.hit){const d=Math.hypot(h.x-x,h.y-y);if(d<best){closest=h;best=d}}return closest}
  zoomCluster(item){const events=item?.cluster;if(!events?.length)return;const from=events[0].year,to=events.at(-1).year;if(this.zoom>=11.99){this.onEvent(events[0],item.branchId);return}this.focus(Math.round((from+to)/2),Math.max(this.zoom*2.8,Math.min(12,72/Math.max(to-from,1))))}
  pointerDown(e){if(e.button!==0&&e.pointerType==='mouse')return;this.el.setPointerCapture?.(e.pointerId);this.pointers.set(e.pointerId,{x:e.offsetX,y:e.offsetY});if(this.pointers.size===2){const p=[...this.pointers.values()];this.pinching={distance:Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y),zoom:this.zoom};this.drag=null;return}this.drag={x:e.offsetX,y:e.offsetY,year:this.year,vertical:this.vertical,moved:false};this.el.style.cursor='grabbing'}
@@ -42,7 +42,7 @@ export class WorldCanvas{
   let interval=[1,2,5,10,20,50,100,200,500,1000,2000].find(v=>v*this.zoom>=96)||2000;
   const start=Math.floor(this.at(0)/interval)*interval;
   ctx.font='10px "Inter",system-ui,sans-serif';ctx.textAlign='center';ctx.textBaseline='top';
-  for(let year=start;year<=this.at(w)+interval;year+=interval){const x=this.x(year);if(x<0||x>w)continue;ctx.strokeStyle='#e9e9e6';ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();ctx.fillStyle='#ababaa';ctx.fillText(displayYear(year,this.lang),x,Math.max(12,Math.min(this.baseY()+43,h-36)))}
+  for(let year=start;year<=this.at(w)+interval;year+=interval){const tickYear=year===0?1:year;const x=this.x(tickYear);if(x<0||x>w)continue;const eraOrigin=this.mobile&&year===0;ctx.strokeStyle=eraOrigin?'#b9b9b4':'#e9e9e6';ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();ctx.fillStyle=eraOrigin?'#41413d':'#ababaa';ctx.font=eraOrigin?'600 11px system-ui':'10px system-ui';ctx.fillText(displayYear(tickYear,this.lang),x,Math.max(12,Math.min(this.baseY()+43,h-36)))}
   ctx.setLineDash([]);
  }
  worldline(from,to,y,muted){const ctx=this.ctx,x1=this.x(from),x2=this.x(to);if(x2<0||x1>this.width)return;
