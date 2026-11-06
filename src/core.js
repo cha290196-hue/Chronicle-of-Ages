@@ -70,7 +70,7 @@ export async function callChat(config,messages,{signal,json=false,temperature=.3
  if(!validEndpoint(c.endpoint))throw new Error('INVALID_ENDPOINT');
  const body={model:c.model,messages,temperature,max_tokens:maxTokens,stream:false};
  if(json)body.response_format={type:'json_object'};
- if(c.provider==='deepseek'){body.thinking={type:json?'disabled':'enabled'};if(!json)body.max_tokens=Math.max(maxTokens,8192)}
+ if(c.provider==='deepseek'){const think=!json&&maxTokens>256;body.thinking={type:think?'enabled':'disabled'};if(think)body.max_tokens=Math.max(maxTokens,8192)}
  const doCall=async(format)=>{
   const options={method:'POST',headers:{'content-type':'application/json','authorization':`Bearer ${c.key}`},body:JSON.stringify(format?body:{...body,response_format:undefined}),signal};
   if(c.provider==='openrouter')options.headers['HTTP-Referer']=location.origin;
