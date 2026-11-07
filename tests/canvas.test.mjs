@@ -91,6 +91,8 @@ test('line segments are not click targets; only 2026 tips choose a world',()=>{
  assert.equal(view.nearest(299,110).branchId,'c');
 });
 test('touching a branch endpoint selects it but event nodes only inspect',()=>{
+ const previous=globalThis.document;globalThis.document={getElementById:()=>null};
+ try{
  const view=Object.create(WorldCanvas.prototype);
  let switches=[],inspected=[];
  Object.assign(view,{mobile:true,hover:null,pointers:new Map(),pinching:null,drag:{moved:false},el:{style:{}},invalidate(){},onYear(){},onBranch:id=>switches.push(id),onEvent:(e)=>inspected.push(e.id),nearest:()=>({kind:'tip',branchId:'c'})});
@@ -98,6 +100,7 @@ test('touching a branch endpoint selects it but event nodes only inspect',()=>{
  assert.deepEqual(switches,['c']);
  view.drag={moved:false};view.nearest=()=>({event:{id:'e'},branchId:'b'});view.pointerUp({pointerId:2,offsetX:40,offsetY:40});
  assert.deepEqual(inspected,['e']);assert.equal(switches.length,1);
+ }finally{globalThis.document=previous}
 });
 test('gradual worldlines use a dotted bend while point forks stay solid',()=>{
  const calls=[],ctx=new Proxy({}, {get(_t,key){if(key==='setLineDash')return v=>calls.push([...v]);if(key==='save'||key==='restore'||key==='beginPath'||key==='moveTo'||key==='bezierCurveTo'||key==='lineTo'||key==='stroke'||key==='rect'||key==='clip')return()=>{};return undefined},set(){return true}});
