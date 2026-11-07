@@ -18,7 +18,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Run computation tests
+      - name: Run tests
         run: node --test tests/*.mjs
   deploy:
     needs: test
@@ -28,10 +28,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Prepare versioned Pages artifact
+        run: node scripts/prepare-pages.mjs "$RUNNER_TEMP/chronicle-pages" "$GITHUB_SHA"
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:
-          path: .
+          path: ${{ runner.temp }}/chronicle-pages
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
