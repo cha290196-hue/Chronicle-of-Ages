@@ -2,7 +2,7 @@ import {BASELINE,FIRST_YEAR,LAST_YEAR,displayYear,eventLabel} from './data.js';
 import {EXAMPLES} from './examples.js';
 import {t} from './i18n.js?v=20261107-world-database';
 import {WorldCanvas} from './canvas.js?v=20261107-tooltipfix';
-import {DEFAULT_CONFIG,PROVIDERS,IMAGE_PROVIDERS,withTextPreset,safeConfig,configured,imageConfigured,validEndpoint,makeId,simulate,askCore,generateImage,explainError,worldEvents,worldFacts,sanitizeWorldline,dialogueEntries,sanitizeChats,callChat} from './core.js?v=20261107-world-database';
+import {DEFAULT_CONFIG,PROVIDERS,IMAGE_PROVIDERS,withTextPreset,safeConfig,configured,imageConfigured,validEndpoint,makeId,simulate,askCore,generateImage,explainError,worldEvents,worldFacts,sanitizeWorldline,dialogueEntries,sanitizeChats,callChat} from './core.js?v=20261107-world-database-2';
 
 const $=id=>document.getElementById(id);
 const h=x=>String(x??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));

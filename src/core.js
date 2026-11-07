@@ -217,7 +217,12 @@ export async function simulate({prompt,branches=[],parentId=null,config,lang='en
  branch.events.sort((a,b)=>a.year-b.year);
  return branch;
 }
-function terms(text){return (String(text).toLowerCase().match(/[a-z0-9]{3,}|[\u3400-\u9fff]{2,}/g)||[]).slice(0,25)}
+function terms(text){
+ const words=String(text).toLowerCase().match(/[a-z0-9]{3,}|[\u3400-\u9fff]{2,}/g)||[],out=[];
+ const common=new Set(['什么','如何','这个','世界','是否','为什么','请问','哪些','情况','怎么']);
+ for(const word of words){if(/[\u3400-\u9fff]/.test(word)){if(word.length<=8&&!common.has(word))out.push(word);for(let i=0;i<word.length-1;i++){const part=word.slice(i,i+2);if(!common.has(part))out.push(part)}}else out.push(word)}
+ return [...new Set(out)].slice(0,60)
+}
 function rank(query,item){const hay=JSON.stringify(item).toLowerCase();return terms(query).reduce((score,term)=>score+(hay.includes(term)?term.length:0),0)}
 export function retrieveWorld(branches,branch,query,limit=24){
  const events=worldEvents(branches,branch),facts=worldFacts(branches,branch);

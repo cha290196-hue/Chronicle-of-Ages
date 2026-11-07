@@ -210,3 +210,8 @@ html[data-theme="dark"] .backdrop{background:rgba(235,235,235,.36)}
 .database-tabs button{border:0;border-bottom:2px solid transparent;background:transparent;padding:10px 4px;color:#999995;font-size:10px;font-weight:600;line-height:1.4;white-space:normal;text-align:left}
 .database-tabs button.active{color:#242422;border-bottom-color:#242422}
 .database-tabs button span{margin-left:4px;font-weight:400;color:#999995}
+
+@media (min-width:851px){
+ .workspace.panel-open .stage-top{right:215px}
+ .workspace.panel-open .stage-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+}
