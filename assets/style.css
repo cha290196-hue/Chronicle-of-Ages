@@ -159,3 +159,6 @@
  .rail button .nav-short-label{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-weight:600;font-size:9px;line-height:1.15;letter-spacing:-.01em;white-space:nowrap;min-width:0;text-align:center}
 }
 @media (max-width:355px){.rail button .nav-short-label{font-size:8px}}
+
+/* Tooltip is for mouse hover. Touch users open event nodes directly. */
+@media (hover: none), (pointer: coarse){.hover-tooltip{display:none!important}}

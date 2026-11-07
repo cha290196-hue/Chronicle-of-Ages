@@ -1,6 +1,6 @@
 import {BASELINE,EXAMPLES,FIRST_YEAR,LAST_YEAR,displayYear,eventLabel,validYear} from './data.js';
 import {t} from './i18n.js';
-import {WorldCanvas} from './canvas.js?v=20261107-first-year';
+import {WorldCanvas} from './canvas.js?v=20261107-tooltipfix';
 import {DEFAULT_CONFIG,PROVIDERS,IMAGE_PROVIDERS,withTextPreset,safeConfig,configured,imageConfigured,validEndpoint,makeId,simulate,askCore,generateImage,explainError,worldEvents,worldFacts,sanitizeWorldline,callChat} from './core.js';
 
 const $=id=>document.getElementById(id);
