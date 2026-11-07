@@ -59,7 +59,7 @@ function mount(){
 function render(){document.documentElement.lang=state.lang;
  $('logo-sub').textContent=tr('subtitle');$('breadcrumb').innerHTML=`${h(tr('reference'))} &nbsp;/&nbsp; <strong>${h(worldTitle(active()))}</strong>`;
  $('export-label').textContent=tr('share');$('fullscreen-label').textContent=document.fullscreenElement?tr('exitFullscreen'):tr('fullscreen');$('fullscreen-button').title=document.fullscreenElement?tr('exitFullscreen'):tr('fullscreen');$('fullscreen-button').setAttribute('aria-label',document.fullscreenElement?tr('exitFullscreen'):tr('fullscreen'));$('settings-label').textContent=tr('settings');$('lang-en').classList.toggle('active',state.lang==='en');$('lang-zh').classList.toggle('active',state.lang==='zh');
- const b=active();$('stage-eyebrow').textContent=b?tr('active'):tr('record');$('stage-title').textContent=b?worldTitle(b):tr('headline');$('stage-sub').textContent=b?tr('branchInput'):tr('headlineSub');
+ const b=active();$('stage-eyebrow').classList.toggle('active-world',!!b);$('stage-eyebrow').textContent=b?tr('active'):tr('record');$('stage-title').textContent=b?worldTitle(b):tr('headline');$('stage-sub').textContent=b?tr('branchInput'):tr('headlineSub');
  $('coord-index').textContent=b?tr('worldline')+' / '+String(state.branches.indexOf(b)+2).padStart(3,'0'):tr('frame');$('coord-count').textContent=displayYear(Math.trunc(Math.max(FIRST_YEAR,Math.min(LAST_YEAR,canvas.year))),state.lang);$('coord-caption').textContent=tr('timeLimit');$('stage-bottomlabel').textContent=tr('zoom');
  renderNav();renderComposer();renderPanel();renderOverlay();canvas.setState(state.branches,state.activeId,state.lang);
 }

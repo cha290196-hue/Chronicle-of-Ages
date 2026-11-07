@@ -162,3 +162,8 @@
 
 /* Tooltip is for mouse hover. Touch users open event nodes directly. */
 @media (hover: none), (pointer: coarse){.hover-tooltip{display:none!important}}
+
+@media (min-width:851px){
+ .stage-top{top:20px}
+ .stage-top .eyebrow.active-world{display:none}
+}
