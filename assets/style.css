@@ -183,3 +183,5 @@
 html[data-theme="dark"]{background:#141414}
 html[data-theme="dark"] #app{filter:invert(.92) hue-rotate(180deg)}
 html[data-theme="dark"] #app img{filter:invert(1) hue-rotate(180deg)}
+html[data-theme="dark"] .mobile-scrim{background:rgba(235,235,235,.30)}
+html[data-theme="dark"] .backdrop{background:rgba(235,235,235,.36)}
