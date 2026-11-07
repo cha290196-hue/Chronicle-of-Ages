@@ -22,21 +22,84 @@ export class WorldCanvas{
  focus(year,zoom=this.zoom){if(Number.isFinite(year)){this.year=year;this.zoom=clamp(zoom,.025,12);this.vertical=0;this.invalidate();this.onYear(this.year)}}
  fit(){this.zoom=clamp((this.width-160)/(LAST_YEAR-FIRST_YEAR),.025,12);this.year=(FIRST_YEAR+LAST_YEAR)/2;this.vertical=0;this.invalidate();this.onYear(this.year)}
  zoomAt(factor,x=this.width/2){const before=this.at(x);this.zoom=clamp(this.zoom*factor,.025,12);this.year=before-(x-this.width*(this.mobile?.5:.54))/this.zoom;this.invalidate();this.onYear(this.year)}
- nearest(x,y){let closest=null,best=22;for(const h of this.hit){const d=Math.hypot(h.x-x,h.y-y);if(d<best){closest=h;best=d}}return closest}
+ nearest(x,y){
+ let tip=null,tipDist=this.mobile?24:17;
+ for(const h of this.hit){if(h.kind!=='tip')continue;const d=Math.hypot(h.x-x,h.y-y);if(d<tipDist){tip=h;tipDist=d}}
+ if(tip)return tip;
+ let closest=null,best=this.mobile?19:18;
+ for(const h of this.hit){if(h.kind==='tip')continue;const d=Math.hypot(h.x-x,h.y-y);if(d<best){closest=h;best=d}}
+ return closest
+}
+selectedLineage(){
+ if(!this.active)return [];
+ const byId=new Map(this.branches.map(b=>[b.id,b])),chain=[],seen=new Set();
+ let b=byId.get(this.active);
+ while(b&&!seen.has(b.id)){chain.unshift(b);seen.add(b.id);b=byId.get(b.parentId)}
+ return chain
+}
+nodeActive(branchId,year){
+ if(!this.active)return branchId==null;
+ const lineage=this._lineage||this.selectedLineage();
+ if(!lineage.length)return branchId==null;
+ if(branchId==null)return year<lineage[0].anchorYear;
+ const i=lineage.findIndex(b=>b.id===branchId);
+ return i>=0&&year>=lineage[i].anchorYear&&year<(lineage[i+1]?.anchorYear??LAST_YEAR+1)
+}
  zoomCluster(item){const events=item?.cluster;if(!events?.length)return;const from=events[0].year,to=events.at(-1).year;if(this.zoom>=11.99){this.onEvent(events[0],item.branchId);return}this.focus(Math.round((from+to)/2),Math.max(this.zoom*2.8,Math.min(12,72/Math.max(to-from,1))))}
  pointerDown(e){if(e.button!==0&&e.pointerType==='mouse')return;this.clearTooltip();this.el.setPointerCapture?.(e.pointerId);this.pointers.set(e.pointerId,{x:e.offsetX,y:e.offsetY});if(this.pointers.size===2){const p=[...this.pointers.values()];this.pinching={distance:Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y),zoom:this.zoom};this.drag=null;return}this.drag={x:e.offsetX,y:e.offsetY,year:this.year,vertical:this.vertical,moved:false};this.el.style.cursor='grabbing'}
  pointerMove(e){if(this.pointers.has(e.pointerId))this.pointers.set(e.pointerId,{x:e.offsetX,y:e.offsetY});if(this.pointers.size>=2&&this.pinching){const p=[...this.pointers.values()],d=Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y);const mid=(p[0].x+p[1].x)/2;this.zoomAt((this.pinching.zoom*clamp(d/Math.max(this.pinching.distance,1),.25,4))/this.zoom,mid);return}
- if(this.drag){const dx=e.offsetX-this.drag.x,dy=e.offsetY-this.drag.y;if(Math.hypot(dx,dy)>5)this.drag.moved=true;this.year=this.drag.year-dx/this.zoom;this.vertical=clamp(this.drag.vertical+dy,-900,900);this.invalidate();this.onYear(this.year)}else{if(this.mobile||e.pointerType==='touch'){this.clearTooltip();return}const item=this.nearest(e.offsetX,e.offsetY);this.hover=item;this.el.style.cursor=item?'pointer':'grab';this.invalidate();const tip=document.getElementById('canvas-tooltip');if(tip){if(item){tip.hidden=false;tip.textContent=item.cluster?(item.cluster.length+' '+(this.lang==='zh'?'个事件 · 点击放大':'events · click to zoom')):item.event?`${displayYear(item.event.year,this.lang)} · ${eventLabel(item.event,this.lang)}`:(this.lang==='zh'?'选择世界线':'Select worldline');tip.style.left=`${clamp(e.offsetX+18,8,this.width-230)}px`;tip.style.top=`${clamp(e.offsetY-20,8,this.height-54)}px`}else tip.hidden=true}}
+ if(this.drag){const dx=e.offsetX-this.drag.x,dy=e.offsetY-this.drag.y;if(Math.hypot(dx,dy)>5)this.drag.moved=true;this.year=this.drag.year-dx/this.zoom;this.vertical=clamp(this.drag.vertical+dy,-900,900);this.invalidate();this.onYear(this.year)}else{if(this.mobile||e.pointerType==='touch'){this.clearTooltip();return}const item=this.nearest(e.offsetX,e.offsetY);this.hover=item;this.el.style.cursor=item?'pointer':'grab';this.invalidate();const tip=document.getElementById('canvas-tooltip');if(tip){if(item){tip.hidden=false;tip.textContent=item.kind==='tip'?(this.lang==='zh'?'切换世界线':'Select worldline'):item.cluster?(item.cluster.length+' '+(this.lang==='zh'?'个事件 · 点击放大':'events · click to zoom')):item.event?`${displayYear(item.event.year,this.lang)} · ${eventLabel(item.event,this.lang)}`:(this.lang==='zh'?'选择世界线':'Select worldline');tip.style.left=`${clamp(e.offsetX+18,8,this.width-230)}px`;tip.style.top=`${clamp(e.offsetY-20,8,this.height-54)}px`}else tip.hidden=true}}
  }
- pointerUp(e,cancelled=false){this.clearTooltip();this.pointers.delete(e.pointerId);const prior=this.drag;this.drag=null;if(this.pointers.size<2)this.pinching=null;this.el.style.cursor='grab';if(!cancelled&&prior&&!prior.moved){const hit=this.nearest(e.offsetX,e.offsetY);if(hit?.cluster)this.zoomCluster(hit);else if(hit?.event)this.onEvent(hit.event,hit.branchId);else if(hit?.branchId)this.onBranch(hit.branchId)}else if(prior)this.onYear(this.year)}
+ pointerUp(e,cancelled=false){this.clearTooltip();this.pointers.delete(e.pointerId);const prior=this.drag;this.drag=null;if(this.pointers.size<2)this.pinching=null;this.el.style.cursor='grab';if(!cancelled&&prior&&!prior.moved){const hit=this.nearest(e.offsetX,e.offsetY);if(hit?.kind==='tip')this.onBranch(hit.branchId??null);else if(hit?.cluster)this.zoomCluster(hit);else if(hit?.event)this.onEvent(hit.event,hit.branchId)}else if(prior)this.onYear(this.year)}
  wheel(e){this.clearTooltip();e.preventDefault();const factor=Math.exp(-e.deltaY*.0012);this.zoomAt(factor,e.offsetX)}
- draw(){const ctx=this.ctx,w=this.width,h=this.height;if(!w||!h)return;
-  ctx.clearRect(0,0,w,h);ctx.fillStyle='#fafaf9';ctx.fillRect(0,0,w,h);
-  this.grid();this.hit=[];const baselineY=this.baseY();this.worldline(FIRST_YEAR,LAST_YEAR,baselineY,!!this.active);
-  const evts=BASELINE.filter(e=>e.year>=FIRST_YEAR&&e.year<=LAST_YEAR);this.nodes(evts,baselineY,null,!this.active);
-  for(let i=0;i<this.branches.length;i++){const b=this.branches[i];this.branch(b,i)}
-  this.endCaps();
+ draw(){
+ const ctx=this.ctx,w=this.width,h=this.height;if(!w||!h)return;
+ ctx.clearRect(0,0,w,h);ctx.fillStyle='#fafaf9';ctx.fillRect(0,0,w,h);
+ this.grid();this.hit=[];this._lineage=this.selectedLineage();
+ const base=this.baseY();
+ // Each world has a full FIRST_YEAR .. LAST_YEAR history. Shared spans use the ancestor's stroke.
+ this.worldline(FIRST_YEAR,LAST_YEAR,base,!!this.active);
+ for(let i=0;i<this.branches.length;i++)this.branch(this.branches[i],i);
+ if(this.active&&this._lineage.length){
+  const root=this._lineage[0];
+  this.darkSegment(FIRST_YEAR,root.anchorYear,base);
+  for(let i=0;i<this._lineage.length;i++){
+   const b=this._lineage[i],index=this.branches.findIndex(v=>v.id===b.id);
+   if(index>=0)this.drawBranchTrace(b,index,this._lineage[i+1]?.anchorYear??LAST_YEAR,true);
+  }
  }
+ this.nodes(BASELINE,base,null,!this.active);
+ for(let i=0;i<this.branches.length;i++){const b=this.branches[i];this.nodes(b.events||[],this.laneY(i),b.id,b.id===this.active)}
+ const tipX=this.x(LAST_YEAR);
+ this.drawTip(tipX,base,null,!this.active);
+ for(let i=0;i<this.branches.length;i++)this.drawTip(tipX,this.laneY(i),this.branches[i].id,this.branches[i].id===this.active);
+ this.endCaps();
+}
+ darkSegment(from,to,y){
+ const ctx=this.ctx,x1=this.x(from),x2=this.x(to);
+ if(x2<0||x1>this.width)return;
+ ctx.save();ctx.setLineDash([]);ctx.beginPath();ctx.moveTo(x1,y);ctx.lineTo(x2,y);ctx.strokeStyle='#171717';ctx.lineWidth=2.8;ctx.lineCap='round';ctx.stroke();ctx.restore();
+}
+ drawTip(x,y,branchId,selected){
+ if(x<0||x>this.width||y<0||y>this.height)return;
+ const ctx=this.ctx;ctx.save();ctx.setLineDash([]);ctx.beginPath();ctx.arc(x,y,selected?7:6,0,Math.PI*2);ctx.fillStyle='#fafaf9';ctx.fill();ctx.strokeStyle=selected?'#161616':'#b4b4af';ctx.lineWidth=selected?3:1.9;ctx.stroke();ctx.restore();
+ this.hit.push({kind:'tip',x,y,branchId});
+}
+ drawBranchTrace(branch,index,stopYear=LAST_YEAR,selected=false){
+ const ctx=this.ctx,ancestor=this.branches.findIndex(b=>b.id===branch.parentId),parentY=ancestor<0?this.baseY():this.laneY(ancestor),y=this.laneY(index),start=this.x(branch.anchorYear),fullEnd=this.x(LAST_YEAR),end=this.x(stopYear);
+ if(fullEnd<0||start>this.width||end<start)return;
+ const gradual=branch.timeMode==='gradual'&&Number.isFinite(branch.transitionEndYear)&&branch.transitionEndYear>branch.anchorYear;
+ const curveEnd=gradual?Math.min(fullEnd,Math.max(start+Math.min(16,Math.max(0,fullEnd-start)),this.x(branch.transitionEndYear))):Math.min(fullEnd,start+clamp((fullEnd-start)*.2,18,90));
+ const width=Math.max(curveEnd-start,0.1);
+ ctx.save();
+ if(stopYear<LAST_YEAR){ctx.beginPath();ctx.rect(-20000,-20000,Math.max(0,end+20000),this.height+40000);ctx.clip()}
+ ctx.strokeStyle=selected?'#171717':'#b9b9b5';ctx.lineWidth=selected?2.9:1.55;ctx.lineCap='round';ctx.lineJoin='round';
+ ctx.setLineDash(gradual?[6,6]:[]);
+ ctx.beginPath();ctx.moveTo(start,parentY);ctx.bezierCurveTo(start+width*.35,parentY,curveEnd-width*.35,y,curveEnd,y);ctx.stroke();ctx.setLineDash([]);
+ if(curveEnd<fullEnd){ctx.beginPath();ctx.moveTo(curveEnd,y);ctx.lineTo(fullEnd,y);ctx.stroke()}
+ ctx.restore();
+ return {start,curveEnd,end,y,parentY,gradual}
+}
  grid(){const ctx=this.ctx,w=this.width,h=this.height;
   ctx.strokeStyle='#e8e8e5';ctx.lineWidth=1;ctx.setLineDash([1,7]);
   const rowBase=this.baseY();for(let y=((rowBase%114)+114)%114;y<h;y+=114){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke()}
@@ -66,7 +129,7 @@ export class WorldCanvas{
   for(const group of clusters){
    const x=group.xSum/group.events.length,e=group.events[0],grouped=group.events.length>1;
    const current=grouped?this.hover?.cluster===group.events:this.hover?.event?.id===e.id;
-   const isActive=unmuted||branchId===this.active;
+   const isActive=this.nodeActive(branchId,e.year);
    const radius=grouped?5.6:current?6:4;
    ctx.fillStyle='#fafaf9';ctx.strokeStyle=isActive?'#151515':'#aaa';ctx.lineWidth=current?2.7:grouped?2.3:1.9;
    ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);ctx.fill();ctx.stroke();
@@ -91,13 +154,14 @@ export class WorldCanvas{
   }
  }
 
- branch(branch,i){const ctx=this.ctx,ay=this.branches.findIndex(b=>b.id===branch.parentId),parentY=ay<0?this.baseY():this.laneY(ay),y=this.laneY(i),x=this.x(branch.anchorYear),end=this.x(LAST_YEAR),active=this.active===branch.id;
-  if(end<0||x>this.width)return;ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle=active?'#171717':'#b4b4b2';ctx.lineWidth=active?2.4:1.5;
-  const dx=clamp((end-x)*.2,42,125);ctx.beginPath();ctx.moveTo(x,parentY);ctx.bezierCurveTo(x+dx*.3,parentY,x+dx*.55,y,x+dx,y);ctx.lineTo(end,y);ctx.stroke();
-  ctx.beginPath();ctx.arc(x,parentY,5,0,Math.PI*2);ctx.fillStyle=active?'#171717':'#b4b4b2';ctx.fill();
-  if(x+dx+20<this.width&&x+dx+20>0){ctx.textAlign='left';ctx.textBaseline='alphabetic';ctx.font='600 10px system-ui';ctx.fillStyle=active?'#111':'#999';ctx.fillText(`${String(i+2).padStart(3,'0')} / ${(this.lang==='zh'?branch.titleZh:branch.titleEn)||branch.prompt}`.slice(0,60),clamp(x+dx+14,14,this.width-170),y-20,280)}
-  if(end>-20&&end<this.width+20){ctx.beginPath();ctx.arc(end,y,4,0,Math.PI*2);ctx.fill()}
-  this.hit.push({x:clamp(x+dx+40,0,this.width),y,branchId:branch.id});this.nodes(branch.events||[],y,branch.id,active);
+ branch(branch,i){
+ const p=this.drawBranchTrace(branch,i,LAST_YEAR,false);if(!p)return;
+ const ctx=this.ctx,active=this.active===branch.id;
+ if(p.curveEnd+18<this.width&&p.curveEnd+18>0){
+  ctx.save();ctx.textAlign='left';ctx.textBaseline='alphabetic';ctx.font='600 10px system-ui';ctx.fillStyle=active?'#292929':'#a1a19d';
+  ctx.fillText(`${String(i+2).padStart(3,'0')} / ${(this.lang==='zh'?branch.titleZh:branch.titleEn)||branch.prompt}`.slice(0,60),clamp(p.curveEnd+12,12,Math.max(12,this.width-180)),p.y-19,270);
+  ctx.restore();
  }
+}
  endCaps(){const ctx=this.ctx,x=this.x(LAST_YEAR),y=this.baseY();if(x>4&&x<this.width-10){ctx.textAlign='right';ctx.textBaseline='top';ctx.font='600 10px system-ui';ctx.fillStyle=this.active?'#a1a1a1':'#333';ctx.fillText(this.lang==='zh'?'2026年1月1日':'01 JAN 2026',x-12,y+16)}}
 }

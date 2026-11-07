@@ -70,3 +70,42 @@ test('pointer cancellation hides tooltip without selecting an event',()=>{
   assert.equal(tooltip.hidden,true);
  }finally{globalThis.document=previous}
 });
+
+test('selected grandchild carries the baseline and all ancestor segments',()=>{
+ const root={id:'b',parentId:null,anchorYear:123,timeMode:'point',events:[]};
+ const child={id:'c',parentId:'b',anchorYear:800,timeMode:'gradual',transitionEndYear:830,events:[]};
+ const view=Object.create(WorldCanvas.prototype);
+ Object.assign(view,{active:'c',branches:[root,child],_lineage:null});
+ assert.deepEqual(view.selectedLineage().map(x=>x.id),['b','c']);
+ assert.equal(view.nodeActive(null,100),true);
+ assert.equal(view.nodeActive(null,200),false);
+ assert.equal(view.nodeActive('b',500),true);
+ assert.equal(view.nodeActive('b',1000),false);
+ assert.equal(view.nodeActive('c',900),true);
+});
+test('line segments are not click targets; only 2026 tips choose a world',()=>{
+ const view=Object.create(WorldCanvas.prototype);
+ view.mobile=true;view.hit=[{kind:'tip',x:300,y:110,branchId:'c'},{x:160,y:110,event:{id:'e'},branchId:'b'}];
+ assert.equal(view.nearest(160,110).event.id,'e');
+ assert.equal(view.nearest(250,110),null);
+ assert.equal(view.nearest(299,110).branchId,'c');
+});
+test('touching a branch endpoint selects it but event nodes only inspect',()=>{
+ const view=Object.create(WorldCanvas.prototype);
+ let switches=[],inspected=[];
+ Object.assign(view,{mobile:true,hover:null,pointers:new Map(),pinching:null,drag:{moved:false},el:{style:{}},invalidate(){},onYear(){},onBranch:id=>switches.push(id),onEvent:(e)=>inspected.push(e.id),nearest:()=>({kind:'tip',branchId:'c'})});
+ view.pointerUp({pointerId:1,offsetX:50,offsetY:50});
+ assert.deepEqual(switches,['c']);
+ view.drag={moved:false};view.nearest=()=>({event:{id:'e'},branchId:'b'});view.pointerUp({pointerId:2,offsetX:40,offsetY:40});
+ assert.deepEqual(inspected,['e']);assert.equal(switches.length,1);
+});
+test('gradual worldlines use a dotted bend while point forks stay solid',()=>{
+ const calls=[],ctx=new Proxy({}, {get(_t,key){if(key==='setLineDash')return v=>calls.push([...v]);if(key==='save'||key==='restore'||key==='beginPath'||key==='moveTo'||key==='bezierCurveTo'||key==='lineTo'||key==='stroke'||key==='rect'||key==='clip')return()=>{};return undefined},set(){return true}});
+ const view=Object.create(WorldCanvas.prototype);
+ Object.assign(view,{ctx,width:500,height:400,year:100,zoom:1,vertical:0,mobile:true,branches:[],active:null});
+ view.drawBranchTrace({id:'g',parentId:null,anchorYear:120,timeMode:'gradual',transitionEndYear:170},0);
+ assert.ok(calls.some(d=>d[0]===6));
+ calls.length=0;
+ view.drawBranchTrace({id:'p',parentId:null,anchorYear:120,timeMode:'point',transitionEndYear:120},0);
+ assert.ok(!calls.some(d=>d.length));
+});
