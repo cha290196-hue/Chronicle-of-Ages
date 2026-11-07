@@ -14,12 +14,12 @@ for (const item of ['index.html', '.nojekyll', 'src', 'assets']) {
 }
 
 // Give all module URLs the same release identity, including shared imports.
-const moduleReference = /(\b(?:from\s*|import\s*(?:\(\s*)?))(['"])(\.\.?\/[^'"\n]+?\.js)(?:\?[^'"\n]*)?\2/g;
+const moduleReference = /(\b(?:from\s*|import\s*(?:\(\s*)?))(['"])(\.\.?\/[^'"\n]+?\.m?js)(?:\?[^'"\n]*)?\2/g;
 async function versionModules(dir) {
   for (const entry of await readdir(dir, { withFileTypes: true })) {
     const file = join(dir, entry.name);
     if (entry.isDirectory()) await versionModules(file);
-    else if (entry.isFile() && entry.name.endsWith('.js')) {
+    else if (entry.isFile() && /\.m?js$/.test(entry.name)) {
       const source = await readFile(file, 'utf8');
       const result = source.replace(moduleReference, (_, prefix, quote, path) => `${prefix}${quote}${path}?v=${version}${quote}`);
       await writeFile(file, result);
