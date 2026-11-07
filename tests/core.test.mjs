@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {BASELINE,validYear,FIRST_YEAR,LAST_YEAR,displayYear} from '../src/data.js';
-import {extractJSON,safeConfig,validEndpoint,explicitYears,planSegments,classifyTemporalIntent,normalizeTemporalAnchor,sanitizeWorldline,inheritedState,worldEvents,worldFacts,simulate,configured} from '../src/core.js';
+import {extractJSON,safeConfig,validEndpoint,explicitYears,planSegments,classifyTemporalIntent,normalizeTemporalAnchor,sanitizeWorldline,inheritedState,worldEvents,worldFacts,simulate,simulateLegacy,configured} from '../src/core.js';
 
 const cfg={provider:'custom',endpoint:'https://example.com/v1/chat/completions',model:'mock',key:'test'};
 
@@ -39,7 +39,7 @@ test('simulation validates Earth anchor, phases, and persistent derived records 
   else if(req.messages[1].content.includes('Reconcile the generated worldline'))result={titleEn:'A changed Earth',titleZh:'改变后的地球',summaryEn:'An alternate history to 2026.',summaryZh:'到2026年的架空历史。',impacts:['Institutions change'],certainty:'medium'};
   else{const match=req.messages[1].content.match(/checkpoint \d+\/\d+ for \[(-?\d+), (-?\d+)\]/i);assert.ok(match);const y=Number(match[2]);result={events:[{year:y,en:`Event ${y}`,zh:`事件 ${y}`,descriptionEn:'Consequence',descriptionZh:'后果',category:'society',certainty:'medium',causes:['Initial change']}],facts:[{firstYear:y,nameEn:`Idea ${y}`,nameZh:`技术 ${y}`,descriptionEn:'Concept',descriptionZh:'概念',kind:'technology',certainty:'low'}],stateEn:'Changed',stateZh:'变化'};}
   return {ok:true,json:async()=>({choices:[{message:{content:JSON.stringify(result)}}]})};};
- try{const world=await simulate({prompt:'In 1234, aliens land on Earth.',branches:[],parentId:null,config:cfg});assert.equal(world.anchorYear,1234);assert.equal(world.type,'earth_intrusion');assert.ok(world.events.length>=4);assert.ok(world.facts.length>=4);assert.equal(world.titleZh,'改变后的地球');assert.equal(world.events.at(-1).year,LAST_YEAR);assert.ok(worldEvents([],world).length>world.events.length);assert.equal(worldFacts([],world).length,world.facts.length)}finally{globalThis.fetch=oldFetch}
+ try{const world=await simulateLegacy({prompt:'In 1234, aliens land on Earth.',branches:[],parentId:null,config:cfg});assert.equal(world.anchorYear,1234);assert.equal(world.type,'earth_intrusion');assert.ok(world.events.length>=4);assert.ok(world.facts.length>=4);assert.equal(world.titleZh,'改变后的地球');assert.equal(world.events.at(-1).year,LAST_YEAR);assert.ok(worldEvents([],world).length>world.events.length);assert.equal(worldFacts([],world).length,world.facts.length)}finally{globalThis.fetch=oldFetch}
 });
 test('model rejection leaves no worldline created',async()=>{
  const oldFetch=globalThis.fetch;
