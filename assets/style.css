@@ -215,3 +215,33 @@ html[data-theme="dark"] .backdrop{background:rgba(235,235,235,.36)}
  .workspace.panel-open .stage-top{right:215px}
  .workspace.panel-open .stage-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 }
+
+/* Compact desktop title group for every worldline. */
+@media (min-width:851px){
+ .stage-top{top:9px;left:35px}
+ .stage-top .eyebrow{font-size:9px}
+ .stage-title{font-size:clamp(29px,2.5vw,44px);margin:15px 0 8px}
+ .stage-sub{font-size:11px}
+}
+@media (min-width:851px) and (max-width:1100px){.stage-top{left:22px}}
+
+/* Keep the panel close control without a redundant title strip. */
+.panel-header{position:absolute;top:0;right:0;z-index:6;min-height:0;padding:14px 18px;border:0}
+.panel-scroll{padding-top:32px}
+.chat-log{padding-top:32px}
+@media (max-width:680px){.panel-header{min-height:0;padding:15px 17px}.panel-scroll{padding-top:30px}.chat-log{padding-top:30px}}
+
+.answer-formatted{white-space:normal;overflow-wrap:anywhere}
+.answer-formatted>div:not(.answer-gap){white-space:pre-wrap}
+.answer-formatted .answer-heading{font-weight:600;color:inherit;margin:12px 0 5px}
+.answer-formatted .answer-heading:first-child{margin-top:0}
+.answer-formatted .answer-gap{height:.7em}
+.answer-formatted .answer-bullet{display:flex;gap:8px}
+.answer-formatted .answer-bullet>span:first-child{flex:none}
+.answer-formatted pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;margin:8px 0}
+.answer-formatted code{font-family:var(--mono);font-size:.95em}
+.thinking-dots{display:flex;align-items:center;gap:5px;width:max-content;min-height:27px;padding:2px 0 2px 14px;border-left:1.5px solid #bbb}
+.thinking-dots span{width:5px;height:5px;border-radius:50%;background:#8d8d88;animation:thinking-pulse 1.2s ease-in-out infinite}
+.thinking-dots span:nth-child(2){animation-delay:.16s}.thinking-dots span:nth-child(3){animation-delay:.32s}
+@keyframes thinking-pulse{0%,65%,100%{opacity:.3;transform:translateY(0)}35%{opacity:1;transform:translateY(-3px)}}
+@media (prefers-reduced-motion:reduce){.thinking-dots span{animation:none;opacity:.75}}
