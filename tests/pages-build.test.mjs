@@ -12,15 +12,15 @@ test('Pages release versions every local module and stylesheet without changing 
     const build = spawnSync(process.execPath, ['scripts/prepare-pages.mjs', dir, version], { encoding: 'utf8' });
     assert.equal(build.status, 0, build.stderr);
     const html = await readFile(join(dir, 'index.html'), 'utf8');
-    assert.match(html, new RegExp(`src="\\./src/app\\.js\\?v=${version}"`));
+    assert.match(html, new RegExp(`src="\\./src/app\\.m?js\\?v=${version}"`));
     assert.match(html, new RegExp(`href="\\./assets/style\\.css\\?v=${version}"`));
     for (const name of await readdir('src')) {
-      if (!name.endsWith('.js')) continue;
+      if (!/\.m?js$/.test(name)) continue;
       const original = await readFile(join('src', name), 'utf8');
       const built = await readFile(join(dir, 'src', name), 'utf8');
-      const refs = [...built.matchAll(/\b(?:from\s*|import\s*(?:\(\s*)?)(['"])(\.\.?\/[^'"\n]+?\.js)(?:\?([^'"\n]*))?\1/g)];
+      const refs = [...built.matchAll(/\b(?:from\s*|import\s*(?:\(\s*)?)(['"])(\.\.?\/[^'"\n]+?\.m?js)(?:\?([^'"\n]*))?\1/g)];
       for (const [, , path, query] of refs) assert.equal(query, `v=${version}`, `${name}: ${path}`);
-      const unversion = text => text.replace(/(\b(?:from\s*|import\s*(?:\(\s*)?))(['"])(\.\.?\/[^'"\n]+?\.js)(?:\?[^'"\n]*)?\2/g, '$1$2$3$2');
+      const unversion = text => text.replace(/(\b(?:from\s*|import\s*(?:\(\s*)?))(['"])(\.\.?\/[^'"\n]+?\.m?js)(?:\?[^'"\n]*)?\2/g, '$1$2$3$2');
       assert.equal(unversion(built), unversion(original), `${name} changed beyond import versions`);
     }
     assert.deepEqual(await readFile(join(dir, 'assets/style.css')), await readFile('assets/style.css'));
