@@ -109,6 +109,14 @@ export function baselineContext(year,count=20){
  const sorted=[...BASELINE].sort((a,b)=>Math.abs(a.year-year)-Math.abs(b.year-year));
  return sorted.slice(0,count).sort((a,b)=>a.year-b.year).map(e=>`${e.year} ${e.en}: ${e.descriptionEn}`).join('\n');
 }
+export function classifyTemporalIntent(prompt){
+ const text=String(prompt||'');
+ const discrete=/(发明|发现|研发出|制造出|首次|建成|抵达|登陆|入侵|登基|颁布|签署|创立|invent(?:ed|ion)?|discover(?:ed|y)?|land(?:ed)?|arriv(?:e|ed|al)|enact(?:ed)?|signed|founded)/i.test(text);
+ const cumulative=/(天下大乱|渐渐|逐渐|逐步|日益|慢慢|积累|蔓延|传播|衰退|衰亡|衰弱|腐败|动荡|社会失序|长期|多年|gradual(?:ly)?|slowly|over (?:many |several )?(?:years|decades)|social unrest|turmoil|decline|spread|deteriorat(?:e|ion))/i.test(text);
+ if(discrete&&!cumulative)return 'point';
+ if(cumulative&&!discrete)return 'gradual';
+ return null
+}
 export function normalizeTemporalAnchor(assessment,prompt='',parent=null){
  const anchorYear=nYear(assessment?.anchorYear);
  if(!validYear(anchorYear))throw new Error('ANCHOR_INVALID');
@@ -161,11 +169,20 @@ export async function simulate({prompt,branches=[],parentId=null,config,lang='en
  const parent=branches.find(b=>b.id===parentId)||null;
  const inheritedForValidation=parent?{events:worldEvents(branches,parent).slice(-45),facts:worldFacts(branches,parent).slice(-70)}:{events:[],facts:[]};
  onProgress({phase:'validation',index:0,total:1});
- const assessment=await callChat(config,[
+ let assessment=await callChat(config,[
   {role:'system',content:CONTEXT},
   {role:'user',content:`Validate this proposed edit. It MUST refer to Earth, its recorded past, a real physical constant, or a dated fictional event explicitly happening on Earth. Classify the NATURE of the modification rather than the vagueness of its date: timeMode=point for an individual invention, discovery, landing or other discrete act, even when only a dynasty or era is supplied (infer a plausible year); timeMode=gradual for turmoil, declining authority, widespread migration or other accumulating developments (infer their onset and a later establishment year). Do not collapse gradual social change into one instantaneous event. An edit to branch-derived knowledge is allowed only if supplied in the parent world data. For fictional arrivals on Earth, mark earth_intrusion, which is valid even though it did not happen in reality. Assessments need not reject physically impossible changes to actual constants. Return JSON {"valid":boolean,"reasonEn":string,"reasonZh":string,"anchorYear":integer,"timeMode":"point|gradual","transitionEndYear":integer,"timeBasisEn":string,"timeBasisZh":string,"type":"historical_change|earth_intrusion|physical_constant|branch_fact","changeEn":string,"changeZh":string}. For point, transitionEndYear=anchorYear. For gradual, anchorYear is the onset and transitionEndYear is when the changing condition has developed. Explain the inferred historical range briefly in timeBasis. User change: ${JSON.stringify(prompt)}. Parent world local records: ${JSON.stringify(inheritedForValidation).slice(0,10000)}. Date-related baseline: ${explicitYears(prompt).length?baselineContext(explicitYears(prompt)[0],24):"No explicit numeric year; infer the era from the user wording without assuming a default century."}.`}
  ],{signal,json:true,maxTokens:1000,temperature:.12});
  if(assessment.valid!==true)throw new Error(`ANCHOR_INVALID${assessment.reasonEn?`: ${truncate(lang==='zh'?assessment.reasonZh:assessment.reasonEn,180)}`:''}`);
+ const intent=classifyTemporalIntent(prompt);
+ if(intent==='point'&&!assessment.timeMode)assessment={...assessment,timeMode:'point',transitionEndYear:assessment.anchorYear};
+ if((intent&&assessment.timeMode&&intent!==assessment.timeMode)||(intent==='gradual'&&!assessment.timeMode)){
+  const corrected=await callChat(config,[
+   {role:'system',content:CONTEXT},
+   {role:'user',content:`The proposed Earth modification is ${JSON.stringify(prompt)}. Classify it as ${intent}: ${intent==='point'?'a discrete invention/discovery/occurrence, even if the historical era is broad':'a historical condition accumulating over a span, not one sudden occurrence'}. Infer historically plausible timing from the wording. Return JSON {"anchorYear":integer,"transitionEndYear":integer,"timeBasisEn":string,"timeBasisZh":string}. For point return the same year twice; for gradual return onset and later establishment. Previous classification: ${JSON.stringify(assessment)}.`}
+  ],{signal,json:true,maxTokens:600,temperature:.12});
+  assessment={...assessment,anchorYear:corrected.anchorYear,transitionEndYear:corrected.transitionEndYear,timeBasisEn:corrected.timeBasisEn,timeBasisZh:corrected.timeBasisZh,timeMode:intent};
+ }
  const temporal=normalizeTemporalAnchor(assessment,prompt,parent);const year=temporal.anchorYear;
  const knownChange=['historical_change','earth_intrusion','physical_constant','branch_fact'].includes(assessment.type)?assessment.type:'historical_change';
  if(knownChange==='branch_fact'&&!parent)throw new Error('ANCHOR_INVALID');

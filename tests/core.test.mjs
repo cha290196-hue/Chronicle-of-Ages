@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {BASELINE,validYear,FIRST_YEAR,LAST_YEAR,displayYear} from '../src/data.js';
-import {extractJSON,safeConfig,validEndpoint,explicitYears,planSegments,normalizeTemporalAnchor,sanitizeWorldline,inheritedState,worldEvents,worldFacts,simulate,configured} from '../src/core.js';
+import {extractJSON,safeConfig,validEndpoint,explicitYears,planSegments,classifyTemporalIntent,normalizeTemporalAnchor,sanitizeWorldline,inheritedState,worldEvents,worldFacts,simulate,configured} from '../src/core.js';
 
 const cfg={provider:'custom',endpoint:'https://example.com/v1/chat/completions',model:'mock',key:'test'};
 
@@ -99,4 +99,11 @@ test('grandchild inherits history only before each fork',()=>{
  const a={id:'a',parentId:null,anchorYear:123,events:[{id:'one',year:124},{id:'later',year:1700}],facts:[]};
  const b={id:'b',parentId:'a',anchorYear:800,events:[{id:'two',year:801}],facts:[]};
  assert.deepEqual(inheritedState([a,b],'b',1000).events.map(x=>x.id).sort(),['one','two']);
+});
+
+test('social turmoil and inventions are classified by mechanism rather than vague-era wording',()=>{
+ assert.equal(classifyTemporalIntent('唐朝末年天下大乱'),'gradual');
+ assert.equal(classifyTemporalIntent('唐朝末年发明了蒸汽机'),'point');
+ assert.equal(classifyTemporalIntent('gradual decline of the empire'),'gradual');
+ assert.equal(classifyTemporalIntent('late medieval period invented a turbine'),'point');
 });
