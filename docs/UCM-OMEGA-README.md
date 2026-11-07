@@ -58,4 +58,4 @@ const { worldline, analysis } = await simulateOmega({
 - SCM 的可信程度由结构方程、参数、单位与校准数据决定；SMC 的可信程度由状态转移分布与观测似然决定，不能用 LLM 自评代替。
 - 新模块不会通过页面加载外部模型、不上传用户数据，也不改写现实 A 线。
 
-完整定义见 [`docs/UCM-OMEGA-ALGORITHM.md`](docs/ALGORITHM.md)。
+完整定义见 [`docs/UCM-OMEGA-ALGORITHM.md`](UCM-OMEGA-ALGORITHM.md)。
