@@ -44,7 +44,7 @@ test('simulation validates Earth anchor, phases, and persistent derived records 
 test('model rejection leaves no worldline created',async()=>{
  const oldFetch=globalThis.fetch;
  globalThis.fetch=async()=>({ok:true,json:async()=>({choices:[{message:{content:JSON.stringify({valid:false,anchorYear:1234,reasonEn:'Not Earth-bound'})}}]})});
- try{await assert.rejects(()=>simulate({prompt:'Change unknown planet X',config:cfg}),/ANCHOR_INVALID/)}finally{globalThis.fetch=oldFetch}
+ try{await assert.rejects(()=>simulateLegacy({prompt:'Change unknown planet X',config:cfg}),/ANCHOR_INVALID/)}finally{globalThis.fetch=oldFetch}
 });
 test('DeepSeek one-click preset uses current official chat endpoint and never changes image configuration',async()=>{
  const {withTextPreset,PROVIDERS,imageConfigured}=await import('../src/core.js');
