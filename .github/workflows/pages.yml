@@ -2,6 +2,8 @@ name: Deploy Chronicle of Ages
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 permissions:
   contents: read
@@ -21,6 +23,7 @@ jobs:
       - name: Run tests
         run: node --test tests/*.mjs
   deploy:
+    if: github.event_name != 'pull_request'
     needs: test
     environment:
       name: github-pages

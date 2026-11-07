@@ -1,3 +1,4 @@
+import { simulateOmega } from './chronicle-adapter.mjs';
 import {BASELINE,FIRST_YEAR,LAST_YEAR,PHYSICAL_CONSTANTS,validYear} from './data.js';
 
 export const DEFAULT_CONFIG={provider:'openrouter',endpoint:'https://openrouter.ai/api/v1/chat/completions',model:'',key:'',textEnabled:true,imageEnabled:false,imageProvider:'openrouter',imageEndpoint:'https://openrouter.ai/api/v1/images',imageModel:'',imageKey:'',remember:false};
@@ -52,6 +53,13 @@ export function extractJSON(content){
  throw new Error('INVALID_JSON');
 }
 export function explainError(error,lang='en'){
+ const code=String(error?.code||'');
+ if(code==='NOT_AN_EDIT')return lang==='zh'?'这是历史问答，不是历史修改；请使用演算中枢进行提问。':'This is a history question, not an edit. Ask it in the Analysis Core.';
+ if(code==='OUT_OF_SCOPE'||code==='NOT_EARTH_ANCHORED')return lang==='zh'?'请输入以地球历史为起点的修改。':'Provide an edit anchored in Earth history.';
+ if(code==='ANCHOR_PRECEDES_PARENT')return lang==='zh'?'修改不能早于选中世界线的分叉点。':'The edit cannot predate the selected worldline fork.';
+ if(['ANCHOR_INVALID','INVALID_YEAR','INVALID_TIME_RANGE','UNKNOWN_BRANCH_FACT','UNKNOWN_BRANCH_FACT_AT_ANCHOR','CONTRADICTORY_INTERVENTIONS','EMPTY_OR_EXCESSIVE_INTERVENTION'].includes(code))
+  return lang==='zh'?'历史干预的时间、对象或约束不成立，请调整输入。':'The historical intervention contains an invalid time, target, or conflicting condition.';
+ if(code==='INVALID_JSON'||code==='NO_VALID_TRAJECTORY')return lang==='zh'?'模型未能生成可通过因果校验的结果，请重新推演。':'The model could not produce a causally valid result. Try again.';
  if(error?.name==='AbortError'||error?.message==='ABORTED')return lang==='zh'?'推演已停止。':'Simulation stopped.';
  if(error?.message==='INVALID_JSON'||error?.message==='BAD_RESPONSE')return lang==='zh'?'模型返回格式无效，请重试或更换模型。':'The model returned invalid structured data. Try another model.';
  if(error?.message==='INVALID_ENDPOINT')return lang==='zh'?'接口地址必须是 HTTPS（本机允许 HTTP）。':'Use an HTTPS API endpoint (HTTP allowed for localhost).';
@@ -164,7 +172,26 @@ export function sanitizeWorldline(input){
  if(!validYear(end)||end<input.anchorYear||(gradual&&end===input.anchorYear))return null;
  return {id:truncate(input.id,100),parentId:toText(input.parentId)||null,anchorYear:input.anchorYear,timeMode:gradual?'gradual':'point',transitionEndYear:end,timeBasisEn:truncate(input.timeBasisEn||'',320),timeBasisZh:truncate(input.timeBasisZh||'',320),prompt:truncate(input.prompt,2000),type:truncate(input.type||'historical_change',50),titleEn:plain(input.titleEn),titleZh:plain(input.titleZh||input.titleEn),summaryEn:plain(input.summaryEn),summaryZh:plain(input.summaryZh||input.summaryEn),createdAt:truncate(input.createdAt,40),events:input.events.slice(0,200).map(scrubEvent).filter(Boolean),facts:input.facts.slice(0,200).map(scrubFact).filter(Boolean),inherited:{events:list(input.inherited?.events).slice(0,200).map(scrubEvent).filter(Boolean),facts:list(input.inherited?.facts).slice(0,200).map(scrubFact).filter(Boolean)},impacts:list(input.impacts).slice(0,8).map(x=>plain(x)),certainty:truncate(input.certainty||'medium',20),image:object(input.image)?{data:toText(input.image.data).slice(0,5_000_000),prompt:plain(input.image.prompt)}:null};
 }
-export async function simulate({prompt,branches=[],parentId=null,config,lang='en',signal,onProgress=()=>{}}){
+/**
+ * The public simulation entry point used by app.js.
+ * UCM-Ω is authoritative; the original simulator remains available only
+ * as simulateLegacy and is never invoked by this production path.
+ */
+export async function simulate({prompt,branches=[],parentId=null,config,lang='en',signal,onProgress=()=>{}}) {
+ if(!configured(config))throw new Error('NOT_CONFIGURED');
+ try{
+  const {worldline}=await simulateOmega({
+   prompt,branches,parentId,baseline:BASELINE,config,lang,signal,onProgress,
+   callChat,makeId,scenarioCount:2,maxWindows:6
+  });
+  return worldline;
+ }catch(error){
+  if(signal?.aborted||error?.code==='ABORTED')throw new DOMException('Aborted','AbortError');
+  throw error;
+ }
+}
+
+export async function simulateLegacy({prompt,branches=[],parentId=null,config,lang='en',signal,onProgress=()=>{}}){
  prompt=truncate(prompt,2000);if(!prompt)throw new Error('EMPTY_PROMPT');if(!configured(config))throw new Error('NOT_CONFIGURED');
  const parent=branches.find(b=>b.id===parentId)||null;
  const inheritedForValidation=parent?{events:worldEvents(branches,parent).slice(-45),facts:worldFacts(branches,parent).slice(-70)}:{events:[],facts:[]};
