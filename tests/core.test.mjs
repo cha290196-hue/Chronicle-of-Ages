@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {BASELINE,validYear,FIRST_YEAR,LAST_YEAR,displayYear} from '../src/data.js';
-import {extractJSON,safeConfig,validEndpoint,explicitYears,planSegments,sanitizeWorldline,inheritedState,worldEvents,worldFacts,simulate,configured} from '../src/core.js';
+import {extractJSON,safeConfig,validEndpoint,explicitYears,planSegments,normalizeTemporalAnchor,sanitizeWorldline,inheritedState,worldEvents,worldFacts,simulate,configured} from '../src/core.js';
 
 const cfg={provider:'custom',endpoint:'https://example.com/v1/chat/completions',model:'mock',key:'test'};
 
@@ -75,4 +75,28 @@ test('DeepSeek structured requests use JSON output and disable thinking to prese
  const {callChat}=await import('../src/core.js');const prior=globalThis.fetch;let body;
  globalThis.fetch=async(_url,opts)=>{body=JSON.parse(opts.body);return {ok:true,json:async()=>({choices:[{message:{content:'{"ok":true}'}}]})}};
  try{const config=safeConfig({provider:'deepseek',endpoint:'https://api.deepseek.com/chat/completions',model:'deepseek-flash',key:'sample'});const result=await callChat(config,[{role:'user',content:'JSON only'}],{json:true});assert.deepEqual(result,{ok:true});assert.deepEqual(body.thinking,{type:'disabled'});assert.deepEqual(body.response_format,{type:'json_object'});}finally{globalThis.fetch=prior}
+});
+
+test('discrete invention during a vague period remains point-based',()=>{
+ const a=normalizeTemporalAnchor({anchorYear:900,timeMode:'point',transitionEndYear:900,type:'historical_change'},'唐朝末年发明了蒸汽机');
+ assert.deepEqual([a.timeMode,a.anchorYear,a.transitionEndYear],['point',900,900]);
+});
+test('gradual historical turmoil has an onset and a later establishment date',()=>{
+ const a=normalizeTemporalAnchor({anchorYear:870,timeMode:'gradual',transitionEndYear:908,type:'historical_change'},'唐朝末年天下逐渐大乱');
+ assert.deepEqual([a.timeMode,a.anchorYear,a.transitionEndYear],['gradual',870,908]);
+ assert.throws(()=>normalizeTemporalAnchor({anchorYear:870,timeMode:'gradual',transitionEndYear:870},'天下大乱'),/ANCHOR_INVALID/);
+});
+test('temporal anchor respects parent era and simulation boundaries',()=>{
+ assert.throws(()=>normalizeTemporalAnchor({anchorYear:100,timeMode:'point'},'公元100年',{anchorYear:123}),/ANCHOR_PRECEDES_PARENT/);
+ assert.throws(()=>normalizeTemporalAnchor({anchorYear:1900,timeMode:'gradual',transitionEndYear:2030},'逐渐变化'),/ANCHOR_INVALID/);
+});
+test('old archive dates migrate and impossible gradual archives are rejected',()=>{
+ const old={id:'old',anchorYear:123,events:[],facts:[],inherited:{events:[],facts:[]}};
+ const out=sanitizeWorldline(old);assert.equal(out.timeMode,'point');assert.equal(out.transitionEndYear,123);
+ assert.equal(sanitizeWorldline({...old,timeMode:'gradual',transitionEndYear:90}),null);
+});
+test('grandchild inherits history only before each fork',()=>{
+ const a={id:'a',parentId:null,anchorYear:123,events:[{id:'one',year:124},{id:'later',year:1700}],facts:[]};
+ const b={id:'b',parentId:'a',anchorYear:800,events:[{id:'two',year:801}],facts:[]};
+ assert.deepEqual(inheritedState([a,b],'b',1000).events.map(x=>x.id).sort(),['one','two']);
 });

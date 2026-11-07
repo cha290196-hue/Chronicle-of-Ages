@@ -95,9 +95,10 @@ export function inheritedState(branches,parentId,atYear){
  while(cursor&&!seen.has(cursor.id)){seen.add(cursor.id);chain.unshift(cursor);cursor=byId.get(cursor.parentId)}
  const events=[];const facts=[];
  for(const b of chain){
-  const cap=Math.min(atYear,...chain.filter(c=>c.parentId===b.id).map(c=>c.anchorYear).concat([atYear]));
-  for(const e of list(b.events))if(e.year<=cap)events.push({...e});
-  for(const f of list(b.facts))if(f.firstYear<=cap)facts.push({...f});
+  const next=chain.find(c=>c.parentId===b.id);
+  const cap=Math.min(atYear,next?.anchorYear??atYear);
+  for(const e of list(b.events))if(e.year<cap)events.push({...e});
+  for(const f of list(b.facts))if(f.firstYear<cap)facts.push({...f});
  }
  return {events:uniq(events),facts:uniq(facts)};
 }
@@ -107,6 +108,21 @@ export function worldFacts(branches,branch){return branch?uniq([...list(branch.i
 export function baselineContext(year,count=20){
  const sorted=[...BASELINE].sort((a,b)=>Math.abs(a.year-year)-Math.abs(b.year-year));
  return sorted.slice(0,count).sort((a,b)=>a.year-b.year).map(e=>`${e.year} ${e.en}: ${e.descriptionEn}`).join('\n');
+}
+export function normalizeTemporalAnchor(assessment,prompt='',parent=null){
+ const anchorYear=nYear(assessment?.anchorYear);
+ if(!validYear(anchorYear))throw new Error('ANCHOR_INVALID');
+ const timeMode=assessment?.timeMode==='gradual'?'gradual':'point';
+ const transitionEndYear=timeMode==='gradual'?nYear(assessment?.transitionEndYear):anchorYear;
+ if(!validYear(transitionEndYear)||transitionEndYear<anchorYear||(timeMode==='gradual'&&transitionEndYear===anchorYear))throw new Error('ANCHOR_INVALID');
+ if(parent&&anchorYear<parent.anchorYear)throw new Error('ANCHOR_PRECEDES_PARENT');
+ const explicit=explicitYears(prompt);
+ if(explicit.length&&assessment?.type!=='physical_constant'){
+  if(timeMode==='point'&&explicit.length===1&&Math.abs(explicit[0]-anchorYear)>2)throw new Error('ANCHOR_INVALID');
+  if(timeMode==='gradual'&&explicit.length===1&&Math.abs(explicit[0]-anchorYear)>2&&Math.abs(explicit[0]-transitionEndYear)>2)throw new Error('ANCHOR_INVALID');
+  if(explicit.length>=2&&(anchorYear<Math.min(...explicit)-2||transitionEndYear>Math.max(...explicit)+2))throw new Error('ANCHOR_INVALID');
+ }
+ return {anchorYear,timeMode,transitionEndYear,timeBasisEn:truncate(assessment?.timeBasisEn||'',320),timeBasisZh:truncate(assessment?.timeBasisZh||'',320)};
 }
 export function planSegments(start){
  if(!validYear(start))throw new Error('ANCHOR_INVALID');
@@ -136,7 +152,9 @@ export function sanitizeWorldline(input){
  if(!object(input)||typeof input.id!=='string'||!validYear(input.anchorYear)||!Array.isArray(input.events)||!Array.isArray(input.facts))return null;
  const scrubEvent=e=>object(e)&&validYear(e.year)&&toText(e.en||e.title)&&toText(e.id)?{...e,id:truncate(e.id,100),en:plain(e.en||e.title),zh:plain(e.zh||e.en||e.title),descriptionEn:plain(e.descriptionEn||''),descriptionZh:plain(e.descriptionZh||''),origin:e.origin==='user'?'user':'derived',category:truncate(e.category,40)}:null;
  const scrubFact=f=>object(f)&&validYear(f.firstYear)&&toText(f.id)&&toText(f.nameEn)?{...f,id:truncate(f.id,100),nameEn:plain(f.nameEn),nameZh:plain(f.nameZh||f.nameEn),descriptionEn:plain(f.descriptionEn),descriptionZh:plain(f.descriptionZh),kind:truncate(f.kind,60)}:null;
- return {id:truncate(input.id,100),parentId:toText(input.parentId)||null,anchorYear:input.anchorYear,prompt:truncate(input.prompt,2000),type:truncate(input.type||'historical_change',50),titleEn:plain(input.titleEn),titleZh:plain(input.titleZh||input.titleEn),summaryEn:plain(input.summaryEn),summaryZh:plain(input.summaryZh||input.summaryEn),createdAt:truncate(input.createdAt,40),events:input.events.slice(0,200).map(scrubEvent).filter(Boolean),facts:input.facts.slice(0,200).map(scrubFact).filter(Boolean),inherited:{events:list(input.inherited?.events).slice(0,200).map(scrubEvent).filter(Boolean),facts:list(input.inherited?.facts).slice(0,200).map(scrubFact).filter(Boolean)},impacts:list(input.impacts).slice(0,8).map(x=>plain(x)),certainty:truncate(input.certainty||'medium',20),image:object(input.image)?{data:toText(input.image.data).slice(0,5_000_000),prompt:plain(input.image.prompt)}:null};
+ const gradual=input.timeMode==='gradual',end=gradual?nYear(input.transitionEndYear):input.anchorYear;
+ if(!validYear(end)||end<input.anchorYear||(gradual&&end===input.anchorYear))return null;
+ return {id:truncate(input.id,100),parentId:toText(input.parentId)||null,anchorYear:input.anchorYear,timeMode:gradual?'gradual':'point',transitionEndYear:end,timeBasisEn:truncate(input.timeBasisEn||'',320),timeBasisZh:truncate(input.timeBasisZh||'',320),prompt:truncate(input.prompt,2000),type:truncate(input.type||'historical_change',50),titleEn:plain(input.titleEn),titleZh:plain(input.titleZh||input.titleEn),summaryEn:plain(input.summaryEn),summaryZh:plain(input.summaryZh||input.summaryEn),createdAt:truncate(input.createdAt,40),events:input.events.slice(0,200).map(scrubEvent).filter(Boolean),facts:input.facts.slice(0,200).map(scrubFact).filter(Boolean),inherited:{events:list(input.inherited?.events).slice(0,200).map(scrubEvent).filter(Boolean),facts:list(input.inherited?.facts).slice(0,200).map(scrubFact).filter(Boolean)},impacts:list(input.impacts).slice(0,8).map(x=>plain(x)),certainty:truncate(input.certainty||'medium',20),image:object(input.image)?{data:toText(input.image.data).slice(0,5_000_000),prompt:plain(input.image.prompt)}:null};
 }
 export async function simulate({prompt,branches=[],parentId=null,config,lang='en',signal,onProgress=()=>{}}){
  prompt=truncate(prompt,2000);if(!prompt)throw new Error('EMPTY_PROMPT');if(!configured(config))throw new Error('NOT_CONFIGURED');
@@ -145,15 +163,14 @@ export async function simulate({prompt,branches=[],parentId=null,config,lang='en
  onProgress({phase:'validation',index:0,total:1});
  const assessment=await callChat(config,[
   {role:'system',content:CONTEXT},
-  {role:'user',content:`Validate this proposed edit. It MUST refer to Earth, its recorded past, a real physical constant, or a dated fictional event explicitly happening on Earth. An edit to branch-derived knowledge is allowed only if supplied in the parent world data. For fictional arrivals on Earth, mark earth_intrusion, which is valid even though it did not happen in reality. Assessments need not reject physically impossible changes to actual constants. Return JSON {"valid":boolean,"reasonEn":string,"reasonZh":string,"anchorYear":integer,"type":"historical_change|earth_intrusion|physical_constant|branch_fact","changeEn":string,"changeZh":string}. User change: ${JSON.stringify(prompt)}. Parent world local records: ${JSON.stringify(inheritedForValidation).slice(0,10000)}. Nearest known baseline: ${baselineContext(explicitYears(prompt)[0]??1500,24)}.`}
+  {role:'user',content:`Validate this proposed edit. It MUST refer to Earth, its recorded past, a real physical constant, or a dated fictional event explicitly happening on Earth. Classify the NATURE of the modification rather than the vagueness of its date: timeMode=point for an individual invention, discovery, landing or other discrete act, even when only a dynasty or era is supplied (infer a plausible year); timeMode=gradual for turmoil, declining authority, widespread migration or other accumulating developments (infer their onset and a later establishment year). Do not collapse gradual social change into one instantaneous event. An edit to branch-derived knowledge is allowed only if supplied in the parent world data. For fictional arrivals on Earth, mark earth_intrusion, which is valid even though it did not happen in reality. Assessments need not reject physically impossible changes to actual constants. Return JSON {"valid":boolean,"reasonEn":string,"reasonZh":string,"anchorYear":integer,"timeMode":"point|gradual","transitionEndYear":integer,"timeBasisEn":string,"timeBasisZh":string,"type":"historical_change|earth_intrusion|physical_constant|branch_fact","changeEn":string,"changeZh":string}. For point, transitionEndYear=anchorYear. For gradual, anchorYear is the onset and transitionEndYear is when the changing condition has developed. Explain the inferred historical range briefly in timeBasis. User change: ${JSON.stringify(prompt)}. Parent world local records: ${JSON.stringify(inheritedForValidation).slice(0,10000)}. Date-related baseline: ${explicitYears(prompt).length?baselineContext(explicitYears(prompt)[0],24):"No explicit numeric year; infer the era from the user wording without assuming a default century."}.`}
  ],{signal,json:true,maxTokens:1000,temperature:.12});
  if(assessment.valid!==true)throw new Error(`ANCHOR_INVALID${assessment.reasonEn?`: ${truncate(lang==='zh'?assessment.reasonZh:assessment.reasonEn,180)}`:''}`);
- const year=nYear(assessment.anchorYear);if(!validYear(year))throw new Error('ANCHOR_INVALID');if(parent&&year<parent.anchorYear)throw new Error('ANCHOR_PRECEDES_PARENT');
- const explicit=explicitYears(prompt);if(explicit.length&&Math.min(...explicit.map(x=>Math.abs(x-year)))>2&&assessment.type!=='physical_constant')throw new Error('ANCHOR_INVALID');
+ const temporal=normalizeTemporalAnchor(assessment,prompt,parent);const year=temporal.anchorYear;
  const knownChange=['historical_change','earth_intrusion','physical_constant','branch_fact'].includes(assessment.type)?assessment.type:'historical_change';
  if(knownChange==='branch_fact'&&!parent)throw new Error('ANCHOR_INVALID');
  const inherited=inheritedState(branches,parentId,year),segments=planSegments(year);
- const branch={id:makeId(),parentId:parent?.id||null,anchorYear:year,prompt,type:knownChange,createdAt:new Date().toISOString(),titleEn:'',titleZh:'',summaryEn:'',summaryZh:'',events:[],facts:[],inherited,impacts:[],certainty:'medium',image:null};
+ const branch={id:makeId(),parentId:parent?.id||null,anchorYear:year,...temporal,prompt,type:knownChange,createdAt:new Date().toISOString(),titleEn:'',titleZh:'',summaryEn:'',summaryZh:'',events:[],facts:[],inherited,impacts:[],certainty:'medium',image:null};
  const prior=parent?`${parent.titleEn}\n${parent.summaryEn}`:'Recorded Earth baseline';
  for(let i=0;i<segments.length;i++){
   if(signal?.aborted)throw new DOMException('Aborted','AbortError');
@@ -161,7 +178,7 @@ export async function simulate({prompt,branches=[],parentId=null,config,lang='en
   const recent=branch.events.slice(-32);const facts=worldFacts(branches,branch).slice(-65);
   const data=await callChat(config,[
    {role:'system',content:CONTEXT},
-   {role:'user',content:`Perform checkpoint ${i+1}/${segments.length} for [${range[0]}, ${range[1]}], inclusive. Earth divergence: ${JSON.stringify({prompt,year,type:knownChange,changeEn:assessment.changeEn,changeZh:assessment.changeZh})}. Parent state: ${prior}. Inherited facts/events before divergence: ${JSON.stringify(inherited).slice(0,14500)}. This branch's already computed events: ${JSON.stringify(recent).slice(0,14500)}. Accumulated knowledge: ${JSON.stringify(facts).slice(0,12000)}. Relevant baseline comparison ONLY (not assumed to happen after divergence): ${baselineContext(Math.round((range[0]+range[1])/2),16)}. Show realistic causal chains through multiple domains with non-magical second-order consequences. Ensure each event is within [${range[0]},${range[1]}], minimum 3 and maximum 7 consequential events unless the interval is extremely short, and every event includes causes naming earlier entities/events or explicitly the initial change. New technologies, people, institutions and concepts are represented in facts with firstYear, and must not predate their causes. No silent resets to our history. Maintain continuity and uncertainty. OUTPUT JSON {"events":[{"year":integer,"en":string,"zh":string,"descriptionEn":string,"descriptionZh":string,"category":"science|technology|culture|governance|exploration|conflict|society|other","certainty":"high|medium|low","causes":[string]}],"facts":[{"firstYear":integer,"nameEn":string,"nameZh":string,"descriptionEn":string,"descriptionZh":string,"kind":string,"certainty":"high|medium|low"}],"stateEn":string,"stateZh":string}.`}
+   {role:'user',content:`Perform checkpoint ${i+1}/${segments.length} for [${range[0]}, ${range[1]}], inclusive. Earth divergence: ${JSON.stringify({prompt,year,type:knownChange,...temporal,changeEn:assessment.changeEn,changeZh:assessment.changeZh})}. In gradual mode, change accumulates between anchorYear and transitionEndYear and does not happen all at once; in point mode a discrete event happens at the inferred anchorYear. Parent state: ${prior}. Inherited facts/events before divergence: ${JSON.stringify(inherited).slice(0,14500)}. This branch's already computed events: ${JSON.stringify(recent).slice(0,14500)}. Accumulated knowledge: ${JSON.stringify(facts).slice(0,12000)}. Relevant baseline comparison ONLY (not assumed to happen after divergence): ${baselineContext(Math.round((range[0]+range[1])/2),16)}. Show realistic causal chains through multiple domains with non-magical second-order consequences. Ensure each event is within [${range[0]},${range[1]}], minimum 3 and maximum 7 consequential events unless the interval is extremely short, and every event includes causes naming earlier entities/events or explicitly the initial change. New technologies, people, institutions and concepts are represented in facts with firstYear, and must not predate their causes. No silent resets to our history. Maintain continuity and uncertainty. OUTPUT JSON {"events":[{"year":integer,"en":string,"zh":string,"descriptionEn":string,"descriptionZh":string,"category":"science|technology|culture|governance|exploration|conflict|society|other","certainty":"high|medium|low","causes":[string]}],"facts":[{"firstYear":integer,"nameEn":string,"nameZh":string,"descriptionEn":string,"descriptionZh":string,"kind":string,"certainty":"high|medium|low"}],"stateEn":string,"stateZh":string}.`}
   ],{signal,json:true,maxTokens:4300,temperature:.48});
   if(!object(data)||!Array.isArray(data.events))throw new Error('BAD_RESPONSE');
   for(const item of data.events.slice(0,10)){const e=normalizedEvent(item,range);if(e&&!branch.events.some(x=>x.year===e.year&&x.en.toLowerCase()===e.en.toLowerCase()))branch.events.push(e)}
@@ -172,7 +189,7 @@ export async function simulate({prompt,branches=[],parentId=null,config,lang='en
  onProgress({phase:'synthesis',index:segments.length,total:segments.length});
  const reviewed=await callChat(config,[
   {role:'system',content:CONTEXT},
-  {role:'user',content:`Reconcile the generated worldline to 2026-01-01, with a concise readable snapshot. Do not imply certainty or disguise speculative changes as historical records. Identify any significant causal tensions in the forecast. Output JSON {"titleEn":string,"titleZh":string,"summaryEn":string,"summaryZh":string,"impacts":[string],"certainty":"low|medium|high"}. Original edit: ${prompt}. Computed events: ${JSON.stringify(branch.events).slice(0,22000)}. New facts: ${JSON.stringify(branch.facts).slice(0,12000)}. Previous state: ${branch.summaryEn}.`}
+  {role:'user',content:`Reconcile the generated worldline to 2026-01-01, with a concise readable snapshot. Do not imply certainty or disguise speculative changes as historical records. Identify any significant causal tensions in the forecast. Output JSON {"titleEn":string,"titleZh":string,"summaryEn":string,"summaryZh":string,"impacts":[string],"certainty":"low|medium|high"}. Original edit: ${prompt}. Temporal range: ${JSON.stringify(temporal)}. Computed events: ${JSON.stringify(branch.events).slice(0,22000)}. New facts: ${JSON.stringify(branch.facts).slice(0,12000)}. Previous state: ${branch.summaryEn}.`}
  ],{signal,json:true,maxTokens:2000,temperature:.3});
  branch.titleEn=truncate(reviewed.titleEn||assessment.changeEn||prompt,90);
  branch.titleZh=truncate(reviewed.titleZh||assessment.changeZh||branch.titleEn,90);
