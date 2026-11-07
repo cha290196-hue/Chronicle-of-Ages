@@ -185,3 +185,28 @@ html[data-theme="dark"] #app{filter:invert(.92) hue-rotate(180deg)}
 html[data-theme="dark"] #app img{filter:invert(1) hue-rotate(180deg)}
 html[data-theme="dark"] .mobile-scrim{background:rgba(235,235,235,.30)}
 html[data-theme="dark"] .backdrop{background:rgba(235,235,235,.36)}
+
+/* Resizable desktop inspector */
+.panel-resize{display:none}
+@media (min-width:851px){
+ .panel{position:relative}
+ .workspace.panel-open{grid-template-columns:70px minmax(0,1fr) min(var(--panel-width,350px),calc(100vw - 430px))}
+ .panel-resize{display:block;position:absolute;z-index:8;left:0;top:0;bottom:0;width:10px;cursor:col-resize;touch-action:none;outline-offset:-3px}
+ .panel-resize:hover,.panel-resize:focus-visible{background:rgba(120,120,115,.14)}
+ body.resizing-panel,body.resizing-panel *{cursor:col-resize!important;user-select:none!important}
+}
+@media (min-width:851px) and (max-width:1100px){
+ .workspace.panel-open{grid-template-columns:60px minmax(0,1fr) min(var(--panel-width,310px),calc(100vw - 420px))}
+}
+.database-section-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:23px}
+.database-dialogue{border-bottom:1px solid #eeeeec}
+.database-dialogue summary{list-style:none;display:flex;justify-content:space-between;align-items:center;gap:12px;cursor:pointer;padding:15px 0;color:#191919;font-size:12px;font-weight:600;line-height:1.55}
+.database-dialogue summary::-webkit-details-marker{display:none}
+.database-dialogue summary svg{flex:none;color:#999;transition:transform .15s}
+.database-dialogue[open] summary svg{transform:rotate(90deg)}
+.database-answer{font-size:12px;line-height:1.8;color:#646460;white-space:pre-wrap;padding:0 0 18px}
+
+.database-tabs{display:flex;gap:6px;margin:20px 0 4px;border-bottom:1px solid var(--border)}
+.database-tabs button{border:0;border-bottom:2px solid transparent;background:transparent;padding:10px 4px;color:#999995;font-size:10px;font-weight:600;line-height:1.4;white-space:normal;text-align:left}
+.database-tabs button.active{color:#242422;border-bottom-color:#242422}
+.database-tabs button span{margin-left:4px;font-weight:400;color:#999995}
