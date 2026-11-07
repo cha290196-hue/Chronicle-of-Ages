@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | `src/ucm-omega.mjs` | 时间线继承、干预约束、因果 DAG、事件校验、多情景引擎 | 可执行，已单元测试 |
 | `src/causal-dynamics.mjs` | 可信结构方程求值、`do(X=x)` 干预、粒子滤波与重采样 | 可执行，待领域模型与观测数据 |
-| `src/chronicle-adapter.mjs` | 对接原项目 `callChat`，将模型输出作为待校验候选 | 已用模拟模型测试，尚未接到网页按钮 |
+| `src/chronicle-adapter.mjs` | 对接原项目 `callChat`，将模型输出作为待校验候选 | 已接入原网页推演入口，模拟模型集成测试通过 |
 | `tests/*.mjs` | 行为、边界与回归验证 | 20 项本地通过 |
 | `docs/UCM-OMEGA-ALGORITHM.md` | 模型数学定义、实现边界、算法流程 | 已完成 |
 | `docs/UCM-OMEGA-EVALUATION.md` | 证据库、检验方案、发布门槛与来源 | 已完成 |
@@ -48,7 +48,7 @@ const { worldline, analysis } = await simulateOmega({
 });
 ```
 
-`worldline` 与原有世界线的主要字段相容；`analysis` 保留候选轨迹、约束拒绝记录、结构化干预和审计分数。**此交付未直接将 `app.js` 的现有 `simulate` 切换为 `simulateOmega`，也未修改现有存档格式、发布网站或替换既有代码。** 正式切换前必须处理 `sanitizeWorldline` 对 `omega` 字段的裁剪、跨设备存档、API 成本、取消推演和真实模型返回结构的兼容测试。
+`worldline` 与原有世界线的主要字段相容；`analysis` 保留候选轨迹、约束拒绝记录、结构化干预和审计分数。**`src/core.js` 的公开 `simulate()` 现在调用 `simulateOmega()`；原算法保留为 `simulateLegacy()`，仅供显式调用或回归测试，生产流程不会自动回退。没有修改 `src/app.js`、HTML、CSS 或 Canvas。存档仍使用已有字段，`omega` 的详细情景诊断可能被旧存档净化器裁剪。真实服务商 API 和浏览器端长期运行的验收仍需另外测试。
 
 ## 严谨性声明
 
