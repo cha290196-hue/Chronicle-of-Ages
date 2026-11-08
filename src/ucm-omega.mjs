@@ -92,7 +92,7 @@ export function resolveAncestry({baseline=[],branches=[],parentId=null,atYear}) 
  for(let i=0;i<chain.length;i++){
   const limit=i+1<chain.length?chain[i+1].anchorYear:atYear;
   for(const e of safeList(chain[i].events))if(validYear(e.year)&&tick(e.year)<tick(limit))add(events,e);
-  for(const f of safeList(chain[i].facts))if(validYear(f.firstYear)&&tick(f.firstYear)<tick(limit))add(facts,f);
+  for(const f of [...safeList(chain[i].facts),...safeList(chain[i].knowledge)])if(validYear(f.firstYear)&&tick(f.firstYear)<tick(limit))add(facts,f);
  }
  return {events:events.sort((a,b)=>tick(a.year)-tick(b.year)),facts,ancestry:chain.map(b=>b.id),baselineCutoffYear:rootYear};
 }
@@ -278,7 +278,15 @@ export function evaluateScenario(scenario){
 export async function runMatrix({baseline=[],branches=[],parentId=null,interpretation,propose,scenarioCount=2,maxWindows=6,signal,onProgress=()=>{},landmarks=[]}){
  if(typeof propose!=='function')throw new MatrixError('PROPOSER_REQUIRED');
  const parent=parentId===null?null:branches.find(b=>b.id===parentId);
- const actions=compileInterventions(interpretation,{parentAnchor:parent?.anchorYear??null,parentFacts:parent?resolveAncestry({baseline,branches,parentId,atYear:LAST_YEAR}).facts.concat(safeList(parent.facts)):[]});
+ // A discovered fact cannot support a new fork earlier than that fact exists.
+ // Filter ancestry and the selected parent's own knowledge by the new fork date
+ // before compiling branch-local modifications.
+ const requestedYears=safeList(interpretation?.operations).map(op=>op?.startYear).filter(validYear);
+ const requestedFirst=requestedYears.length?requestedYears.reduce((earliest,y)=>tick(y)<tick(earliest)?y:earliest):LAST_YEAR;
+ const inheritedAtFork=parent?resolveAncestry({baseline,branches,parentId,atYear:requestedFirst}).facts:[];
+ const knownAtFork=parent?[...inheritedAtFork,...safeList(parent.facts),...safeList(parent.knowledge)]
+   .filter(f=>validYear(f.firstYear)&&tick(f.firstYear)<=tick(requestedFirst)):[];
+ const actions=compileInterventions(interpretation,{parentAnchor:parent?.anchorYear??null,parentFacts:knownAtFork});
  const firstYear=actions.reduce((best,a)=>tick(a.startYear)<tick(best)?a.startYear:best,actions[0].startYear);
  const inherited=resolveAncestry({baseline,branches,parentId,atYear:firstYear});
  const windows=adaptiveWindows(firstYear,LAST_YEAR,{maxWindows,landmarks});
@@ -350,7 +358,7 @@ export function toLegacyWorldline(result,{id,parentId=null,prompt='',titleEn='',
   timeBasisEn:action.temporalBasis,timeBasisZh:action.temporalBasis,
   prompt,type:action.kind,titleEn,titleZh,summaryEn,summaryZh,createdAt,
   events:preferred.events.map(e=>({...e,causes:e.causes,origin:'derived'})),
-  facts:preferred.facts.map(f=>({...f,origin:'derived'})),
+  facts:preferred.facts.map(f=>({...f,origin:'derived'})),knowledge:[],
   inherited:{events:result.inherited.events.filter(e=>e.origin!=='recorded'),facts:result.inherited.facts},
   certainty:'low',impacts:[],image:null,
   // Legacy sanitizer currently removes these extra fields; use an archive-schema migration to persist them.
