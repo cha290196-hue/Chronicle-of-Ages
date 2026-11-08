@@ -4,7 +4,7 @@ import {usageBillingProvider,deepseekModelTier,deepseekBillingPeriod,DEEPSEEK_RA
 const h=x=>String(x??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const fmt=(n,lang)=>Number(n||0).toLocaleString(lang==='zh'?'zh-CN':'en-US');
 const usd=n=>'$'+Number(n||0).toFixed(n&&n<.01?6:4);
-const yuan=n=>'¥'+Number(n||0).toFixed(n&&n<.01?6:4);
+const yuan=n=>{const x=Number(n||0);return '¥'+x.toFixed(x>0&&x<.0001?8:x>0&&x<.01?6:4)};
 const currencyRange=(lo,hi)=>Math.abs(lo-hi)<1e-10?yuan(lo):yuan(lo)+'–'+yuan(hi);
 export function renderUsageDashboard({lang='en',provider='custom',model='',endpoint=''}={}){
  const u=(zh,en)=>lang==='zh'?zh:en;
