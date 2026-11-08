@@ -91,7 +91,7 @@ export function explainError(error,lang='en'){
  * Recovery retries the JSON task once with a concise JSON-only instruction.
  * Never accept a partially parsed JSON object as confirmed worldline data.
  */
-export async function callChat(config,messages,{signal,json=false,temperature=.35,maxTokens=3200,purpose='other'}={}){
+export async function callChat(config,messages,{signal,json=false,temperature=.35,maxTokens=3200,purpose='other',stage='other'}={}){
  const c=safeConfig(config);
  if(!configured(c))throw new Error('NOT_CONFIGURED');
  if(!validEndpoint(c.endpoint))throw new Error('INVALID_ENDPOINT');
@@ -108,6 +108,8 @@ export async function callChat(config,messages,{signal,json=false,temperature=.3
   if(json&&purpose==='simulation')baseBody.max_tokens=Math.max(maxTokens,8192);
  }
  const doCall=async({format=json,recovery=false,previousFailure=null}={})=>{
+  const startedAt=Date.now();
+  const elapsed=()=>Math.max(0,Date.now()-startedAt);
   const body={...baseBody};
   if(!format)delete body.response_format;
   if(recovery){
@@ -122,19 +124,19 @@ export async function callChat(config,messages,{signal,json=false,temperature=.3
   if(c.provider==='openrouter'&&typeof location!=='undefined')options.headers['HTTP-Referer']=location.origin;
   let response;
   try{response=await fetch(c.endpoint,options)}
-  catch(e){recordRequestUsage({provider:meteredProvider,model:c.model,purpose,success:false});if(signal?.aborted)throw new DOMException('Aborted','AbortError');throw e}
+  catch(e){recordRequestUsage({provider:meteredProvider,model:c.model,purpose,stage,elapsedMs:elapsed(),success:false});if(signal?.aborted)throw new DOMException('Aborted','AbortError');throw e}
   if(!response.ok){
    let detail='',failurePayload=null;
    try{failurePayload=await response.json();detail=failurePayload?.error?.message||failurePayload?.message||''}catch{}
-   recordRequestUsage({provider:meteredProvider,model:c.model,purpose,success:false,payload:failurePayload});
+   recordRequestUsage({provider:meteredProvider,model:c.model,purpose,stage,elapsedMs:elapsed(),success:false,payload:failurePayload});
    const ex=new Error(`HTTP ${response.status}${detail?`: ${String(detail).slice(0,220)}`:''}`);
    ex.status=response.status;
    throw ex;
   }
   let payload;
   try{payload=await response.json()}
-  catch(e){recordRequestUsage({provider:meteredProvider,model:c.model,purpose,success:false});throw e}
-  recordRequestUsage({provider:meteredProvider,model:c.model,purpose,success:true,payload});
+  catch(e){recordRequestUsage({provider:meteredProvider,model:c.model,purpose,stage,elapsedMs:elapsed(),success:false});throw e}
+  recordRequestUsage({provider:meteredProvider,model:c.model,purpose,stage,elapsedMs:elapsed(),success:true,payload});
   const choice=payload?.choices?.[0];
   const message=choice?.message||{};
   let result=normalizeModelContent(message.content??message.text??choice?.text??payload?.output_text);
@@ -167,6 +169,14 @@ export async function callChat(config,messages,{signal,json=false,temperature=.3
  try{return await doCall({format:json})}
  catch(first){
   if(!json||signal?.aborted)throw first;
+  // A confirmed 8192-token cutoff in a PRIMARY history window cannot
+  // be made whole by another request with the SAME 8192-token ceiling.
+  // Its caller's adaptive time/region split is the lossless next step.
+  // Retain JSON retries for syntax/blank output, summaries, coverage and
+  // smaller requests that can still benefit from another completion.
+  if(c.provider==='deepseek'&&purpose==='simulation'&&stage==='historical-window'
+     &&first?.reason==='truncated'&&first?.finishReason==='length'
+     &&baseBody.max_tokens>=8192)throw first;
   const unsupportedFormat=first?.status===400||first?.status===422;
   const malformed=first?.message==='INVALID_JSON';
   if(!unsupportedFormat&&!malformed)throw first;

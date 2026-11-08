@@ -319,3 +319,11 @@ html[data-theme="dark"] .backdrop{background:rgba(235,235,235,.36)}
 .toast.persistent{display:flex;align-items:flex-start;gap:14px;line-height:1.7;max-width:min(640px,calc(100vw - 28px));max-height:min(48dvh,320px);overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;padding:15px 13px 15px 18px}
 .toast-dismiss{color:inherit;background:transparent;border:1px solid #7778;border-radius:4px;min-width:27px;min-height:27px;font-size:19px;line-height:1;cursor:pointer;margin:-4px -2px 0 0;flex:0 0 auto}
 .toast-dismiss:hover,.toast-dismiss:focus-visible{background:#fff2;outline-color:#fff}
+
+/* Readable latency evidence, kept separate from pricing and worldline state. */
+.usage-stage-list{display:flex;flex-direction:column;gap:0;margin-top:8px}
+.usage-stage-row{display:grid;grid-template-columns:minmax(105px,1.4fr) minmax(40px,.5fr) minmax(70px,.75fr) minmax(90px,1fr);align-items:center;gap:8px;min-width:0;border-bottom:1px solid #efefec;padding:11px 0;color:#74746f;font:10px var(--mono)}
+.usage-stage-row:last-child{border-bottom:0}
+.usage-stage-row strong{font-size:11px;color:#33332f;overflow-wrap:anywhere}
+.usage-stage-row span{text-align:right;font-variant-numeric:tabular-nums}
+@media(max-width:470px){.usage-stage-row{grid-template-columns:minmax(90px,1fr) minmax(35px,.5fr) minmax(65px,.7fr);gap:5px}.usage-stage-row span:last-child{grid-column:1/-1;text-align:left;padding-top:1px}}

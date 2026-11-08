@@ -36,6 +36,21 @@ export function renderUsageDashboard({lang='en',provider='custom',model='',endpo
    </div>
    <div class="usage-pricing-actions"><button type="button" class="secondary-btn" data-action="save-usage-price">${u('保存单价','Save prices')}</button><span>${u('不预设其他模型价格','No assumed pricing for other models')}</span></div>
   </div>`;
+ const stageLabels={
+  interpretation:[ '历史干预识别','Historical interpretation' ],
+  'historical-window':[ '历史时段推演','Historical windows' ],
+  'world-coverage':[ '全球覆盖补充','World coverage review' ],
+  'causal-repair':[ '因果修复','Causal repair' ],
+  synthesis:[ '世界线总结','Final synthesis' ],
+  'synthesis-recovery':[ '总结格式恢复','Synthesis recovery' ],
+  'connection-test':[ '连接测试','Connection test' ]
+ };
+ const stageRows=summary.stageTimings.filter(r=>r.stage!=='other').map(r=>{
+  const title=stageLabels[r.stage]?u(...stageLabels[r.stage]):h(r.stage);
+  return `<div class="usage-stage-row"><strong>${title}</strong><span>${fmt(r.calls,lang)} ${u('次','calls')}</span>
+   <span>${u('平均','avg')} ${(r.averageMs/1000).toFixed(1)}s</span>
+   <span>${u('累计','total')} ${(r.elapsedMs/1000).toFixed(1)}s${r.failures?' · '+r.failures+' '+u('次失败','failed'):''}</span></div>`;
+ }).join('');
  const size=Math.max(1,...rows.map(r=>r.totalTokens));
  const hasReportedCost=rows.some(r=>!r.officialDeepSeekTier&&(r.providerCostCalls||0)>0);
  const hasRateEstimate=rows.some(r=>r.configuredPrice&&r.meteredCalls>r.providerCostCalls);
@@ -52,6 +67,8 @@ export function renderUsageDashboard({lang='en',provider='custom',model='',endpo
    <div class="usage-metric"><span>${u('服务商报告 Token','Provider-reported tokens')}</span><strong>${tot.meteredCalls?fmt(tot.totalTokens,lang):'—'}</strong></div>
    <div class="usage-metric"><span>${u('输入 / 输出','Input / output')}</span><strong class="usage-small-value">${fmt(tot.inputTokens,lang)} / ${fmt(tot.outputTokens,lang)}</strong></div>
    <div class="usage-metric"><span>${u('有用量 / 无记录','Metered / unknown')}</span><strong class="usage-small-value">${fmt(tot.meteredCalls,lang)} / ${fmt(tot.unmeteredCalls,lang)}</strong></div>
+   <div class="usage-metric"><span>${u('模型请求平均耗时','Mean API response time')}</span><strong class="usage-small-value">${summary.averageElapsedMs===null?'—':(summary.averageElapsedMs/1000).toFixed(1)+'s'}</strong></div>
+   <div class="usage-metric"><span>${u('已测速请求','Timed API requests')}</span><strong class="usage-small-value">${fmt(summary.timedCalls,lang)}</strong></div>
   </div>
   <div class="usage-costs">
    <div class="usage-deepseek-cost"><span>${u('DeepSeek 官方价格自动测算','DeepSeek cost · official rate estimate')}</span><strong>${deepseekDisplay}</strong></div>
@@ -62,6 +79,10 @@ export function renderUsageDashboard({lang='en',provider='custom',model='',endpo
   </div>
   <p class="usage-disclaimer">${u('只统计当前浏览器的请求，含重试与失败。DeepSeek 按已核对的官方人民币价格、缓存明细和请求时段自动测算；其他服务商的 USD 数字不与人民币相加。旧记录没有完整明细的部分可能不能重算；实际扣费仍以服务商账单为准。','Tracks this browser only, including retries/failures. DeepSeek uses published CNY rates, cache counts and request time. Other providers\' USD costs are not added to CNY. Some older records cannot be fully repriced; provider billing is authoritative.')}</p>
   ${officialPricingHtml}
+  <details class="usage-details"><summary>${u('推演各阶段的真实等待时间','Measured latency by simulation stage')} · ${summary.stageTimings.length}</summary>
+   <p class="usage-disclaimer">${u('仅显示启用测速后的最近 300 次 API 请求；包含失败与重试。这里的累计耗时是请求时间之和，不等于整个页面的总等待时间。','Shows the most recent 300 timed API requests, including failed calls and retries. Sum of request times does not equal total simulation wall-clock time.')}</p>
+   <div class="usage-stage-list">${stageRows||`<p class="usage-no-records">${u('尚无各阶段测速数据。','No stage latency data yet.')}</p>`}</div>
+  </details>
   <details class="usage-details"><summary>${u('各模型用量明细','Usage by model')} · ${rows.length}</summary><div class="usage-model-list">${modelRows||`<p class="usage-no-records">${u('还没有请求记录。','No requests recorded yet.')}</p>`}</div></details>
   <div class="usage-footer"><span>${u('不包含其他设备的用量','Does not include other devices')}</span><button type="button" class="usage-clear" data-action="clear-usage">${u('清空统计','Clear usage')}</button></div>
  </section>`;

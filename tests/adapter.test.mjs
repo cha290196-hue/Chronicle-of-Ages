@@ -9,7 +9,7 @@ test('adapter runs intake, independent windowed proposals, synthesis and legacy 
   assert.equal(opts.json,true);count++;
   const p=messages.at(-1).content;
   if(p.includes('Classify user input'))return {intent:'edit',valid:true,operations:[a]};
-  if(p.startsWith('Propose counterfactual')){
+  if(p.includes('Propose counterfactual')){
    const year=Number(p.match(/window \[(-?\d+),/)[1]);
    return {events:[{id:`evt-${year}`,year,en:`Consequence in ${year}`,zh:`${year}年的后果`,causes:['intervention:1'],certainty:'low',category:'society'}],facts:[]};
   }
