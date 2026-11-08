@@ -55,6 +55,10 @@ export function explainError(error,lang='en'){
  if(['ANCHOR_INVALID','INVALID_YEAR','INVALID_TIME_RANGE','UNKNOWN_BRANCH_FACT','UNKNOWN_BRANCH_FACT_AT_ANCHOR','CONTRADICTORY_INTERVENTIONS','EMPTY_OR_EXCESSIVE_INTERVENTION'].includes(code))
   return lang==='zh'?'历史干预的时间、对象或约束不成立，请调整输入。':'The historical intervention contains an invalid time, target, or conflicting condition.';
  if(code==='INVALID_JSON'||code==='NO_VALID_TRAJECTORY')return lang==='zh'?'模型未能生成可通过因果校验的结果，请重新推演。':'The model could not produce a causally valid result. Try again.';
+ if(['WINDOW_EXPANSION_LIMIT','WINDOW_SCOPE_TOO_DENSE'].includes(code))
+  return lang==='zh'?'该历史时段已自动按时间、地区和领域拆分，但当前模型仍无法完整生成某个子任务。系统没有用空数据替代历史，请检查模型输出上限或换用容量更高的模型。':'The engine split this historical period by time, region and domain, but the model still could not complete a subsection. No partial or empty history was substituted; check the output capacity.';
+ if(code==='GLOBAL_CAUSAL_AUDIT_FAILED')
+  return lang==='zh'?'所有子推演已完成，但全局因果一致性复核未通过。世界线未保存，请重新推演。':'Global causal review found inconsistent cross-window dependencies. No partial worldline was saved.';
  if(error?.name==='AbortError'||error?.message==='ABORTED')return lang==='zh'?'推演已停止。':'Simulation stopped.';
  if(error?.message==='INVALID_JSON'||error?.message==='BAD_RESPONSE'){
   const reason=error?.reason;
@@ -134,6 +138,12 @@ export async function callChat(config,messages,{signal,json=false,temperature=.3
    throw err;
   }
   if(!json)return result;
+  // Some providers terminate at the output limit immediately after a syntactically
+  // valid object. Such a response may still omit historical detail: fail closed.
+  if(choice?.finish_reason==='length'){
+   const err=new ModelJSONError('truncated');
+   err.finishReason='length';throw err;
+  }
   try{return extractJSON(result)}
   catch(e){
    if(e?.message!=='INVALID_JSON')throw e;
