@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {simulateOmega} from '../src/chronicle-adapter.mjs';
+import {runAdaptiveWindow} from '../src/adaptive-propagation.mjs';
 import {callChat} from '../src/core.js';
 import {readUsageMeter,recordRequestUsage,summarizeUsage,groupStageTimings} from '../src/usage-meter.mjs';
 import {renderUsageDashboard} from '../src/usage-dashboard.mjs';
@@ -118,6 +119,44 @@ test('actual DeepSeek API bridge tags latency separately for initial call and re
   assert.ok(rows.every(x=>x.usage.total===290));
   assert.ok(rows.every(x=>!('key' in x)&&!('messages' in x)));
  }finally{globalThis.fetch=beforeFetch;globalThis.localStorage=beforeStorage}
+});
+
+test('a confirmed full 8192-token DeepSeek cutoff skips an identical doomed retry and preserves history through subdivision',async()=>{
+ const previousFetch=globalThis.fetch,previousStorage=globalThis.localStorage;
+ globalThis.localStorage=memoryStorage();let calls=0,truncated=0;
+ globalThis.fetch=async(_url,options)=>{
+  calls++;const body=JSON.parse(options.body);
+  const range=body.messages.at(-1).content.match(/window \[(-?\d+), (-?\d+)\]/);
+  assert.ok(range);assert.equal(body.max_tokens,8192);
+  if(+range[1]===1644&&+range[2]===2026){
+   truncated++;
+   return {ok:true,status:200,json:async()=>({
+    choices:[{finish_reason:'length',message:{content:'{"events":[{"id":"partial"'} }],
+    usage:{prompt_tokens:300,completion_tokens:8192,total_tokens:8492}
+   })};
+  }
+  return {ok:true,status:200,json:async()=>({
+   choices:[{finish_reason:'stop',message:{content:JSON.stringify({events:[{year:+range[1],id:'year-'+range[1]}],facts:[]})}}],
+   usage:{prompt_tokens:400,completion_tokens:180,total_tokens:580}
+  })};
+ };
+ try{
+  const result=await runAdaptiveWindow({
+   window:{from:1644,to:2026},
+   execute:(window)=>callChat({
+    provider:'deepseek',endpoint:'https://api.deepseek.com/chat/completions',
+    model:'deepseek-flash',key:'mock-key'
+   },[{role:'system',content:'Generate JSON full history.'},{
+    role:'user',content:`Propose historical events for window [${window.from}, ${window.to}]`
+   }],{json:true,purpose:'simulation',stage:'historical-window',maxTokens:4300})
+  });
+  assert.equal(truncated,1,'full-size prompt was not wasted on an identical retry');
+  assert.equal(calls,3,'one truncated parent and two valid smaller historical windows');
+  assert.equal(result.expansions,1);
+  assert.equal(result.results.length,2);
+  assert.deepEqual(result.results.map(r=>r.events[0].year),[1644,1836]);
+  assert.equal(readUsageMeter().totals.calls,3,'all consumed tokens remain counted');
+ }finally{globalThis.fetch=previousFetch;globalThis.localStorage=previousStorage}
 });
 
 test('the user-facing performance dashboard includes real latency, and core causal guardrails remain',async()=>{
