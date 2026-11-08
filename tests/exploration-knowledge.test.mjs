@@ -81,6 +81,16 @@ test('an updated parent shares only its established pre-fork knowledge with desc
  assert.equal(ran.preferred.events.length,1,'fresh fork can rely on previously discovered facts');
 });
 
+test('a future discovery cannot be used to justify an edit before its own existence',async()=>{
+ const future=auditKnowledge({candidates:[candidate({firstYear:1950,validUntil:1950,nameEn:'Future policy',nameZh:'未来政策'})],makeId:idFactory}).accepted[0];
+ const b={...branch,knowledge:[future]};
+ await assert.rejects(()=>runMatrix({branches:[b],parentId:'B',
+  interpretation:{operations:[{kind:'branch_fact',scope:'earth',mode:'point',
+   startYear:1900,target:'Future policy',value:'revised',parentFactId:future.id}]},
+  propose:async()=>({events:[],facts:[]})
+ }),/UNKNOWN_BRANCH_FACT/);
+});
+
 test('both old archives and new knowledge archives load without mutating macro-event skeleton',()=>{
  const b={...branch,knowledge:auditKnowledge({candidates:[candidate()],makeId:idFactory}).accepted};
  const restored=sanitizeWorldline(b);
