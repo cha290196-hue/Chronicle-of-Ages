@@ -254,3 +254,47 @@ html[data-theme="dark"] .backdrop{background:rgba(235,235,235,.36)}
 @media (min-width:851px){.composer-wrap{bottom:64px}}
 
 @media(max-width:850px){.composer-parent{max-width:54%}.composer-delete{height:30px;min-width:30px;padding:0 7px;justify-content:center}.composer-delete span{display:none}}
+
+/* API usage / cost dashboard (settings, monochrome editorial aesthetic) */
+.usage-panel{padding:20px 0 24px;border-top:1px solid #eaeae7;border-bottom:1px solid #ecece9}
+.usage-panel .settings-section-head{margin-bottom:13px}
+.usage-panel .settings-section-head strong{font-size:12px}
+.usage-panel .settings-section-head span{font:9px var(--mono);color:#92928e;letter-spacing:.04em}
+.usage-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.usage-metric{display:flex;flex-direction:column;gap:8px;min-width:0;padding:14px 13px 12px;background:#fafaf9;border:1px solid #ecece9;border-radius:6px}
+.usage-metric>span{font:10px var(--mono);color:#81817b}
+.usage-metric>strong{font-size:23px;line-height:1.25;font-weight:550;letter-spacing:-.04em;font-variant-numeric:tabular-nums;color:#20201e}
+.usage-metric>strong.usage-small-value{font-size:14px;letter-spacing:-.02em}
+.usage-costs{margin-top:11px;border-top:1px solid #eee}
+.usage-costs>div{display:flex;justify-content:space-between;align-items:center;gap:15px;padding:10px 2px;border-bottom:1px solid #f0f0ed}
+.usage-costs span{font-size:11px;color:#777772}
+.usage-costs strong{white-space:nowrap;font:600 13px var(--mono);color:#262623;font-variant-numeric:tabular-nums}
+.usage-disclaimer{font-size:10px;line-height:1.85;color:#93938e;margin:13px 0 17px}
+.usage-pricing{padding:14px;background:#f9f9f7;border:1px solid #ecece7;border-radius:6px}
+.usage-pricing-title{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;font-size:11px;font-weight:600;color:#32322f}
+.usage-pricing-title span{font:9px var(--mono);font-weight:400;color:#9c9c96}
+.usage-pricing-model{margin:9px 0 12px;color:#84847e;font:10px var(--mono);overflow-wrap:anywhere}
+.usage-price-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.usage-price-grid label{display:flex;flex-direction:column;gap:5px;font-size:10px;color:#777}
+.usage-price-grid input{width:100%;min-width:0;height:34px;padding:6px 9px;border:1px solid #deded8;background:#fff;color:#222;border-radius:5px;font:12px var(--mono)}
+.usage-price-grid input:focus{outline:1px solid #5d5d58}
+.usage-pricing-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:13px}
+.usage-pricing-actions>span{font-size:9px;color:#979792}
+.usage-pricing-actions button{height:32px}
+.usage-details{padding:15px 0;border-bottom:1px solid #ecece7}
+.usage-details summary{cursor:pointer;font-size:11px;font-weight:600;color:#444442;list-style-position:inside}
+.usage-model-list{margin-top:14px;display:flex;flex-direction:column;gap:17px}
+.usage-model-row{min-width:0}
+.usage-model-head{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:10px}
+.usage-model-head strong{font:600 11px var(--mono);color:#333;max-width:76%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.usage-model-head>span{font:10px var(--mono);color:#888;white-space:nowrap}
+.usage-model-rail{height:5px;background:#ebebe8;border-radius:8px;overflow:hidden;margin:8px 0}
+.usage-model-rail>span{display:block;height:100%;border-radius:8px;background:#343432;max-width:100%}
+.usage-model-foot{display:flex;justify-content:space-between;gap:9px;flex-wrap:wrap;font:9px var(--mono);color:#999}
+.usage-model-foot span:last-child{color:#585855}
+.usage-no-records{font-size:11px;color:#aaa;padding:6px 0}
+.usage-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px}
+.usage-footer span{font-size:9px;color:#a0a09b;line-height:1.5}
+.usage-clear{border:0;background:none;font:10px var(--mono);color:#84847f;text-decoration:underline;padding:5px;white-space:nowrap}
+.usage-clear:hover{color:#171715}
+@media(max-width:470px){.usage-metric{padding:12px 10px}.usage-metric>strong{font-size:20px}.usage-pricing-title span{font-size:8px}}

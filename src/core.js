@@ -1,4 +1,5 @@
 import { simulateOmega } from './chronicle-adapter.mjs';
+import {recordRequestUsage} from './usage-meter.mjs';
 import {parseModelJSON,normalizeModelContent,ModelJSONError} from './structured-output.mjs';
 import {auditKnowledge,sanitizeKnowledge,summarizeKnowledge} from './exploration-knowledge.mjs';
 import {BASELINE,FIRST_YEAR,LAST_YEAR,PHYSICAL_CONSTANTS,validYear} from './data.js';
@@ -54,6 +55,10 @@ export function explainError(error,lang='en'){
  if(['ANCHOR_INVALID','INVALID_YEAR','INVALID_TIME_RANGE','UNKNOWN_BRANCH_FACT','UNKNOWN_BRANCH_FACT_AT_ANCHOR','CONTRADICTORY_INTERVENTIONS','EMPTY_OR_EXCESSIVE_INTERVENTION'].includes(code))
   return lang==='zh'?'历史干预的时间、对象或约束不成立，请调整输入。':'The historical intervention contains an invalid time, target, or conflicting condition.';
  if(code==='INVALID_JSON'||code==='NO_VALID_TRAJECTORY')return lang==='zh'?'模型未能生成可通过因果校验的结果，请重新推演。':'The model could not produce a causally valid result. Try again.';
+ if(['WINDOW_EXPANSION_LIMIT','WINDOW_SCOPE_TOO_DENSE'].includes(code))
+  return lang==='zh'?'该历史时段已自动按时间、地区和领域拆分，但当前模型仍无法完整生成某个子任务。系统没有用空数据替代历史，请检查模型输出上限或换用容量更高的模型。':'The engine split this historical period by time, region and domain, but the model still could not complete a subsection. No partial or empty history was substituted; check the output capacity.';
+ if(code==='GLOBAL_CAUSAL_AUDIT_FAILED')
+  return lang==='zh'?'所有子推演已完成，但全局因果一致性复核未通过。世界线未保存，请重新推演。':'Global causal review found inconsistent cross-window dependencies. No partial worldline was saved.';
  if(error?.name==='AbortError'||error?.message==='ABORTED')return lang==='zh'?'推演已停止。':'Simulation stopped.';
  if(error?.message==='INVALID_JSON'||error?.message==='BAD_RESPONSE'){
   const reason=error?.reason;
@@ -80,7 +85,7 @@ export function explainError(error,lang='en'){
  * Recovery retries the JSON task once with a concise JSON-only instruction.
  * Never accept a partially parsed JSON object as confirmed worldline data.
  */
-export async function callChat(config,messages,{signal,json=false,temperature=.35,maxTokens=3200}={}){
+export async function callChat(config,messages,{signal,json=false,temperature=.35,maxTokens=3200,purpose='other'}={}){
  const c=safeConfig(config);
  if(!configured(c))throw new Error('NOT_CONFIGURED');
  if(!validEndpoint(c.endpoint))throw new Error('INVALID_ENDPOINT');
@@ -95,7 +100,7 @@ export async function callChat(config,messages,{signal,json=false,temperature=.3
   const body={...baseBody};
   if(!format)delete body.response_format;
   if(recovery){
-   const retryNote='The previous reply did not produce a valid complete JSON object. Re-evaluate the original instructions and return ONE concise syntactically correct JSON object only. No markdown, preamble, commentary or code fences. Keep descriptive strings short and use empty arrays rather than inventing extra events or facts. All required keys must be present. Do not modify the original user intervention.';
+   const retryNote='The previous reply did not produce a valid complete JSON object. Re-evaluate the original instructions and return ONE concise syntactically correct JSON object only. No markdown, preamble, commentary or code fences. Preserve substantive events, dependencies and required keys; never replace ungenerated content with empty arrays merely to satisfy formatting. Do not modify the original user intervention.';
    body.messages=[...messages,{role:'user',content:retryNote}];
    body.temperature=Math.min(Number.isFinite(temperature)?temperature:.35,.2);
    if(previousFailure?.reason==='truncated'){
@@ -106,15 +111,19 @@ export async function callChat(config,messages,{signal,json=false,temperature=.3
   if(c.provider==='openrouter'&&typeof location!=='undefined')options.headers['HTTP-Referer']=location.origin;
   let response;
   try{response=await fetch(c.endpoint,options)}
-  catch(e){if(signal?.aborted)throw new DOMException('Aborted','AbortError');throw e}
+  catch(e){recordRequestUsage({provider:c.provider,model:c.model,purpose,success:false});if(signal?.aborted)throw new DOMException('Aborted','AbortError');throw e}
   if(!response.ok){
-   let detail='';
-   try{const err=await response.json();detail=err?.error?.message||err?.message||''}catch{}
+   let detail='',failurePayload=null;
+   try{failurePayload=await response.json();detail=failurePayload?.error?.message||failurePayload?.message||''}catch{}
+   recordRequestUsage({provider:c.provider,model:c.model,purpose,success:false,payload:failurePayload});
    const ex=new Error(`HTTP ${response.status}${detail?`: ${String(detail).slice(0,220)}`:''}`);
    ex.status=response.status;
    throw ex;
   }
-  const payload=await response.json();
+  let payload;
+  try{payload=await response.json()}
+  catch(e){recordRequestUsage({provider:c.provider,model:c.model,purpose,success:false});throw e}
+  recordRequestUsage({provider:c.provider,model:c.model,purpose,success:true,payload});
   const choice=payload?.choices?.[0];
   const message=choice?.message||{};
   let result=normalizeModelContent(message.content??message.text??choice?.text??payload?.output_text);
@@ -129,6 +138,12 @@ export async function callChat(config,messages,{signal,json=false,temperature=.3
    throw err;
   }
   if(!json)return result;
+  // Some providers terminate at the output limit immediately after a syntactically
+  // valid object. Such a response may still omit historical detail: fail closed.
+  if(choice?.finish_reason==='length'){
+   const err=new ModelJSONError('truncated');
+   err.finishReason='length';throw err;
+  }
   try{return extractJSON(result)}
   catch(e){
    if(e?.message!=='INVALID_JSON')throw e;
@@ -245,7 +260,7 @@ export function sanitizeWorldline(input){
  const scrubFact=f=>object(f)&&validYear(f.firstYear)&&toText(f.id)&&toText(f.nameEn)?{...f,id:truncate(f.id,100),nameEn:plain(f.nameEn),nameZh:plain(f.nameZh||f.nameEn),descriptionEn:plain(f.descriptionEn),descriptionZh:plain(f.descriptionZh),kind:truncate(f.kind,60)}:null;
  const gradual=input.timeMode==='gradual',end=gradual?nYear(input.transitionEndYear):input.anchorYear;
  if(!validYear(end)||end<input.anchorYear||(gradual&&end===input.anchorYear))return null;
- return {id:truncate(input.id,100),parentId:toText(input.parentId)||null,anchorYear:input.anchorYear,timeMode:gradual?'gradual':'point',transitionEndYear:end,timeBasisEn:truncate(input.timeBasisEn||'',320),timeBasisZh:truncate(input.timeBasisZh||'',320),prompt:truncate(input.prompt,2000),type:truncate(input.type||'historical_change',50),titleEn:plain(input.titleEn),titleZh:plain(input.titleZh||input.titleEn),summaryEn:plain(input.summaryEn),summaryZh:plain(input.summaryZh||input.summaryEn),createdAt:truncate(input.createdAt,40),events:input.events.slice(0,200).map(scrubEvent).filter(Boolean),facts:input.facts.slice(0,200).map(scrubFact).filter(Boolean),knowledge:list(input.knowledge).map(sanitizeKnowledge).filter(Boolean),inherited:{events:list(input.inherited?.events).slice(0,200).map(scrubEvent).filter(Boolean),facts:list(input.inherited?.facts).slice(0,200).map(scrubFact).filter(Boolean)},impacts:list(input.impacts).slice(0,8).map(x=>plain(x)),certainty:truncate(input.certainty||'medium',20),image:object(input.image)?{data:toText(input.image.data).slice(0,5_000_000),prompt:plain(input.image.prompt)}:null};
+ return {id:truncate(input.id,100),parentId:toText(input.parentId)||null,anchorYear:input.anchorYear,timeMode:gradual?'gradual':'point',transitionEndYear:end,timeBasisEn:truncate(input.timeBasisEn||'',320),timeBasisZh:truncate(input.timeBasisZh||'',320),prompt:truncate(input.prompt,2000),type:truncate(input.type||'historical_change',50),titleEn:plain(input.titleEn),titleZh:plain(input.titleZh||input.titleEn),summaryEn:plain(input.summaryEn),summaryZh:plain(input.summaryZh||input.summaryEn),createdAt:truncate(input.createdAt,40),events:input.events.slice(0,1500).map(scrubEvent).filter(Boolean),facts:input.facts.slice(0,1500).map(scrubFact).filter(Boolean),knowledge:list(input.knowledge).map(sanitizeKnowledge).filter(Boolean),inherited:{events:list(input.inherited?.events).slice(0,1500).map(scrubEvent).filter(Boolean),facts:list(input.inherited?.facts).slice(0,1500).map(scrubFact).filter(Boolean)},impacts:list(input.impacts).slice(0,8).map(x=>plain(x)),certainty:truncate(input.certainty||'medium',20),image:object(input.image)?{data:toText(input.image.data).slice(0,5_000_000),prompt:plain(input.image.prompt)}:null};
 }
 /**
  * The public simulation entry point used by app.js.
@@ -372,7 +387,7 @@ export async function exploreCore({question,branch,branches=[],config,lang='en',
  const projection=await callChat(config,[
   {role:'system',content:framework},
   {role:'user',content:`Question: ${JSON.stringify(question)}. Respond to the question in ${lang==='zh'?'Chinese':'English'}. World context: ${JSON.stringify(context).slice(0,28000)}. Run a fresh local counterfactual inference and propose ONLY worthwhile, previously unrecorded, internally supported knowledge. Determine whether the question is about the SELECTED world (\"mode\":\"in_world\"), an explicitly hypothetical alteration not committed to the world (\"mode\":\"hypothetical\"), or irrelevant (\"mode\":\"unrelated\"). A hypothetical scenario may be explored in the response but MUST NOT create stored worldline facts. Return JSON {"mode":"in_world|hypothetical|unrelated","draftAnswer":string,"newFacts":[{"nameEn":string,"nameZh":string,"descriptionEn":string,"descriptionZh":string,"firstYear":integer,"validUntil":integer|null,"kind":"person|place|institution|politics|economy|society|culture|science|technology|environment|military|demography|law|daily_life|other","entity":string,"attribute":string,"value":string,"exclusiveKey":string,"basis":string,"evidenceIds":[string],"assumptions":[string],"certainty":"low|medium","relevant":boolean}],"unresolved":[string]}. A fact's year is a historical year -3200..-1 or 1..2026, NEVER 0. If it describes a particular year, validUntil=firstYear; if an interval, set a supported end. If no meaningful new facts arise, return []. Every new fact needs either existing event/knowledge IDs that genuinely support it, or a concrete inferred causal basis and explicit assumptions. Do not fabricate references. Never repeat a fact already available in the input. The draft answer can be as detailed as the question requires and must not follow a fixed template.`}
- ],{signal,json:true,temperature:.35,maxTokens:5500});
+ ],{signal,json:true,temperature:.35,maxTokens:5500,purpose:'exploration'});
  if(signal?.aborted)throw new DOMException('Aborted','AbortError');
  if(!projection||typeof projection!=='object'||Array.isArray(projection))throw new Error('INVALID_EXPLORATION_RESPONSE');
  const conditional=/^\\s*(?:假如|倘若|设想|若是|what\\s+if\\b|suppose\\b|imagine\\b)/i.test(question);
@@ -385,7 +400,7 @@ export async function exploreCore({question,branch,branches=[],config,lang='en',
  const answer=await callChat(config,[
   {role:'system',content:finalSystem},
   {role:'user',content:`Question: ${JSON.stringify(question)}. World: ${JSON.stringify(currentWorld).slice(0,9500)}. Existing local records: ${JSON.stringify(relevant).slice(0,12500)}. Prior related dialogue: ${JSON.stringify(priorDialogue).slice(0,5000)}. Locally simulated draft analysis: ${JSON.stringify({draftAnswer:projection.draftAnswer,unresolved:projection.unresolved}).slice(0,11000)}. Admitted new knowledge: ${JSON.stringify(assessment.accepted).slice(0,12500)}. Rejected discovery proposals: ${JSON.stringify(assessment.rejected).slice(0,2400)}. Respond with a complete useful natural answer, without claiming unsupported rejected details as fact.`}
- ],{signal,temperature:.42,maxTokens:5000});
+ ],{signal,temperature:.42,maxTokens:5000,purpose:'exploration'});
  if(signal?.aborted)throw new DOMException('Aborted','AbortError');
  return {answer:String(answer),knowledge:assessment.accepted,
   assessment:{accepted:assessment.accepted.length,duplicates:assessment.duplicates.length,rejected:assessment.rejected.length}};
@@ -397,8 +412,17 @@ export async function generateImage({prompt,branch,config,signal}){
  const context=branch?`${branch.titleEn}. ${branch.summaryEn} Key historical features: ${branch.events.slice(-10).map(e=>e.en).join('; ')}.`:'Recorded Earth history';
  const payload={model:c.imageModel,prompt:`Illustrate this specific Earth timeline with historically and materially consistent details. ${context} Requested view: ${truncate(prompt,1100)}. Documentary visual treatment, no text labels.`,size:'1024x1024',n:1};
  const response=await fetch(c.imageEndpoint,{method:'POST',headers:{'content-type':'application/json',authorization:`Bearer ${c.imageKey}`},body:JSON.stringify(payload),signal});
- if(!response.ok){let msg='';try{msg=(await response.json())?.error?.message||''}catch{}throw new Error(`HTTP ${response.status}${msg?`: ${msg.slice(0,180)}`:''}`)}
- const json=await response.json(),image=json?.data?.[0];
+ if(!response.ok){
+  let msg='',failure=null;
+  try{failure=await response.json();msg=failure?.error?.message||''}catch{}
+  recordRequestUsage({provider:c.imageProvider,model:c.imageModel,channel:'image',purpose:'image-generation',success:false,payload:failure});
+  throw new Error(`HTTP ${response.status}${msg?`: ${msg.slice(0,180)}`:''}`);
+ }
+ let json;
+ try{json=await response.json()}
+ catch(e){recordRequestUsage({provider:c.imageProvider,model:c.imageModel,channel:'image',purpose:'image-generation',success:false});throw e}
+ recordRequestUsage({provider:c.imageProvider,model:c.imageModel,channel:'image',purpose:'image-generation',success:true,payload:json});
+ const image=json?.data?.[0];
  if(!image)throw new Error('EMPTY_RESPONSE');
  if(image.b64_json){const mime=/^image\/(png|jpeg|webp)$/.test(image.media_type||'')?image.media_type:'image/png';return {data:`data:${mime};base64,${image.b64_json}`,prompt:truncate(prompt,1000)}};
  if(image.url&&/^https:\/\//i.test(image.url))return {data:image.url,prompt:truncate(prompt,1000)};
