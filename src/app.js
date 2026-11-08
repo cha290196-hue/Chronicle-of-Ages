@@ -1,5 +1,6 @@
 import {BASELINE,FIRST_YEAR,LAST_YEAR,displayYear,eventLabel} from './data.js';
 import {EXAMPLES} from './examples.js';
+import {planWorldlineDeletion} from './worldline-deletion.mjs';
 import {mergeKnowledge,sanitizeKnowledge} from './exploration-knowledge.mjs';
 import {formatAnswer} from './answer-format.js';
 import {t} from './i18n.js?v=20261107-world-database';
@@ -92,7 +93,7 @@ function renderNav(){
  let tabs=[['overview','globe','overview'],['archive','branches','worlds'],['knowledge','database','knowledge'],['core','message','central']];
  $('nav').innerHTML=tabs.map(([key,ico,label])=>`<button data-action="tab" data-value="${key}" class="${state.tab===key||(['world','event','fact','edit-event','edit-fact','create-record'].includes(state.tab)&&key==='overview')?'selected':''}" aria-label="${h(tr(label))}" aria-current="${state.tab===key?'page':'false'}">${icon(ico,19)}<span class="tooltip-label">${h(tr(label))}</span><span class="nav-short-label">${h(mobileLabels[key])}</span></button>`).join('')+`<div class="rail-sep"></div><button data-action="image" class="${state.tab==='image'?'selected':''}" aria-label="${h(tr('image'))}">${icon('image',19)}<span class="tooltip-label">${h(tr('image'))}</span><span class="nav-short-label">${h(mobileLabels.image)}</span></button><button data-action="settings" class="rail-bottom" aria-label="${h(tr('settings'))}">${icon('settings',19)}<span class="tooltip-label">${h(tr('settings'))}</span></button>`;
 }
-function renderComposer(){$('composer').innerHTML=`<form class="composer" id="simulate-form"><div class="composer-head"><div class="composer-label"><span>${icon('layers',14)}</span>${h(tr('modify'))}<span class="slash">/</span><span style="font-weight:400;color:#a3a3a0">${h(tr('worldline'))}</span></div><div class="composer-parent">${h(worldTitle(active()))}</div></div><textarea id="history-input" name="history-input" maxlength="2000" rows="2" placeholder="${h(tr('prompt'))}" aria-label="${h(tr('prompt'))}">${h(state.input)}</textarea><div class="composer-footer"><span class="composer-hint">${h(state.lang==='zh'?'Ctrl + Enter 开始推演':'Ctrl + Enter to simulate')}</span><button type="submit" class="primary-btn" ${state.busy?'disabled':''}>${h(state.busy?tr('running'):tr('run'))} ${icon('arrow',15)}</button></div></form>`;updateExamplePlaceholder()}
+function renderComposer(){$('composer').innerHTML=`<form class="composer" id="simulate-form"><div class="composer-head"><div class="composer-label"><span>${icon('layers',14)}</span>${h(tr('modify'))}<span class="slash">/</span><span style="font-weight:400;color:#a3a3a0">${h(tr('worldline'))}</span></div><div class="composer-parent"><span class="composer-parent-name" title="${h(worldTitle(active()))}">${h(worldTitle(active()))}</span>${active()?`<button type="button" class="composer-delete" data-action="delete-selected-worldline" aria-label="${h(state.lang==='zh'?'删除当前选中的世界线':'Delete selected worldline')}" title="${h(state.lang==='zh'?'删除当前选中的世界线':'Delete selected worldline')}" ${state.busy||state.questionBusy||state.imageBusy?'disabled':''}>${icon('trash',13)}<span>${h(tr('delete'))}</span></button>`:''}</div></div><textarea id="history-input" name="history-input" maxlength="2000" rows="2" placeholder="${h(tr('prompt'))}" aria-label="${h(tr('prompt'))}">${h(state.input)}</textarea><div class="composer-footer"><span class="composer-hint">${h(state.lang==='zh'?'Ctrl + Enter 开始推演':'Ctrl + Enter to simulate')}</span><button type="submit" class="primary-btn" ${state.busy?'disabled':''}>${h(state.busy?tr('running'):tr('run'))} ${icon('arrow',15)}</button></div></form>`;updateExamplePlaceholder()}
 function renderPanel(){
  const tab=state.tab;const panel=$('panel');panel.classList.toggle('mobile-open',state.mobilePanel);panel.hidden=!state.mobilePanel;panel.closest('.workspace').classList.toggle('panel-open',state.mobilePanel);$('mobile-scrim')?.classList.toggle('visible',state.mobilePanel);panel.setAttribute('aria-hidden',String(!state.mobilePanel));if(tab!=='core'){$('panel-content').style.padding='';$('panel-content').style.display='';$('panel-content').style.flexDirection='';}
 
@@ -162,7 +163,7 @@ function handleClick(event){const btn=event.target.closest('[data-action]');if(!
  if(action==='database-tab'){state.databaseTab=val;if($('fact-results'))$('fact-results').innerHTML=databaseResults();return}
  if(action==='select-fact'){state.selected={kind:'fact',id:btn.dataset.id};state.tab='fact';renderNav();renderPanel();return}
  if(action==='focus-event'){canvas.focus(Number(btn.dataset.year),Math.max(canvas.zoom,.9));state.mobilePanel=false;renderPanel();return}
- if(action==='delete-branch'){deleteBranch(btn.dataset.id);return}
+ if(action==='delete-branch'||action==='delete-selected-worldline'){deleteBranch(action==='delete-selected-worldline'?state.activeId:btn.dataset.id);return}
  if(action==='image'){state.tab='image';state.mobilePanel=true;renderNav();renderPanel();return}
  if(action==='export'){exportData();return}if(action==='import'){$('import-file').click();return}
  if(action==='test-config'){testConfig();return}
@@ -219,7 +220,25 @@ async function submitImage(form){if(state.imageBusy)return;const input=String(ne
  state.imageBusy=true;renderPanel();const controller=new AbortController();try{const result=await generateImage({prompt:input,branch:active(),config,signal:controller.signal});active().image=result;persist();notify(tr('complete'))}catch(e){notify(explainError(e,state.lang),true)}finally{state.imageBusy=false;renderPanel()}
 }
 
-function deleteBranch(id){if(!confirm(tr('confirmDelete')))return;const pending=new Set([id]);let changed=true;while(changed){changed=false;for(const b of state.branches)if(b.parentId&&pending.has(b.parentId)&&!pending.has(b.id)){pending.add(b.id);changed=true}}state.branches=state.branches.filter(b=>!pending.has(b.id));for(const x of pending)delete state.chats[x];state.activeId=null;state.tab='archive';state.selected=null;persist();render()}
+function deleteBranch(id){
+ if(state.busy||state.questionBusy||state.imageBusy)return;
+ const plan=planWorldlineDeletion(state.branches,id,state.chats);
+ if(!plan)return;
+ const title=state.lang==='zh'?(plan.selected.titleZh||plan.selected.titleEn||plan.selected.prompt||id):(plan.selected.titleEn||plan.selected.titleZh||plan.selected.prompt||id);
+ const message=state.lang==='zh'
+  ?`确定删除选中的世界线「${title}」吗？${plan.descendantCount?`\n其下 ${plan.descendantCount} 条后继世界线也会一并删除。`:''}\n相关历史、知识库和对话记录将一起移除，且无法撤销。其他平行世界线不会受影响。`
+  :`Delete the selected worldline "${title}"?${plan.descendantCount?`\nIts ${plan.descendantCount} descendant worldlines will also be deleted.`:''}\nAssociated history, knowledge and conversations will be removed permanently. Unrelated worldlines will remain.`;
+ if(!confirm(message))return;
+ const previous={branches:state.branches,chats:state.chats,activeId:state.activeId,
+  tab:state.tab,selected:state.selected,mobilePanel:state.mobilePanel};
+ state.branches=plan.branches;state.chats=plan.chats;
+ state.activeId=null;state.selected=null;state.tab='archive';state.mobilePanel=true;
+ if(!persist()){
+  Object.assign(state,previous);render();return;
+ }
+ render();
+ notify(state.lang==='zh'?`已删除 ${plan.removedCount} 条世界线。`:`Deleted ${plan.removedCount} worldline(s).`);
+}
 function exportData(){const snapshot={format:'chronicle-of-ages',version:1,exportedAt:new Date().toISOString(),worldlines:state.branches,chats:state.chats,baselineKnowledge:state.baselineKnowledge};const blob=new Blob([JSON.stringify(snapshot,null,2)],{type:'application/json'});const href=URL.createObjectURL(blob),a=document.createElement('a');a.href=href;a.download=`chronicle-of-ages-${new Date().toISOString().slice(0,10)}.json`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(href),1800);notify(tr('exported'))}
 async function importFile(event){const file=event.target.files?.[0];event.target.value='';if(!file)return;try{if(file.size>20_000_000)throw new Error('too large');const raw=JSON.parse(await file.text());if(raw.format!=='chronicle-of-ages'||raw.version!==1||!Array.isArray(raw.worldlines)||raw.worldlines.length>100)throw new Error('invalid');const valid=raw.worldlines.map(sanitizeWorldline).filter(Boolean);if(valid.length!==raw.worldlines.length||new Set(valid.map(x=>x.id)).size!==valid.length)throw new Error('invalid');state.branches=valid;state.activeId=null;state.tab='archive';state.chats=sanitizeChats(raw.chats??state.chats,valid.map(b=>b.id));state.baselineKnowledge=Array.isArray(raw.baselineKnowledge)?raw.baselineKnowledge.map(sanitizeKnowledge).filter(Boolean):[];persist();render();notify(tr('imported'))}catch{notify(tr('invalidImport'),true)}}
 window.addEventListener('error',e=>{console.error('Chronicle:',e.error||e.message)});
