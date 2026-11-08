@@ -11,7 +11,7 @@ const clip=(v,n=550)=>String(v??'').trim().slice(0,n);
 const key=v=>clip(v,180).toLocaleLowerCase().replace(/[\s\p{P}\p{S}]+/gu,'');
 const isObject=x=>!!x&&typeof x==='object'&&!Array.isArray(x);
 const allowedKinds=new Set(['person','place','institution','politics','economy','society','culture','science','technology','environment','military','demography','law','daily_life','other']);
-const attrKey=(r)=>key(r?.exclusiveKey)||((key(r?.entity)&&key(r?.attribute))?`${key(r.entity)}::${key(r.attribute)}`:'');
+const attrKey=r=>((key(r?.entity)&&key(r?.attribute))?`${key(r.entity)}::${key(r.attribute)}`:key(r?.exclusiveKey));
 const period=(r)=>{
  const a=validYear(r.firstYear)?tick(r.firstYear):null;
  const b=validYear(r.validUntil)?tick(r.validUntil):a;
@@ -21,10 +21,10 @@ const overlap=(a,b)=>{const [as,ae]=period(a),[bs,be]=period(b);return as!==null
 const equivalent=(a,b)=>{
  const ka=attrKey(a),kb=attrKey(b);
  if(ka&&kb&&ka===kb&&key(a.value)===key(b.value)&&overlap(a,b))return true;
- const ay=a.firstYear===b.firstYear;
+ const ay=(a.firstYear??a.year)===(b.firstYear??b.year);
  return ay&&(
- (key(a.nameEn)&&key(a.nameEn)===key(b.nameEn))||
- (key(a.nameZh)&&key(a.nameZh)===key(b.nameZh))
+ (key(a.nameEn)&&key(a.nameEn)===key(b.nameEn||b.en))||
+ (key(a.nameZh)&&key(a.nameZh)===key(b.nameZh||b.zh))
  )&&(!a.value||!b.value||key(a.value)===key(b.value));
 };
 const opposite=(a,b)=>{
