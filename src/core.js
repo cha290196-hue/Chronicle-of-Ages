@@ -55,7 +55,7 @@ export function explainError(error,lang='en'){
  if(code==='ANCHOR_PRECEDES_PARENT')return lang==='zh'?'修改不能早于选中世界线的分叉点。':'The edit cannot predate the selected worldline fork.';
  if(['ANCHOR_INVALID','INVALID_YEAR','INVALID_TIME_RANGE','UNKNOWN_BRANCH_FACT','UNKNOWN_BRANCH_FACT_AT_ANCHOR','CONTRADICTORY_INTERVENTIONS','EMPTY_OR_EXCESSIVE_INTERVENTION'].includes(code))
   return lang==='zh'?'历史干预的时间、对象或约束不成立，请调整输入。':'The historical intervention contains an invalid time, target, or conflicting condition.';
- if(code==='INVALID_JSON'||code==='NO_VALID_TRAJECTORY')return lang==='zh'?'模型未能生成可通过因果校验的结果，请重新推演。':'The model could not produce a causally valid result. Try again.';
+ if(code==='NO_VALID_TRAJECTORY')return lang==='zh'?'模型未能生成可通过因果校验的结果，请重新推演。':'The model could not produce a causally valid result. Try again.';
  if(['WINDOW_EXPANSION_LIMIT','WINDOW_SCOPE_TOO_DENSE'].includes(code))
   return lang==='zh'?'该历史时段已自动按时间、地区和领域拆分，但当前模型仍无法完整生成某个子任务。系统没有用空数据替代历史，请检查模型输出上限或换用容量更高的模型。':'The engine split this historical period by time, region and domain, but the model still could not complete a subsection. No partial or empty history was substituted; check the output capacity.';
  if(code==='GLOBAL_CAUSAL_AUDIT_FAILED')
@@ -63,12 +63,17 @@ export function explainError(error,lang='en'){
  if(error?.name==='AbortError'||error?.message==='ABORTED')return lang==='zh'?'推演已停止。':'Simulation stopped.';
  if(error?.message==='INVALID_JSON'||error?.message==='BAD_RESPONSE'){
   const reason=error?.reason;
-  if(lang==='zh')return reason==='truncated'?'模型的结构化结果被输出长度限制截断，自动重试后仍无法完整解析。请减少单次推演范围，或提高模型的最大输出容量。'
-   :reason==='empty'?'模型未返回有效的结构化内容，自动重试仍未解决。请检查该模型的 JSON 输出能力。'
-   :'模型返回了无法解析的结构化内容，系统已尝试自动恢复但未成功。API 连通并不意味着输出一定符合 JSON 格式。';
-  return reason==='truncated'?'The model JSON was truncated by its output limit, and automatic recovery failed. Reduce scope or increase available output tokens.'
-   :reason==='empty'?'The model returned no usable structured content even after retry.'
-   :'The model returned invalid structured content after automatic recovery attempts; API connectivity alone does not guarantee valid JSON.';
+  const phase=error?.phase;
+  const phaseZh=phase==='validation'?'历史干预识别':phase==='synthesis'?'最终世界线总结':phase==='propagation'?'历史时段推演':'结构化结果生成';
+  const phaseEn=phase==='validation'?'interpreting the historical intervention':phase==='synthesis'?'summarizing the worldline':phase==='propagation'?'modeling a historical window':'structured output';
+  const zhPrefix=phaseZh+'：',enPrefix='During '+phaseEn+': ';
+  if(lang==='zh')return zhPrefix+(reason==='truncated'
+   ?'模型输出达到长度上限，即使自动恢复仍未获得完整内容。已拒绝保存不完整的历史。'
+   :reason==='empty'?'模型返回了空白结构化内容；DeepSeek JSON 模式可能出现这种情况，恢复请求仍未成功。'
+   :'模型返回的结构化内容不合法，自动恢复也未成功；已拒绝把不完整结果写入世界线。');
+  return enPrefix+(reason==='truncated'?'Model output reached its length limit and recovery did not produce a complete response.'
+   :reason==='empty'?'The model returned blank structured output; recovery also failed.'
+   :'The model returned malformed structured output after recovery. No incomplete history was saved.');
  }
  if(error?.message==='INVALID_ENDPOINT')return lang==='zh'?'接口地址必须是 HTTPS（本机允许 HTTP）。':'Use an HTTPS API endpoint (HTTP allowed for localhost).';
  if(error?.message==='NOT_CONFIGURED')return lang==='zh'?'请先配置文本模型的接口、模型和密钥。':'Configure the text model endpoint, model and key first.';
@@ -97,12 +102,16 @@ export async function callChat(config,messages,{signal,json=false,temperature=.3
   const think=!json&&maxTokens>256;
   baseBody.thinking={type:think?'enabled':'disabled'};
   if(think)baseBody.max_tokens=Math.max(maxTokens,8192);
+  // DeepSeek's max_tokens is an output ceiling, not pre-billed tokens.
+  // Give structured historical tasks enough room to finish JSON without
+  // discarding detail or paying for repeated truncation/re-generation.
+  if(json&&purpose==='simulation')baseBody.max_tokens=Math.max(maxTokens,8192);
  }
  const doCall=async({format=json,recovery=false,previousFailure=null}={})=>{
   const body={...baseBody};
   if(!format)delete body.response_format;
   if(recovery){
-   const retryNote='The previous reply did not produce a valid complete JSON object. Re-evaluate the original instructions and return ONE concise syntactically correct JSON object only. No markdown, preamble, commentary or code fences. Preserve substantive events, dependencies and required keys; never replace ungenerated content with empty arrays merely to satisfy formatting. Do not modify the original user intervention.';
+   const retryNote='The previous reply did not produce a valid complete JSON object. Re-evaluate the original instructions and return ONE complete syntactically correct JSON object only. No markdown, preamble, commentary or code fences. Preserve ALL substantive events, dependencies, historical detail and required keys; never delete events or substitute empty arrays to make the format pass. Do not modify the original user intervention.';
    body.messages=[...messages,{role:'user',content:retryNote}];
    body.temperature=Math.min(Number.isFinite(temperature)?temperature:.35,.2);
    if(previousFailure?.reason==='truncated'){
