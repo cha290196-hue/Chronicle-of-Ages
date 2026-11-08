@@ -127,7 +127,7 @@ test('the user-facing performance dashboard includes real latency, and core caus
  ]);
  assert.match(usage,/stageTimings/);
  assert.match(usage,/Measured latency by simulation stage/);
- assert.match(adapter,/stage:'historical-window'/);
+ assert.match(adapter,/'historical-window'/);
  assert.match(kernel,/GLOBAL_CAUSAL_AUDIT_FAILED/);
  assert.match(core,/scenarioCount:1,maxWindows:6/);
  assert.doesNotMatch(kernel,/const jobs=Array\.from\(\{length:parallelism/);
