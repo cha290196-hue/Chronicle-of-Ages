@@ -1,4 +1,5 @@
 import { simulateOmega } from './chronicle-adapter.mjs';
+import {recordRequestUsage} from './usage-meter.mjs';
 import {parseModelJSON,normalizeModelContent,ModelJSONError} from './structured-output.mjs';
 import {auditKnowledge,sanitizeKnowledge,summarizeKnowledge} from './exploration-knowledge.mjs';
 import {BASELINE,FIRST_YEAR,LAST_YEAR,PHYSICAL_CONSTANTS,validYear} from './data.js';
@@ -80,7 +81,7 @@ export function explainError(error,lang='en'){
  * Recovery retries the JSON task once with a concise JSON-only instruction.
  * Never accept a partially parsed JSON object as confirmed worldline data.
  */
-export async function callChat(config,messages,{signal,json=false,temperature=.35,maxTokens=3200}={}){
+export async function callChat(config,messages,{signal,json=false,temperature=.35,maxTokens=3200,purpose='other'}={}){
  const c=safeConfig(config);
  if(!configured(c))throw new Error('NOT_CONFIGURED');
  if(!validEndpoint(c.endpoint))throw new Error('INVALID_ENDPOINT');
@@ -95,7 +96,7 @@ export async function callChat(config,messages,{signal,json=false,temperature=.3
   const body={...baseBody};
   if(!format)delete body.response_format;
   if(recovery){
-   const retryNote='The previous reply did not produce a valid complete JSON object. Re-evaluate the original instructions and return ONE concise syntactically correct JSON object only. No markdown, preamble, commentary or code fences. Keep descriptive strings short and use empty arrays rather than inventing extra events or facts. All required keys must be present. Do not modify the original user intervention.';
+   const retryNote='The previous reply did not produce a valid complete JSON object. Re-evaluate the original instructions and return ONE concise syntactically correct JSON object only. No markdown, preamble, commentary or code fences. Preserve substantive events, dependencies and required keys; never replace ungenerated content with empty arrays merely to satisfy formatting. Do not modify the original user intervention.';
    body.messages=[...messages,{role:'user',content:retryNote}];
    body.temperature=Math.min(Number.isFinite(temperature)?temperature:.35,.2);
    if(previousFailure?.reason==='truncated'){
@@ -108,13 +109,17 @@ export async function callChat(config,messages,{signal,json=false,temperature=.3
   try{response=await fetch(c.endpoint,options)}
   catch(e){if(signal?.aborted)throw new DOMException('Aborted','AbortError');throw e}
   if(!response.ok){
-   let detail='';
-   try{const err=await response.json();detail=err?.error?.message||err?.message||''}catch{}
+   let detail='',failurePayload=null;
+   try{failurePayload=await response.json();detail=failurePayload?.error?.message||failurePayload?.message||''}catch{}
+   recordRequestUsage({provider:c.provider,model:c.model,purpose,success:false,payload:failurePayload});
    const ex=new Error(`HTTP ${response.status}${detail?`: ${String(detail).slice(0,220)}`:''}`);
    ex.status=response.status;
    throw ex;
   }
-  const payload=await response.json();
+  let payload;
+  try{payload=await response.json()}
+  catch(e){recordRequestUsage({provider:c.provider,model:c.model,purpose,success:false});throw e}
+  recordRequestUsage({provider:c.provider,model:c.model,purpose,success:true,payload});
   const choice=payload?.choices?.[0];
   const message=choice?.message||{};
   let result=normalizeModelContent(message.content??message.text??choice?.text??payload?.output_text);
@@ -372,7 +377,7 @@ export async function exploreCore({question,branch,branches=[],config,lang='en',
  const projection=await callChat(config,[
   {role:'system',content:framework},
   {role:'user',content:`Question: ${JSON.stringify(question)}. Respond to the question in ${lang==='zh'?'Chinese':'English'}. World context: ${JSON.stringify(context).slice(0,28000)}. Run a fresh local counterfactual inference and propose ONLY worthwhile, previously unrecorded, internally supported knowledge. Determine whether the question is about the SELECTED world (\"mode\":\"in_world\"), an explicitly hypothetical alteration not committed to the world (\"mode\":\"hypothetical\"), or irrelevant (\"mode\":\"unrelated\"). A hypothetical scenario may be explored in the response but MUST NOT create stored worldline facts. Return JSON {"mode":"in_world|hypothetical|unrelated","draftAnswer":string,"newFacts":[{"nameEn":string,"nameZh":string,"descriptionEn":string,"descriptionZh":string,"firstYear":integer,"validUntil":integer|null,"kind":"person|place|institution|politics|economy|society|culture|science|technology|environment|military|demography|law|daily_life|other","entity":string,"attribute":string,"value":string,"exclusiveKey":string,"basis":string,"evidenceIds":[string],"assumptions":[string],"certainty":"low|medium","relevant":boolean}],"unresolved":[string]}. A fact's year is a historical year -3200..-1 or 1..2026, NEVER 0. If it describes a particular year, validUntil=firstYear; if an interval, set a supported end. If no meaningful new facts arise, return []. Every new fact needs either existing event/knowledge IDs that genuinely support it, or a concrete inferred causal basis and explicit assumptions. Do not fabricate references. Never repeat a fact already available in the input. The draft answer can be as detailed as the question requires and must not follow a fixed template.`}
- ],{signal,json:true,temperature:.35,maxTokens:5500});
+ ],{signal,json:true,temperature:.35,maxTokens:5500,purpose:'exploration'});
  if(signal?.aborted)throw new DOMException('Aborted','AbortError');
  if(!projection||typeof projection!=='object'||Array.isArray(projection))throw new Error('INVALID_EXPLORATION_RESPONSE');
  const conditional=/^\\s*(?:假如|倘若|设想|若是|what\\s+if\\b|suppose\\b|imagine\\b)/i.test(question);
@@ -385,7 +390,7 @@ export async function exploreCore({question,branch,branches=[],config,lang='en',
  const answer=await callChat(config,[
   {role:'system',content:finalSystem},
   {role:'user',content:`Question: ${JSON.stringify(question)}. World: ${JSON.stringify(currentWorld).slice(0,9500)}. Existing local records: ${JSON.stringify(relevant).slice(0,12500)}. Prior related dialogue: ${JSON.stringify(priorDialogue).slice(0,5000)}. Locally simulated draft analysis: ${JSON.stringify({draftAnswer:projection.draftAnswer,unresolved:projection.unresolved}).slice(0,11000)}. Admitted new knowledge: ${JSON.stringify(assessment.accepted).slice(0,12500)}. Rejected discovery proposals: ${JSON.stringify(assessment.rejected).slice(0,2400)}. Respond with a complete useful natural answer, without claiming unsupported rejected details as fact.`}
- ],{signal,temperature:.42,maxTokens:5000});
+ ],{signal,temperature:.42,maxTokens:5000,purpose:'exploration'});
  if(signal?.aborted)throw new DOMException('Aborted','AbortError');
  return {answer:String(answer),knowledge:assessment.accepted,
   assessment:{accepted:assessment.accepted.length,duplicates:assessment.duplicates.length,rejected:assessment.rejected.length}};
