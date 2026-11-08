@@ -19,9 +19,9 @@ test('import restores baseline and matching world chats while ignoring unrelated
 });
 test('core retrieves older related dialogue as context without mutating the world',async()=>{
  const prior=globalThis.fetch,requests=[];
- globalThis.fetch=async(_url,opts)=>{requests.push(JSON.parse(opts.body));return {ok:true,json:async()=>({choices:[{message:{content:'A reply'}}]})}};
+ globalThis.fetch=async(_url,opts)=>{const payload=JSON.parse(opts.body);requests.push(payload);const content=payload.response_format?.type==='json_object'?JSON.stringify({draftAnswer:'Possible chronology',newFacts:[],unresolved:[]}):'A reply';return {ok:true,json:async()=>({choices:[{message:{content}}]})}};
  const branch={id:'world',anchorYear:1200,events:[],facts:[],inherited:{events:[],facts:[]},titleEn:'World',summaryEn:'History',prompt:'Change'};
  const before=structuredClone(branch),history=[{role:'user',content:'Explain the astronomical guild'},{role:'assistant',content:'The guild was founded in 1500.'}];
  for(let i=0;i<10;i++)history.push({role:'user',content:`Unrelated topic ${i}`},{role:'assistant',content:`Response ${i}`});
- try{const out=await askCore({question:'How did the astronomical guild change?',branch,branches:[branch],history,config:{provider:'custom',endpoint:'https://example.com/chat',model:'mock',key:'x'}});assert.equal(out,'A reply');assert.deepEqual(branch,before);const system=requests[0].messages[0].content;assert.match(system,/astronomical guild/);assert.match(system,/2026-01-01/);assert.match(system,/never claim to create, delete, rewrite/);}finally{globalThis.fetch=prior}
+ try{const out=await askCore({question:'How did the astronomical guild change?',branch,branches:[branch],history,config:{provider:'custom',endpoint:'https://example.com/chat',model:'mock',key:'x'}});assert.equal(out,'A reply');assert.deepEqual(branch,before);assert.equal(requests.length,2,'the question runs a fresh exploration and a natural-answer synthesis');const system=requests[0].messages[0].content;const prompt=requests[0].messages[1].content;assert.match(prompt,/astronomical guild/);assert.match(prompt,/The guild was founded in 1500/);assert.match(system,/2026-01-01/);assert.match(system,/new branch/);}finally{globalThis.fetch=prior}
 });
