@@ -292,13 +292,13 @@ export async function runMatrix({baseline=[],branches=[],parentId=null,interpret
    onProgress({phase:'propagation',index:s*windows.length+w,total:count*windows.length,scenario:s+1,window});
    const knownEvents=[...inherited.events,...events],knownFacts=[...inherited.facts,...facts];
    const promptState={scenario:s+1,window,windowIndex:w,totalWindows:windows.length,
-    actions,knownEvents:knownEvents.slice(-55).map(e=>({id:e.id,year:e.year,en:e.en,category:e.category})),
+    actions,knownEvents:knownEvents.slice(-55).map(e=>({id:e.id,year:e.year,en:e.en,category:e.category,region:e.region,threadKey:e.threadKey,relationToIntervention:e.relationToIntervention})),
     knownFacts:knownFacts.slice(-50).map(f=>({id:f.id,firstYear:f.firstYear,nameEn:f.nameEn})),
     allowedCauseIds:[...actions.map(a=>a.id),...knownEvents.map(e=>e.id)],
     // Post-fork baseline records are comparison checkpoints, NOT established facts.
     realityCheckpoints:baseline.filter(e=>validYear(e.year)&&tick(e.year)>=tick(window.from)&&tick(e.year)<=tick(window.to))
       .slice(0,12).map(e=>({year:e.year,en:e.en,category:e.category})),
-    worldwideCoverage:worldCoverage([...inherited.events,...events]),
+    worldwideCoverage:worldCoverage(events),
     instructions:'Each candidate event must cite at least one existing causal ID or a prior event ID from the same batch. Use unique event IDs. Every fact has firstYear and may use derivedFrom. The returned events are hypotheses, never recorded historical facts.'};
    let batch=await propose(copy(promptState));
    if(!batch||typeof batch!=='object')batch={events:[],facts:[]};
