@@ -64,7 +64,7 @@ test('unreported provider usage is unknown, never synthesized from payload lengt
   assert.equal(summary.totals.totalTokens,0);
   const html=renderUsageDashboard({lang:'en',provider:'custom',model:'no-usage'});
   assert.match(html,/Provider-reported tokens/);
-  assert.match(html,/Provider-reported cost<\/span><strong>—/);
+  assert.match(html,/Other reported costs \(USD\)<\/span><strong>—/);
  }finally{globalThis.localStorage=old}
 });
 test('invalid user prices are rejected and model content is never written to the usage ledger',()=>{
