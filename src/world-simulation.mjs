@@ -1,5 +1,5 @@
 import {compileInterventions,resolveAncestry,auditBatch,MatrixError,tick,untick,LAST_YEAR} from './ucm-omega.mjs';
-import {admitIntervention,INTAKE_METHOD,InterventionDecision} from './historical-intent.mjs';
+import {admitIntervention,INTAKE_METHOD,InterventionDecision,completionPolicy,calendarYears} from './historical-intent.mjs';
 import {initializeWorld,nextWorldWindow,causalContext,auditTransition,advanceWorld,selectMilestones,validateSemanticReview,REGIONS,DOMAINS,stateAt} from './world-model.mjs';
 import {ModelJSONError} from './structured-output.mjs';
 
@@ -27,7 +27,7 @@ async function request(callChat,config,method,context,{stage,phase='propagation'
 }
 
 /** Single authoritative state. A window commits only after mechanical and semantic review. */
-export async function simulateWorld({prompt,branches=[],parentId=null,config,callChat,signal,lang='en',onProgress=()=>{},makeId}){
+export async function simulateWorld({prompt,branches=[],parentId=null,config,callChat,signal,lang='en',onProgress=()=>{},makeId,autoComplete=false,clarifications=[]}){
  if(typeof callChat!=='function'||typeof makeId!=='function')throw new MatrixError('CHAT_ADAPTER_REQUIRED');
  prompt=clip(prompt,2000);if(!prompt)throw new MatrixError('EMPTY_PROMPT');
  const parent=parentId===null?null:branches.find(b=>b.id===parentId);
@@ -35,18 +35,50 @@ export async function simulateWorld({prompt,branches=[],parentId=null,config,cal
  const runId=makeId();
  const parentFacts=parent?[...list(parent.inherited?.facts),...list(parent.facts),...list(parent.knowledge)]:[];
  onProgress({phase:'validation',index:0,total:1});
- const interpretation=await request(callChat,config,INTAKE_METHOD,{input:prompt,selectedWorld:parent?{anchorYear:parent.anchorYear,title:parent.titleEn,facts:parentFacts}:null},
-  {stage:'interpretation',phase:'validation',signal,maxTokens:4000});
- const initial=admitIntervention(interpretation,{prompt,parentAnchor:parent?.anchorYear??null,parentFacts});
- const checked=await request(callChat,config,`Independently review the proposed admission of this input. Check missing decisive parameters, exact dates, historical materiality and the actual mechanism linking it to Earth. Do not invent a butterfly bridge. You may accept, request clarification, or reject; never alter the user's year or fabricate missing information. Return JSON {decision:"accept|clarify|reject",reasonEn:string,reasonZh:string,questions:[{en:string,zh:string}],criticalUnknowns:[string]}.`,
-  {input:prompt,interpretation},{stage:'intake-review',phase:'validation',signal,maxTokens:3000});
- if(!checked||!['accept','clarify','reject'].includes(checked.decision))throw new InterventionDecision('INTAKE_INVALID');
- if(checked.decision!=='accept'||list(checked.criticalUnknowns).length)
-  throw new InterventionDecision(checked.decision==='reject'?'INTERVENTION_REJECTED':'INTERVENTION_CLARIFY',checked);
+ const answers=list(clarifications).filter(a=>a&&typeof a.answer==='string'&&a.answer.trim()).map(a=>({question:clip(a.question,1000),answer:clip(a.answer,1600)}));
+ const inputPolicy={autoComplete:!!autoComplete};
+ const policy=completionPolicy(inputPolicy.autoComplete);
+ const intakeContext={input:prompt,clarifications:answers,inputPolicy,
+  selectedWorld:parent?{anchorYear:parent.anchorYear,title:parent.titleEn,facts:parentFacts}:null};
+ const constraintPrompt=calendarYears(prompt).length?prompt:[prompt,...answers.map(a=>a.answer)].join('\n');
+ let interpretation,initial,feedback=null;
+ for(let attempt=0;attempt<(autoComplete?3:1);attempt++){
+  interpretation=await request(callChat,config,INTAKE_METHOD+'\n'+policy,{...intakeContext,completionFeedback:feedback},
+   {stage:'interpretation',phase:'validation',signal,maxTokens:5000});
+  if(!autoComplete&&list(interpretation.completions).length)
+   throw new InterventionDecision('INTERVENTION_CLARIFY',{questions:interpretation.completions.map(n=>({
+    en:'How should this condition be defined?',zh:'这一条件应当如何设定？',options:[{en:clip(n.en||n.zh,1000),zh:clip(n.zh||n.en,1000)}]
+   }))});
+  try{initial=admitIntervention(interpretation,{prompt:constraintPrompt,parentAnchor:parent?.anchorYear??null,parentFacts})}
+  catch(error){
+   if(autoComplete&&error.code==='INTERVENTION_CLARIFY'){
+    feedback={reason:interpretation.reasonEn,missing:interpretation.criticalUnknowns,questions:interpretation.questions,
+     instruction:'Resolve these omissions now with ordinary initial assumptions; return the completed interpretation, not questions.'};
+    if(attempt<2)continue;
+    throw new InterventionDecision('AUTOCOMPLETE_INCOMPLETE');
+   }
+   throw error;
+  }
+  const checked=await request(callChat,config,`Independently review this admission. Check exact user constraints, materiality and defensible Earth mechanisms. Follow the supplied completion policy. When completion is enabled, recorded ordinary defaults are authorized initial assumptions, not a reason to demand user clarification; do not reject merely because the user omitted them. When disabled, use explicit clarification answers and ask only about unresolved decisive conditions. Never invent a downstream butterfly bridge. Return JSON {decision:"accept|clarify|reject",reasonEn:string,reasonZh:string,questions:[{en:string,zh:string,options:[{en:string,zh:string}]}],criticalUnknowns:[string]}.\n`+policy,
+   {...intakeContext,interpretation},{stage:'intake-review',phase:'validation',signal,maxTokens:3500});
+  if(!checked||!['accept','clarify','reject'].includes(checked.decision))throw new InterventionDecision('INTAKE_INVALID');
+  if(checked.decision!=='accept'||list(checked.criticalUnknowns).length){
+   const error=new InterventionDecision(checked.decision==='reject'?'INTERVENTION_REJECTED':'INTERVENTION_CLARIFY',checked);
+   if(autoComplete&&error.code==='INTERVENTION_CLARIFY'){
+    feedback=checked;if(attempt<2)continue;
+    throw new InterventionDecision('AUTOCOMPLETE_INCOMPLETE');
+   }
+   throw error;
+  }
+  break;
+ }
+ const completions=autoComplete?list(interpretation.completions).filter(n=>n&&clip(n.en||n.zh)).map(n=>({
+  field:clip(n.field,120),en:clip(n.en||n.zh,1000),zh:clip(n.zh||n.en,1000)
+ })):[];
  const firstYear=initial.reduce((a,b)=>tick(a)<tick(b.startYear)?a:b.startYear,initial[0].startYear);
  const inherited=resolveAncestry({baseline:[],branches,parentId,atYear:firstYear});
  compileInterventions(interpretation,{parentAnchor:parent?.anchorYear??null,parentFacts:inherited.facts});
- const actions=initial.map((a,i)=>({...a,id:`intervention:${runId}:${i+1}`}));
+ const actions=initial.map((a,i)=>({...a,id:`intervention:${runId}:${i+1}`,assumptions:[...a.assumptions,...completions.map(n=>'Automatically completed premise: '+n.en)]}));
  const ancestry=new Set(inherited.ancestry);
  const roots=[...new Map(branches.filter(b=>ancestry.has(b.id)).flatMap(b=>[
   ...list(b.simulation?.genesis?.conditions),...list(b.simulation?.actions)
@@ -136,7 +168,7 @@ export async function simulateWorld({prompt,branches=[],parentId=null,config,cal
   facts:facts.slice(inherited.facts.length),knowledge:[],inherited:{events:inherited.events,facts:inherited.facts},
   impacts:list(synthesis.impacts).map(x=>clip(x,1200)),certainty:'conditional',image:null,
   simulation:{version:2,engine:'UCM-Ω/2',actions,genesis,snapshots,milestoneIds,rejections,
-   admission:{earthRelevance:interpretation.earthRelevance,causalBridge:interpretation.causalBridge},
+   admission:{earthRelevance:interpretation.earthRelevance,causalBridge:interpretation.causalBridge,autoComplete:!!autoComplete,completions,clarifications:answers},
    completedThrough:LAST_YEAR,fullEventCount:events.length,worldRegions:REGIONS}};
  return {worldline,analysis:worldline.simulation};
 }
