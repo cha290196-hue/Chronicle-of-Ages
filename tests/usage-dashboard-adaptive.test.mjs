@@ -79,9 +79,13 @@ test('invalid user prices are rejected and model content is never written to the
 test('each actual HTTP request and JSON-recovery retry is metered separately',async()=>{
  const oldFetch=globalThis.fetch,oldStorage=globalThis.localStorage;
  globalThis.localStorage=memoryStorage();let calls=0;
- globalThis.fetch=async()=>{calls++;const content=calls===1?'{"events":[{"id":"partial"': '{"events":[],"facts":[]}';
-  return {ok:true,status:200,json:async()=>({choices:[{finish_reason:calls===1?'length':'stop',message:{content}}],
-   usage:{prompt_tokens:100+calls,completion_tokens:20+calls,total_tokens:120+2*calls}})}};
+ globalThis.fetch=async()=>{
+  calls++;
+  const content=calls===1?'{"events":[{"id":"partial"':'{"events":[],"facts":[]}';
+  return {ok:true,status:200,json:async()=>({
+   choices:[{finish_reason:calls===1?'length':'stop',message:{content}}],
+   usage:{prompt_tokens:100+calls,completion_tokens:20+calls,total_tokens:120+2*calls}
+  })};
  };
  try{
   const output=await callChat({provider:'custom',endpoint:'https://example.org/chat',model:'test',key:'fake'},
