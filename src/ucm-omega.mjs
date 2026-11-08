@@ -5,6 +5,8 @@
  * License: MIT. Target: browser ES modules / Node >= 20.
  */
 
+import { normalizeWorldMetadata,worldCoverage,needsWorldReview,worldReviewReasons,curateWorldEvents } from './world-coverage.mjs';
+
 export const FIRST_YEAR = -3200;
 export const LAST_YEAR = 2026;
 export const ENGINE_VERSION = '0.1.0';
@@ -130,7 +132,7 @@ function normalizeEvent(raw,window,scenario,index){
  if(!id||!plain(raw.en||raw.title,300))throw new MatrixError('MISSING_EVENT_ID_OR_TITLE');
  if(!Array.isArray(raw.causes)||!raw.causes.length)throw new MatrixError('CAUSES_REQUIRED',id);
  const causes=raw.causes.map(String);
- return {...copy(raw),id,year:y,en:plain(raw.en||raw.title,300),zh:plain(raw.zh||raw.en||raw.title,300),
+ return {...copy(raw),...normalizeWorldMetadata(raw),id,year:y,en:plain(raw.en||raw.title,300),zh:plain(raw.zh||raw.en||raw.title,300),
   descriptionEn:plain(raw.descriptionEn||raw.description,1500),descriptionZh:plain(raw.descriptionZh||raw.descriptionEn||raw.description,1500),
   causes,category:CATEGORY.has(raw.category)?raw.category:'other',origin:'derived',
   certainty:['high','medium','low'].includes(raw.certainty)?raw.certainty:'low',
@@ -191,6 +193,21 @@ export function auditBatch({proposal,window,knownEvents=[],knownFacts=[],actions
   }
   visiting.delete(id);visited.add(id);
  }
+ // A process declared independent of the EDIT must not depend on the edit's
+ // downstream graph. Earlier inherited world history remains an independent root.
+ const firstActionTick=actions.length?Math.min(...actions.map(a=>tick(a.startYear))):null;
+ function descendsFromCurrentEdit(id,seen=new Set()){
+  if(seen.has(id))return false;seen.add(id);
+  if(actions.some(a=>a.id===id))return true;
+  const e=candidates.get(id)||indexedEvents.get(id);
+  if(!e||firstActionTick===null)return false;
+  if(validYear(e.year)&&tick(e.year)<firstActionTick)return false;
+  return safeList(e.causes).some(cause=>descendsFromCurrentEdit(String(cause),seen));
+ }
+ for(const e of draftEvents){
+  if(e.relationToIntervention==='independent' && e.causes.some(cause=>descendsFromCurrentEdit(cause)))
+   invalid.set(e.id,'FALSE_INDEPENDENCE');
+ }
  for(const e of draftEvents)inspect(e.id);
  const acceptedEvents=draftEvents.filter(e=>{
   if(!invalid.has(e.id))return true;
@@ -244,8 +261,13 @@ export function evaluateScenario(scenario){
  const unsupported=events.filter(e=>e.assumptions.length>0).length;
  const domains=new Set(events.map(e=>e.category)).size;
  // Internal consistency heuristic only; never call this a posterior probability.
- const score=100-18*rejected.length-3*unsupported+2*Math.min(domains,7)+Math.min(events.length,12)+Math.min(facts.length,6);
- return {score,validEvents:events.length,rejected:rejected.length,domains,unsupportedAssumptions:unsupported};
+ const coverage=worldCoverage(events);
+ const knownBreadth=coverage.metadataCoverage>=.6;
+ const dominancePenalty=knownBreadth&&events.length>=5?Math.max(0,coverage.threadShare-.55)*24:0;
+ // Evaluates distribution of modeled events, not objective importance or truth.
+ const score=100-18*rejected.length-3*unsupported+2*Math.min(domains,7)+Math.min(events.length,12)+Math.min(facts.length,6)
+  -dominancePenalty+(knownBreadth?Math.min(6,coverage.independent):0);
+ return {score,validEvents:events.length,rejected:rejected.length,domains,unsupportedAssumptions:unsupported,worldCoverage:coverage,dominancePenalty};
 }
 
 /**
@@ -273,6 +295,10 @@ export async function runMatrix({baseline=[],branches=[],parentId=null,interpret
     actions,knownEvents:knownEvents.slice(-55).map(e=>({id:e.id,year:e.year,en:e.en,category:e.category})),
     knownFacts:knownFacts.slice(-50).map(f=>({id:f.id,firstYear:f.firstYear,nameEn:f.nameEn})),
     allowedCauseIds:[...actions.map(a=>a.id),...knownEvents.map(e=>e.id)],
+    // Post-fork baseline records are comparison checkpoints, NOT established facts.
+    realityCheckpoints:baseline.filter(e=>validYear(e.year)&&tick(e.year)>=tick(window.from)&&tick(e.year)<=tick(window.to))
+      .slice(0,12).map(e=>({year:e.year,en:e.en,category:e.category})),
+    worldwideCoverage:worldCoverage([...inherited.events,...events]),
     instructions:'Each candidate event must cite at least one existing causal ID or a prior event ID from the same batch. Use unique event IDs. Every fact has firstYear and may use derivedFrom. The returned events are hypotheses, never recorded historical facts.'};
    let batch=await propose(copy(promptState));
    if(!batch||typeof batch!=='object')batch={events:[],facts:[]};
@@ -282,8 +308,28 @@ export async function runMatrix({baseline=[],branches=[],parentId=null,interpret
     const repaired=await propose({...copy(promptState),repairReasons:audit.rejected,repairAttempt:1});
     if(repaired&&typeof repaired==='object')audit=auditBatch({proposal:repaired,window,knownEvents,knownFacts,actions,scenario:s+1});
    }
-   events.push(...audit.events);facts.push(...audit.facts);rejected.push(...audit.rejected);
-   snapshots.push({window,accepted:audit.events.length,rejected:audit.rejected.length,summary:plain(batch.summary,900)});
+   // An explicit independent-world review is triggered by tunnel vision,
+   // but absence of events in a given continent never obliges an invention.
+   if(needsWorldReview(audit.events,events,window)){
+    const coverageState={...copy(promptState),
+     knownEvents:[...knownEvents,...audit.events].slice(-65).map(e=>({id:e.id,year:e.year,en:e.en,category:e.category,region:e.region,threadKey:e.threadKey})),
+     knownFacts:[...knownFacts,...audit.facts].slice(-55).map(f=>({id:f.id,firstYear:f.firstYear,nameEn:f.nameEn})),
+     allowedCauseIds:[...promptState.allowedCauseIds,...audit.events.map(e=>e.id)],
+     coverageReasons:worldReviewReasons(audit.events,events,window),
+     coverageAttempt:1};
+    const supplement=await propose(coverageState);
+    if(supplement&&typeof supplement==='object'){
+     const extra=auditBatch({proposal:supplement,window,
+      knownEvents:[...knownEvents,...audit.events],knownFacts:[...knownFacts,...audit.facts],actions,scenario:s+1});
+     audit.events.push(...extra.events);audit.facts.push(...extra.facts);
+     audit.rejected.push(...extra.rejected);
+    }
+   }
+   const curated=curateWorldEvents(audit.events,{previous:events,maxEvents:9,
+    requiredEventIds:audit.facts.map(f=>f.derivedFrom).filter(Boolean)});
+   events.push(...curated.events);facts.push(...audit.facts);rejected.push(...audit.rejected);
+   snapshots.push({window,accepted:curated.events.length,omitted:curated.omitted.length,
+    rejected:audit.rejected.length,worldCoverage:curated.coverage,summary:plain(batch.summary,900)});
   }
   const trajectory={scenarioId:`scenario:${s+1}`,events,facts,rejected,snapshots};
   trajectory.audit=evaluateScenario(trajectory);
