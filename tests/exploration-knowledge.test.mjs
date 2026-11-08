@@ -133,6 +133,23 @@ test('each conversation runs fresh local inference and then produces a free-form
  }finally{globalThis.fetch=original}
 });
 
+test('a hypothetical counterfactual question does not rewrite the selected worldline knowledge',async()=>{
+ const prev=globalThis.fetch;let n=0;
+ globalThis.fetch=async(_url,opt)=>{
+  const request=JSON.parse(opt.body);n++;
+  const response=request.response_format?.type==='json_object'
+    ?JSON.stringify({mode:'hypothetical',draftAnswer:'Another alternate future',newFacts:[candidate()],unresolved:[]})
+    :'A discussion of an explicitly hypothetical alternative.';
+  return {ok:true,json:async()=>({choices:[{message:{content:response}}]})};
+ };
+ try{
+  const output=await exploreCore({question:'假如法国在1850年突然统一了欧洲，会怎么样？',branch,branches:[branch],config});
+  assert.equal(output.knowledge.length,0);
+  assert.match(output.answer,/hypothetical/);
+  assert.equal(n,2);
+ }finally{globalThis.fetch=prev}
+});
+
 test('baseline questions create provisional study notes without modifying immutable A records',async()=>{
  const old=globalThis.fetch;
  globalThis.fetch=async (_url,options)=>{
