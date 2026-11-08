@@ -37,6 +37,8 @@ export function renderUsageDashboard({lang='en',provider='custom',model='',endpo
    <div class="usage-pricing-actions"><button type="button" class="secondary-btn" data-action="save-usage-price">${u('保存单价','Save prices')}</button><span>${u('不预设其他模型价格','No assumed pricing for other models')}</span></div>
   </div>`;
  const stageLabels={
+  'minute-world':['全球宏观推演','Global macro history'],
+  'minute-review':['完整世界审查','Complete world review'],
   interpretation:[ '历史干预识别','Historical interpretation' ],
   'historical-window':[ '历史时段推演','Historical windows' ],
   'world-coverage':[ '全球覆盖补充','World coverage review' ],

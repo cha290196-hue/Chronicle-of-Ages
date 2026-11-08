@@ -1,113 +1,47 @@
-# UCM-Ω/2：地球历史状态与反事实演化
+# Chronicle Minute — production engine v3
 
-本文件对应正式入口 `core.simulate → chronicle-adapter → world-simulation.simulateWorld`。版本 2，2026-11-08。它描述实际实现，不把软件一致性检查等同于历史真实性验证。
+A bounded macro-history engine replaces the archived UCM-Ω v2 generator. The new entry is `core.simulate → minute-simulation.simulateMinute`. It targets about one minute to produce a **complete** conditional Earth world through **2026-01-01**, including a causal ledger, major world events, seven regional endpoint settings and six global domains. The old generator is not imported or used as fallback. [Exact old source archive](../archive/ucm-omega-v2/README.md).
 
-## 设计依据与采用边界
+## Execution and budget
 
-| 原始资料 | 项目采用的方法 | 没有声称的能力 |
-| --- | --- | --- |
-| [Pearl, Causal Inference, PMLR 6, 2010](https://proceedings.mlr.press/v6/pearl10a.html) | 将用户输入表示为有时间、对象和值的干预；固定分叉前条件，显式记录后续因果依赖 | 未知历史结构方程并不能从几段文字自动识别；没有校准的真实反事实概率 |
-| [DoWhy 官方方法说明](https://www.pywhy.org/dowhy/main/user_guide/causal_tasks/estimating_causal_effects/effect_estimation_with_estimators.html) | 假设显式化，分开提出候选、检查约束和反驳不充分的推断 | 没有把 DoWhy 的统计估计器搬入浏览器，也没有无数据的因果效应估计 |
-| [Concordia 原始论文, 2023](https://arxiv.org/abs/2312.03664) | 一个权威共享世界状态；候选行为必须经过统一环境约束才能提交 | 没有多个代理各写一部历史，没有复制完整世界线后择优 |
-| [GraphRAG 官方查询说明](https://microsoft.github.io/graphrag/query/overview/) | 问题先确定全局/局部范围，结合地区状态与因果邻域展开检索和后续推演 | 不是直接集成微软 GraphRAG 包；没有把语义相似度当成因果证据 |
-| [WhatIfBench / PRISM, EMNLP 2026](https://aclanthology.org/2026.findings-emnlp.807/) | 因果图过程检查与解释充分性分开评估；逐项审查前提、机制、全球与时间覆盖、状态一致性 | 采用其评估分层思想，并非运行该论文完整评测器；没有声称取得其基准成绩 |
-| [SimPy 官方离散事件方法](https://simpy.readthedocs.io/en/latest/) | 根据历史时代和待检查进程选择下一个时间窗，串行推进状态 | 没有凭空建立全球人口、气候、经济等连续动力学方程 |
+1. One complete-world request jointly interprets the input, applies the chosen completion policy and synthesizes seven autonomous regional trajectories followed by the intervention effects and their interactions. They form one shared world, not seven alternative scenarios. Rejected or unresolved inputs stop here.
+2. Deterministic code compiles immutable interventions and checks the complete graph: valid years, exact explicit anchors, pre-fork ancestry, existing prerequisites, no cycles or future causes, all seven regions, six setting domains and every required period through 2026.
+3. One independent short request reviews the **same** world for premise fidelity, actual causal mechanisms, global and temporal coverage, and setting consistency. It either passes, supplies explicit ID-level corrections, asks for indispensable information in manual mode, or rejects. Corrected output undergoes the same complete graph validation again.
+4. Only a complete reviewed result is committed. Period summaries, snapshots and UI-compatible records are projections of that single ledger. There is no per-window model loop, duplicate independent world, unbounded repair loop, automatic restart or hidden JSON retry.
 
-[HistBench / HistAgent, ICML 2026](https://proceedings.mlr.press/v306/qiu26s.html) 也表明历史问题需要领域资料与专门验证。它是历史问答评测，不能拿其成绩证明反事实世界推演的准确性。[King 与 Zeng 的原始研究](https://gking.harvard.edu/publication/when-can-history-be-our-guide-the-pitfalls-of-counterfactual-inference/) 说明远离可用数据的反事实可能主要依赖模型假设；本项目因此保留证据不足时的拒绝路径。
+The default wall-clock budget is **62 seconds**, with an approximately 60-second target. A shared AbortController cancels model requests; an abort race also bounds adapters that ignore cancellation. Cancellation returns without storing an unfinished world. The two output ceilings are 7,600 and 2,800 tokens; ceilings are not billed usage. Model/service queuing and output throughput can prevent success within the budget. A hard stop guarantees bounded waiting, not a successful response from every model or provider.
 
-没有公认的、可以准确重演整个地球人类历史的通用算法。该实现采用上述方法适合浏览器项目的部分；结果仍依赖模型能力、背景条件、假设和可用资料。不能用名称、启发式分数或自动测试数量代替独立历史学评测。
+On the official DeepSeek endpoint, the engine uses Flash for synthesis and Pro for the short independent review. This is disclosed in Settings; the Core retains the user-selected model. Other endpoints use the selected model without substitution. DeepSeek requests explicitly disable extended thinking for this path. Real testing showed that even a nominal low-effort thinking request could spend its entire 7,600-token ceiling on reasoning without emitting the world. The new engine spends the finite budget on concise causal records and an independent review. Other providers retain their configured model; an OpenAI-compatible service must honor cancellation and support JSON responses.
 
-## 主时间线与演算状态分离
+## Quality and resolution
 
-`data.BASELINE` 的 43 条记录用于观察现实历史、定位和共享历史路径。它们不再作为新引擎初始化整个世界的知识库。Canvas 的分叉起点仍按 `x(anchorYear)` 计算；明确输入 1024 年时，解释层改成其他年份将被拒绝。
+This is a deliberate tradeoff from the archived fine-window approach: **global macro history first, question-driven detail later**. Long active histories should generally contain roughly 24–36 meaningful macro events distributed across the horizon. That is a writing budget, not a validation quota or permission to invent filler. A short horizon, quiet period or supported extinction can legitimately contain fewer events. A reviewer checks content; deterministic graph validity alone cannot establish historical plausibility. No claim of measured historical accuracy or equivalence to unlimited computation is made.
 
-一条完整世界线包含信史起点至 2026-01-01；分叉之前继承祖先。新分叉只继承早于其分叉年的父线事件和知识。保留树状子分支，平行世界不互相继承。没有公元 0 年。年级记录中的 2026 指终点 2026-01-01，不代表继续推演整个 2026 年。
+Every event names causes and prerequisites in one DAG spanning the imposed intervention, pre-fork background, inherited knowledge and other events. Its description explains both the mechanism and historical impact. Programmatic direct/indirect/independent labels come from reachability. Every region must supply an autonomous trajectory or an evidence-based explanation of why none exists; events in an autonomous trajectory cannot descend from the intervention. Milestones are a subset of accepted major/epochal events with multi-region impact directly or through accepted causal descendants; no second model invents a decorative list. Regional and domain settings capture quiet background without inflating the event ledger.
 
-## 1. 输入准入
+Content is generated once in the requested language rather than generating duplicate bilingual histories. UI language changes do not translate an existing saved world. Unknown identities, precise values and uncertain pathways remain explicit rather than masquerading as sourced facts. Model-recalled background is marked unverified, and generated outcomes remain conditional.
 
-`historical-intent.mjs` 先要求模型区分修改、提问、无关内容，输出接受、补充信息或拒绝。程序检查：
+## Input and exact time
 
-- 可说明的地球关联和具有实质历史意义的影响；
-- 决定结果的关键未知参数是否已给出；
-- 从输入到最初实质历史后果的机制；用户前提只设定初始变量，不能用来证明后续超自然连接；
-- 明确年份、点事件/渐进过程、地球范围、父线时序和复合干预冲突。
+The reality timeline is a visual reference, not an exhaustive historical database or an input-theme script. Canvas forks at the exact integer anchor year, including years without a displayed marker. There is no year zero. The supported span is approximately 3200 BCE through 2026-01-01.
 
-输入框默认开启“自动补全”，并记住用户的开关选择。开启时按通常理解补全遗漏的初始条件，例如“基督教不存在”解释为从未产生；明确输入始终优先，采用的补全前提随世界线保存并可在详情中查看。关闭时不代替用户选择决定性条件：缺少条件会打开问题抽屉，用户填写后沿用原输入、父世界线和已回答条件继续推演。自动补全只授权初始条件选择，不授权编造后续因果机制或证据。
+Automatic completion is on by default in the UI. It fills initial omissions conservatively and saves each material assumption. An unqualified “Christianity does not exist” ordinarily means it never arose, without gratuitously removing Jesus or unrelated Jewish movements. Completion off opens the existing clarification drawer; continuation retains the original input, selected parent and previous answers. Nonsense, negligible changes requiring magical butterflies, no defensible Earth connection and unsupported physical-law models are refused. A hypothetical initial condition does not justify arbitrary downstream causal bridges.
 
-初次接受后，另一次小范围审查检验准入条件。无意义内容、无地球关联、仅靠任意蝴蝶效应才有影响、无法支持中间过程的输入不会产生世界线。普通的小变量并不因“小”被一概拒绝，重要人物或关键制度的变化也不需要影响立即遍及全球。
+Child branches inherit only temporally valid ancestral records before each divergence. New children cannot cite future parent discoveries. Parallel worlds do not contaminate each other. The original timeline remains immutable.
 
-`intervention-intake.mjs` 将实际修改、保留的初始背景和后续不确定性说明分开。保留背景不能成为额外的 `branch_fact`；该类型只允许修改分叉时已成立的真实父线事实，必须引用其 ID。不确定性声明放入 `uncertaintyNotes`，不能作为因果链中的推测性机制。程序不会直接删除可疑条目或提升其依据等级，而是反馈具体错误，由模型保持原意重整；解释最多三轮，复核的格式修复最多两轮。完全缺乏依据的机制不会进入格式重试。
+## Progressive exploration and storage
 
-独立准入复核会看到修复前的解释、错误码和修复后内容，检查是否删除了用户实际要求、虚构事实引用或掩盖必要的无依据连接。关闭自动补全时，格式修复也不能代替用户填写决定性条件。通过后的保留背景和不确定性说明随世界线保存，并传入初始化、演化和总结。失败时显示具体检查详情与模型错误；通过时归档准入审计，不记录 API 密钥。模型声称“可接受”的说明不再覆盖程序拒绝的真实原因。
+The Analysis Core continues to infer details proportional to a question, retrieves relevant regional state and causal evidence, checks new conditional knowledge, and stores accepted discoveries in that world. A missing database row alone is not a refusal reason. Rankings or identities that cannot be uniquely derived require conditional answers rather than fabricated certainty.
 
-“超新星爆炸”没有距离、时点等条件时，关闭自动补全会询问；开启时只选择保守且与措辞相符的初始条件，不为了通过准入强设近地灾变。若补全后仍无实质历史影响，则拒绝。“某人打喷嚏造成海啸”没有物理机制时不予编造。重要历史人物死亡需要足以确定分叉的年代；自动选择的年代属于补全假设。朝代延续可以使用有明确历史依据的隐含分叉年，并保存推断依据。
+Inner simulation format 3 saves the raw compact graph, review, explicit assumptions, full-horizon checkpoints, settings, actual elapsed time and per-call budgets. The existing outer export envelope remains version 2. Read-only format-2 compatibility preserves saved old worlds; importing a v3 world revalidates its graph. New worlds never invoke archived generators. Queries about earlier years use only earlier snapshots and temporally filtered records, not the 2026 endpoint setting.
 
-物理常数修改需要适用的已校准定量模块。现有数值工具是通用接口，没有可用的全地球校准参数，因此正式入口明确拒绝需要此类模块的输入。它不会仅凭一段文字宣称精确求解新物理。
+## Implementation basis
 
-## 2. 分叉前的全球状态
+The orchestration is small original JavaScript suited to a static browser application. No framework is credited with making model generation intrinsically faster.
 
-`initializeWorld` 建立七个地区的边界状态：东亚、南亚、西亚与中亚、欧洲、非洲、美洲、大洋洲。每个地区必须检查政治、经济、社会、科技、环境、文化六个领域；未知状态可以明确保留，不能为了填表创造事实。
+- [DeepSeek thinking mode](https://api-docs.deepseek.com/guides/thinking_mode/): explicit thinking toggle; low/high/max effort is not a token/time guarantee.
+- [DeepSeek chat completion API](https://api-docs.deepseek.com/api/create-chat-completion/): output ceilings, structured responses and provider usage.
+- [LangGraph fault tolerance](https://docs.langchain.com/oss/javascript/langgraph/fault-tolerance): bounded steps, cancellation and avoiding uncontrolled retries, adapted without adding its runtime.
+- [Pearl, Causality](https://doi.org/10.1017/CBO9780511803161): separating interventions, background and causal consequences. This project does not estimate unknown historical structural equations or calibrated counterfactual probabilities.
 
-状态包括：
-
-- `conditions`：带成立年份、地区、领域及依据的背景条件；
-- `regions[].domains`：各领域的状态摘要、记录引用和已知/不确定/未知状态；
-- `processes`：有明确前置条件的自主进程及其后续复查点；
-- 祖先分支的有效事件、知识、干预和此前状态快照。
-
-新背景目前来自模型的历史知识重建，标为 `model-background` 且 `verified:false`。它们没有被包装为已核实的史料。展示基线不会悄悄充当全球知识数据库。未来接入外部史料时必须保存出处、年代适用范围和许可；当前版本未内置完整全球史料库。
-
-## 3. 世界演化与提交
-
-每次只维护一个世界状态：
-
-1. 选择下一时间窗，取地区边界状态、正在发展的进程及其因果祖先闭包。
-2. 模型提出事件、事实、进程检查和地区状态变更。
-3. 程序检查每条边的机制、时间顺序、引用、先决条件、循环、事实互斥和可提供的资源约束。
-4. 每个地区的六个领域和每条自主进程必须得到处理。没有大事件需要说明；无需每个地区制造事件。
-5. 独立模型审查实际事件内容、漏掉的进程、错误的影响范围、虚假独立性和与时间跨度不匹配的稀疏结果。
-6. 有问题时修复当前时段，保留有效事件及 ID；部分事件被拒也触发修复。两次修复后仍不足就失败，不保存半条世界线。
-7. 两类检查都通过才推进世界状态。结束后对完整事件与事实账本再做一次跨时段因果检查。
-
-基础时间窗：分叉后的首次窗口最多 5 年；随后公元前最多 100 年，公元 1–999 年最多 80 年，1000–1699 年最多 40 年，1700–1899 年最多 25 年，1900 年后最多 15 年。已建立进程的更近复查点可以提前结束窗口。它不等于逐年求解所有世界变量，仍是多时间尺度近似。
-
-结构化输出截断时缩短失败窗口，直至单年；不重算已接受的早期窗口。单年仍不能完成时停止并报告。语义审查失败不会靠机械增加几条填充事件通过。长期空白历史及最终空世界不能被当作完整结果。
-
-检查无法证明一条社会历史机制是真实因果关系：模型可以把错误故事标为“有依据”。独立审查降低这种风险，但同一模型的相关错误仍可能通过。因此没有历史准确率或真实概率保证。
-
-## 4. 大事件投影
-
-全量 `events` 保存所有通过审查的演化事件。重大事件 ID 是该账本的子集，不能在总结时新编事件。当前筛选要求：
-
-- 具有重大历史意义的暂定等级；
-- 影响全局系统或至少两个地区；
-- 有具体的影响机制。
-
-这一定义适用于世界线大事件。地方制度、人名和日常细节保留在完整账本和知识库。重要性与影响元数据也依赖模型判断，不是客观测量。
-
-界面可以切换世界大事件与全部事件。节点聚合显示数量，点击可查看聚合中的完整事件列表并放大时段；标签允许在轨道上下排布；选中的世界线自动移入可视区。侧栏取消只取最后五条的截断。
-
-## 5. 按问题深化世界
-
-`world-exploration.mjs` 采用问题规划、局部推演、知识检查/审查、自然回答流程。
-
-- 先决定年代、地区、领域、依赖因素和是否需要全球候选比较。
-- 按相应年代取世界状态、相关对话和因果闭包，避免把未来状态用于解释早期细节。
-- 数据库没有某个条目时进行有条件的局部推演，不能仅因此拒答。
-- 全球首富等问题需要共同指标与候选比较，证据不足时提供有依据的条件性判断；不能虚构唯一姓名和精确财富来冒充全知。
-- 新知识有有效年份、依据、引用、假设和条件性状态。去重、冲突、未来证据和语义审查通过后，才随成功的回答提交。
-- 假设性追问以及尚缺关键条件的问题不会自动改写既定世界。基线补充另存研究备注，不覆盖现实记录。
-
-这实现了持续探索和知识积累，不宣称模型真的全知全能。已建立的宏观历史不会因为问答而无声漂移。
-
-## 6. 归档、费用与可复现性
-
-归档格式升级为 2，继续读取格式 1。完整保存干预、背景状态、时段状态、审查记录、事件因果边和新增知识，旧记录数量不再被静默裁到 1500。存储仍使用浏览器 `localStorage`，配额不足会提示导出，尚未实现跨设备云同步和 IndexedDB 迁移。
-
-DeepSeek 正式推演显式启用思考模式，并为思考和结构化输出提供 32768 Token 的请求上限；这是上限，不是预付 Token 数。其他兼容服务保留其正常接口。原有用量、费用和阶段耗时统计继续工作。稳定方法说明位于动态上下文前部以便前缀缓存。模型审查是同一世界的校验请求，不是再计算另一条完整历史。
-
-基础调用约为输入解释 1 次、准入复核 1 次、全球初始化 1 次、每时段生成和审查各 1 次、总结 1 次；修复、格式恢复和问答另计。因此旧的“六个时段、八次请求”已不适用于正式入口。增加世界状态和审查有实际成本，不承诺无成本提高质量或未经测量的速度百分比。
-
-## 验证
-
-`npm test` 包含软件约束、拒绝路径、时序、祖先继承、JSON 恢复、费用计量、状态归档及问题驱动探索测试。`tests/fixtures/world-chat.mjs` 是合成接口，不是历史数据；模拟测试不能充当真实模型历史推演质量评价。旧版“每窗一条、六条东亚事件也成功”的正式入口测试已由新版状态与覆盖验收测试替换。低层旧内核保留为兼容工具和数值接口的测试对象，不是生产调度入口。
+Run `npm test` for current contract/API/UI/storage tests. The archived source includes its own unchanged tests. Real API measurements and limits belong in [MINUTE-EVALUATION.md](MINUTE-EVALUATION.md); mocked tests are never counted as latency or historical-quality evidence.
