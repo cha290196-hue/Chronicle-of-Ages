@@ -11,7 +11,8 @@ const empty=()=>({calls:0,success:0,failed:0,meteredCalls:0,unmeteredCalls:0,
  inputTokens:0,outputTokens:0,totalTokens:0,cachedInputTokens:0,reasoningOutputTokens:0,
  providerCostUsd:0,providerCostCalls:0,unpricedInputTokens:0,unpricedOutputTokens:0,
  deepseekPricedCalls:0,deepseekExactCalls:0,deepseekBoundedCalls:0,
- deepseekEstimatedCny:0,deepseekMinCny:0,deepseekMaxCny:0});
+ deepseekEstimatedCny:0,deepseekMinCny:0,deepseekMaxCny:0,
+ timedCalls:0,totalElapsedMs:0,maxElapsedMs:0});
 const finite=x=>typeof x==='number'&&Number.isFinite(x)&&x>=0?x:null;
 const int=x=>{const n=finite(x);return n===null?null:Math.trunc(n)};
 const safeText=x=>String(x||'').trim().slice(0,160);
@@ -46,6 +47,11 @@ function accumulateDeepSeek(bucket,entry){
 }
 function accumulate(bucket,entry){
  bucket.calls++;if(entry.success)bucket.success++;else bucket.failed++;
+ if(typeof entry.elapsedMs==='number'&&Number.isFinite(entry.elapsedMs)&&entry.elapsedMs>=0){
+  bucket.timedCalls=(bucket.timedCalls||0)+1;
+  bucket.totalElapsedMs=(bucket.totalElapsedMs||0)+entry.elapsedMs;
+  bucket.maxElapsedMs=Math.max(bucket.maxElapsedMs||0,entry.elapsedMs);
+ }
  if(entry.usage){
   bucket.meteredCalls++;
   bucket.inputTokens+=entry.usage.input??0;
@@ -81,12 +87,14 @@ export function readUsageMeter(){
   return parsed;
  }catch{return {version:1,deepseekPricingV2:true,totals:empty(),models:{},recent:[]}}
 }
-export function recordRequestUsage({provider='custom',model='unknown',channel='text',purpose='other',success=false,payload=null}={}){
+export function recordRequestUsage({provider='custom',model='unknown',channel='text',purpose='other',stage='other',elapsedMs=null,success=false,payload=null}={}){
  const state=readUsageMeter();
  const p=safeText(provider),m=safeText(model),ch=channel==='image'?'image':'text';
  const usage=normalizeProviderUsage(payload);
  const entry={time:new Date().toISOString(),provider:p,model:m,channel:ch,
-  purpose:safeText(purpose),success:!!success,usage};
+  purpose:safeText(purpose),stage:safeText(stage),
+  elapsedMs:typeof elapsedMs==='number'&&Number.isFinite(elapsedMs)&&elapsedMs>=0?Math.round(elapsedMs):null,
+  success:!!success,usage};
  entry.officialDeepSeek=deepseekTokenQuote(entry);
  const key=bucketKey(p,m,ch);
  if(!state.models[key])state.models[key]={provider:p,model:m,channel:ch,...empty()};
@@ -134,6 +142,21 @@ export function meterRows(meter=readUsageMeter(),pricing=readUsagePricing()){
   };
  }).sort((a,b)=>b.calls-a.calls);
 }
+
+/** Recent-only durations; timing data is purely numeric and never stores prompts or keys. */
+export function groupStageTimings(recent=[]){
+ const map=new Map();
+ for(const entry of Array.isArray(recent)?recent:[]){
+  const ms=entry?.elapsedMs,stage=String(entry?.stage||'other');
+  if(typeof ms!=='number'||!Number.isFinite(ms)||ms<0)continue;
+  const row=map.get(stage)||{stage,calls:0,elapsedMs:0,maxMs:0,failures:0};
+  row.calls++;row.elapsedMs+=ms;row.maxMs=Math.max(row.maxMs,ms);
+  if(!entry.success)row.failures++;
+  map.set(stage,row);
+ }
+ return [...map.values()].map(r=>({...r,averageMs:r.elapsedMs/r.calls})).sort((a,b)=>b.elapsedMs-a.elapsedMs);
+}
+
 export function summarizeUsage(meter=readUsageMeter(),pricing=readUsagePricing()){
  const rows=meterRows(meter,pricing);
  const estimate=rows.reduce((sum,r)=>sum+(r.estimatedUnbilledUsd??0),0);
@@ -149,7 +172,10 @@ export function summarizeUsage(meter=readUsageMeter(),pricing=readUsagePricing()
   deepseekMinCny:deepseekRows.reduce((n,r)=>n+r.officialDeepSeekMinCny,0),
   deepseekMaxCny:deepseekRows.reduce((n,r)=>n+r.officialDeepSeekMaxCny,0),
   missingPriceModels:rows.filter(r=>r.missingPrice).length,
-  unmeteredCalls:meter.totals.unmeteredCalls};
+  unmeteredCalls:meter.totals.unmeteredCalls,
+  timedCalls:meter.totals.timedCalls||0,
+  averageElapsedMs:meter.totals.timedCalls?meter.totals.totalElapsedMs/meter.totals.timedCalls:null,
+  stageTimings:groupStageTimings(meter.recent)};
 }
 export function clearUsageMeter(){
  const ok=storageSet(USAGE_STORAGE_KEY,{version:1,deepseekPricingV2:true,totals:empty(),models:{},recent:[]});
