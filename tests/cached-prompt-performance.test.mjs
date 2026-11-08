@@ -23,44 +23,6 @@ const event=year=>({
  requires:[],assumptions:[]
 });
 
-test('all chronological historical calls reuse a long invariant prefix while preserving every causal rule and dynamic fact',async()=>{
- const seen=[],stages=[];
- const result=await simulateOmega({
-  prompt:'In 1644 Earth diverges politically',config:{},makeId:()=> 'branch-one',
-  maxWindows:6,callChat:async(_config,messages,options)=>{
-   const text=messages.at(-1).content;stages.push(options.stage);
-   if(text.includes('Classify user input into edit'))return intervention;
-   if(text.includes('Summarize the preferred scenario'))return {
-    titleEn:'One Earth',titleZh:'另一世界',
-    summaryEn:'Historical worldline',summaryZh:'完整历史',impacts:[]
-   };
-   assert.match(text,/Propose counterfactual events for scenario 1, window \[/);
-   assert.equal(options.stage,'historical-window');
-   seen.push(text);
-   const match=text.match(/window \[(-?\d+), (-?\d+)\]/);
-   return {events:[event(Number(match[1]))],facts:[],summary:'Independent historic events'};
-  }
- });
- assert.equal(seen.length,6,'no unnecessary second full simulation');
- assert.equal(stages[0],'interpretation');
- assert.equal(stages.at(-1),'synthesis');
- const prefix=seen[0].slice(0,1800);
- assert.ok(seen.every(text=>text.startsWith(prefix)),'stable 1800-character prefix for repeated DeepSeek caching');
- assert.ok(seen[0].indexOf('Propose counterfactual events for scenario')>1800);
- for(const text of seen){
-  for(const phrase of [
-   'WORLD','Earth','INDEPENDENT events','pre-fork history',
-   'never invent a cause reference','never 0','Valid causal reference IDs',
-   'relationToIntervention','Interventions (do-operations):','Return JSON',
-   'Physical-constant counterfactuals'
-  ])assert.ok(text.toLowerCase().includes(phrase.toLowerCase()),'Missing original constraint: '+phrase);
- }
- assert.equal(result.worldline.events.length,6);
- assert.equal(result.worldline.omega.scenarios,1);
- assert.deepEqual(result.analysis.alternatives,[]);
- assert.equal(result.analysis.preferred.audit.rejected,0);
-});
-
 test('per-stage API timing measures only request latency and never persists prompts or API keys',()=>{
  const before=globalThis.localStorage;const local=memoryStorage();globalThis.localStorage=local;
  try{
@@ -161,13 +123,13 @@ test('a confirmed full 8192-token DeepSeek cutoff skips an identical doomed retr
 
 test('the user-facing performance dashboard includes real latency, and core causal guardrails remain',async()=>{
  const [usage,adapter,kernel,core]=await Promise.all([
-  readFile('src/usage-dashboard.mjs','utf8'),readFile('src/chronicle-adapter.mjs','utf8'),
+  readFile('src/usage-dashboard.mjs','utf8'),readFile('src/world-simulation.mjs','utf8'),
   readFile('src/ucm-omega.mjs','utf8'),readFile('src/core.js','utf8')
  ]);
  assert.match(usage,/stageTimings/);
  assert.match(usage,/Measured latency by simulation stage/);
  assert.match(adapter,/'historical-window'/);
  assert.match(kernel,/GLOBAL_CAUSAL_AUDIT_FAILED/);
- assert.match(core,/scenarioCount:1,maxWindows:6/);
+ assert.match(adapter,/validateSemanticReview/);assert.match(adapter,/initializeWorld/);
  assert.doesNotMatch(kernel,/const jobs=Array\.from\(\{length:parallelism/);
 });

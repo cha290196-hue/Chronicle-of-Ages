@@ -159,5 +159,5 @@ test('dashboard and adaptive statuses are connected to settings, archive and pag
  assert.match(style,/\.usage-metrics\{/);
  assert.match(omega,/runAdaptiveWindow\(/);
  assert.match(omega,/GLOBAL_CAUSAL_AUDIT_FAILED/);
- assert.match(adapter,/scopedFocus/);
+ assert.match(await readFile('src/world-simulation.mjs','utf8'),/causalContext/);
 });

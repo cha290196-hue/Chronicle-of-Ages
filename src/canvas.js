@@ -12,7 +12,9 @@ export class WorldCanvas{
  }
  dispose(){this.clearTooltip();this.resizeObserver.disconnect();cancelAnimationFrame(this._raf)}
  clearTooltip(){const tip=document.getElementById('canvas-tooltip');if(tip)tip.hidden=true;if(this.hover){this.hover=null;this.invalidate()}}
- setState(branches,active,lang){this.branches=branches||[];this.active=active;this.lang=lang;this.invalidate()}
+ setState(branches,active,lang){const changed=this.active!==active;this.branches=branches||[];this.active=active;this.lang=lang;
+  if(changed&&active){const i=this.branches.findIndex(b=>b.id===active);if(i>=0){const base=this.mobile?(this.height-68)*.5:this.height*.59;this.vertical=this.height*.5-base+144+i*114}}
+  this.invalidate()}
  resize(){const r=this.el.getBoundingClientRect();if(!r.width||!r.height)return;this.width=r.width;this.height=r.height;this.dpr=Math.min(2.5,window.devicePixelRatio||1);this.el.width=Math.floor(r.width*this.dpr);this.el.height=Math.floor(r.height*this.dpr);this.ctx.setTransform(this.dpr,0,0,this.dpr,0,0);this.invalidate()}
  invalidate(){if(!this._raf)this._raf=requestAnimationFrame(()=>{this._raf=0;this.draw()})}
  x(y){return this.width*(this.mobile?.5:.54)+(y-this.year)*this.zoom}
@@ -69,7 +71,7 @@ nodeActive(branchId,year){
   }
  }
  this.nodes(BASELINE,base,null,!this.active);
- for(let i=0;i<this.branches.length;i++){const b=this.branches[i];this.nodes(b.events||[],this.laneY(i),b.id,b.id===this.active)}
+ for(let i=0;i<this.branches.length;i++){const b=this.branches[i];this.nodes((b.events||[]).filter(e=>this.showAllEvents||e.milestone!==false),this.laneY(i),b.id,b.id===this.active)}
  const tipX=this.x(LAST_YEAR);
  this.drawTip(tipX,base,null,!this.active);
  for(let i=0;i<this.branches.length;i++)this.drawTip(tipX,this.laneY(i),this.branches[i].id,this.branches[i].id===this.active);
@@ -125,7 +127,7 @@ nodeActive(branchId,year){
    if(last&&x-last.firstX<18&&this.zoom<11.99){last.events.push(e);last.xSum+=x}
    else clusters.push({events:[e],firstX:x,xSum:x});
   }
-  const rows=[{dy:-53,right:-999},{dy:-103,right:-999},{dy:-153,right:-999}];
+  const rows=[{dy:-43,right:-999},{dy:43,right:-999},{dy:-83,right:-999},{dy:83,right:-999}];
   for(const group of clusters){
    const x=group.xSum/group.events.length,e=group.events[0],grouped=group.events.length>1;
    const current=grouped?this.hover?.cluster===group.events:this.hover?.event?.id===e.id;
@@ -136,7 +138,7 @@ nodeActive(branchId,year){
    if(!grouped){ctx.beginPath();ctx.arc(x,y,1.2,0,Math.PI*2);ctx.fillStyle=isActive?'#1d1d1d':'#bcbcbc';ctx.fill()}
    this.hit.push(grouped?{x,y,cluster:group.events,branchId}:{x,y,event:e,branchId});
    if(grouped){
-    if(group.events.length>2){ctx.textAlign='center';ctx.textBaseline='bottom';ctx.font='600 9px system-ui';ctx.fillStyle=isActive?'#656563':'#b4b4b1';ctx.fillText(String(group.events.length),x,y-11)}
+    if(group.events.length>1){ctx.textAlign='center';ctx.textBaseline='bottom';ctx.font='600 9px system-ui';ctx.fillStyle=isActive?'#656563':'#b4b4b1';ctx.fillText(String(group.events.length),x,y-11)}
     continue;
    }
    if(this.zoom<.14||x<12||x>this.width-12)continue;
@@ -144,7 +146,7 @@ nodeActive(branchId,year){
    const shortened=title.length>maxLength?title.slice(0,maxLength-1)+'…':title;
    ctx.font='500 10.5px system-ui';const width=Math.min(170,Math.max(66,ctx.measureText(shortened).width+5));
    const left=clamp(x+10,12,Math.max(12,this.width-width-12));
-   const row=rows.find(track=>y+track.dy>150&&y+track.dy<this.height-130&&left>track.right+16);
+   const row=rows.find(track=>y+track.dy>38&&y+track.dy<this.height-80&&left>track.right+16);
    if(!row)continue;
    const top=y+row.dy;
    ctx.strokeStyle=isActive?'#c4c4c1':'#e0e0dd';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x,y-8);ctx.lineTo(x,top+14);ctx.lineTo(left-2,top+14);ctx.stroke();
