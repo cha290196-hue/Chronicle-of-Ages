@@ -33,6 +33,14 @@ const shanghaiParts=new Intl.DateTimeFormat('en-CA',{
  hour:'2-digit',minute:'2-digit',hourCycle:'h23'
 });
 const whole=n=>typeof n==='number'&&Number.isFinite(n)&&n>=0?Math.trunc(n):null;
+export function usageBillingProvider(configProvider,endpoint){
+ let official=false;
+ try{const url=new URL(String(endpoint));official=url.protocol==='https:'&&url.hostname==='api.deepseek.com'}catch{}
+ // The preset may point to a proxy or third party, which need not charge
+ // official DeepSeek prices. The actual API host is authoritative.
+ if(official)return 'deepseek';
+ return configProvider==='deepseek'?'custom':configProvider;
+}
 export function deepseekModelTier(provider,model,channel='text'){
  if(provider!=='deepseek'||channel!=='text')return null;
  const m=String(model||'').trim().toLowerCase();
