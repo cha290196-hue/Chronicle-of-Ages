@@ -278,7 +278,15 @@ export function evaluateScenario(scenario){
 export async function runMatrix({baseline=[],branches=[],parentId=null,interpretation,propose,scenarioCount=2,maxWindows=6,signal,onProgress=()=>{},landmarks=[]}){
  if(typeof propose!=='function')throw new MatrixError('PROPOSER_REQUIRED');
  const parent=parentId===null?null:branches.find(b=>b.id===parentId);
- const actions=compileInterventions(interpretation,{parentAnchor:parent?.anchorYear??null,parentFacts:parent?resolveAncestry({baseline,branches,parentId,atYear:LAST_YEAR}).facts.concat(safeList(parent.facts),safeList(parent.knowledge)):[]});
+ // A discovered fact cannot support a new fork earlier than that fact exists.
+ // Filter ancestry and the selected parent's own knowledge by the new fork date
+ // before compiling branch-local modifications.
+ const requestedYears=safeList(interpretation?.operations).map(op=>op?.startYear).filter(validYear);
+ const requestedFirst=requestedYears.length?requestedYears.reduce((earliest,y)=>tick(y)<tick(earliest)?y:earliest):LAST_YEAR;
+ const inheritedAtFork=parent?resolveAncestry({baseline,branches,parentId,atYear:requestedFirst}).facts:[];
+ const knownAtFork=parent?[...inheritedAtFork,...safeList(parent.facts),...safeList(parent.knowledge)]
+   .filter(f=>validYear(f.firstYear)&&tick(f.firstYear)<=tick(requestedFirst)):[];
+ const actions=compileInterventions(interpretation,{parentAnchor:parent?.anchorYear??null,parentFacts:knownAtFork});
  const firstYear=actions.reduce((best,a)=>tick(a.startYear)<tick(best)?a.startYear:best,actions[0].startYear);
  const inherited=resolveAncestry({baseline,branches,parentId,atYear:firstYear});
  const windows=adaptiveWindows(firstYear,LAST_YEAR,{maxWindows,landmarks});
