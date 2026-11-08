@@ -1,0 +1,1374 @@
+{
+  "input": "假如基督教不存在",
+  "totalMs": 49438,
+  "metrics": {
+    "anchorYear": 30,
+    "completedThrough": 2026,
+    "events": 54,
+    "milestones": 9,
+    "regions": 7,
+    "independent": 41,
+    "review": "repair",
+    "timing": {
+      "elapsedMs": 49430,
+      "budgetMs": 62000,
+      "targetMs": 60000,
+      "requests": [
+        {
+          "stage": "minute-world",
+          "elapsedMs": 40196,
+          "maxTokens": 7600,
+          "reasoning": false
+        },
+        {
+          "stage": "minute-review",
+          "elapsedMs": 9227,
+          "maxTokens": 2800,
+          "reasoning": false
+        }
+      ],
+      "autoComplete": true,
+      "completed": true
+    }
+  },
+  "roundTrip": true,
+  "calls": [
+    {
+      "model": "deepseek-flash",
+      "maxTokens": 7600,
+      "thinking": {
+        "type": "disabled"
+      },
+      "ms": 40191,
+      "status": 200,
+      "usage": {
+        "prompt_tokens": 2479,
+        "completion_tokens": 6008,
+        "total_tokens": 8487,
+        "prompt_tokens_details": {
+          "cached_tokens": 1664
+        },
+        "prompt_cache_hit_tokens": 1664,
+        "prompt_cache_miss_tokens": 815
+      },
+      "finish": "stop"
+    },
+    {
+      "model": "deepseek-v4-pro",
+      "maxTokens": 2800,
+      "thinking": {
+        "type": "disabled"
+      },
+      "ms": 9226,
+      "status": 200,
+      "usage": {
+        "prompt_tokens": 7994,
+        "completion_tokens": 897,
+        "total_tokens": 8891,
+        "prompt_tokens_details": {
+          "cached_tokens": 512
+        },
+        "prompt_cache_hit_tokens": 512,
+        "prompt_cache_miss_tokens": 7482
+      },
+      "finish": "stop"
+    }
+  ],
+  "draft": {
+    "admission": {
+      "intent": "edit",
+      "decision": "accept",
+      "valid": true,
+      "reasonEn": "A finite counterfactual in which Christianity never arises is a coherent initial-condition edit; its effects propagate through Roman imperial religion, later European and Mediterranean institutions, and global missions by ordinary mechanisms.",
+      "reasonZh": "设定“基督教从未产生”是一个有限的初始条件改动，其影响通过罗马帝国宗教、后世欧洲与地中海制度及全球传教活动按常规机制传播。",
+      "earthRelevance": "direct",
+      "materiality": "material",
+      "criticalUnknowns": [],
+      "questions": [],
+      "completions": [
+        {
+          "field": "onset",
+          "en": "Christianity never emerges from Second Temple Jewish messianic movements; the Jesus movement does not become a separate religion (chosen default, c. 30s CE).",
+          "zh": "基督教未从第二圣殿时期的犹太弥赛亚运动中产生；耶稣运动未发展为独立宗教（选定默认，约公元30年代）。"
+        },
+        {
+          "field": "scope",
+          "en": "No Christian church, canon, clergy, or Christian states; Jewish, pagan, Zoroastrian, Manichaean and later Islamic-type developments proceed on their own.",
+          "zh": "不存在基督教会、正典、神职或基督教国家；犹太教、多神教、琐罗亚斯德教、摩尼教及后来的伊斯兰类发展自行演进。"
+        },
+        {
+          "field": "preserved",
+          "en": "Judaism, the Roman Empire, Han China, Parthia, Kushan and other contemporary institutions are preserved at the fork.",
+          "zh": "犹太教、罗马帝国、汉朝、帕提亚、贵霜等当时制度在分叉点保留。"
+        }
+      ],
+      "preservedContext": [
+        {
+          "en": "Second Temple Judaism and its messianic currents continue.",
+          "zh": "第二圣殿犹太教及其弥赛亚思潮延续。"
+        },
+        {
+          "en": "Roman imperial civic religion and mystery cults remain dominant in the Mediterranean.",
+          "zh": "罗马帝国公民宗教与秘仪在地中海仍占主导。"
+        }
+      ],
+      "uncertaintyNotes": [
+        {
+          "en": "Later religious labels (e.g. a Muhammad-like Arabian movement) are conditional analogues, not guaranteed identities.",
+          "zh": "后世宗教标签（如类似穆罕默德的阿拉伯运动）是条件性类比，不保证相同身份。"
+        }
+      ],
+      "causalBridge": [
+        {
+          "mechanism": "Without a Christian sect, Roman religious policy, later European legitimating institutions and transcontinental mission networks lack a major organizing religion.",
+          "evidenceIds": [],
+          "support": "user-premise"
+        }
+      ],
+      "operations": [
+        {
+          "kind": "historical_change",
+          "scope": "earth",
+          "mode": "point",
+          "startYear": 30,
+          "endYear": 30,
+          "target": "emergence of Christianity from Jewish messianic milieu",
+          "value": "never arises",
+          "parentFactId": null,
+          "description": "The Jesus movement remains within Jewish sectarian diversity; no separate Christian church, canon or episcopate forms.",
+          "temporalBasis": "chosen default onset c. 30 CE",
+          "assumptions": [
+            "No later erasure; simple non-emergence",
+            "Judaism and Roman world preserved"
+          ]
+        }
+      ]
+    },
+    "world": {
+      "title": "无基督教的世界：多极信仰与帝国秩序",
+      "summary": "基督教从未形成。罗马帝国在公民多神教与密特拉、伊西斯等秘仪中维持宗教多元；犹太教继续发展其拉比传统。欧洲未出现教廷主导的政教体系，帝国与王国以军事、法律和贵族网络整合。西亚在琐罗亚斯德教与摩尼教竞争中出现一个类似伊斯兰的阿拉伯一神教运动，形成横跨西亚北非的哈里发式共同体。东亚、南亚、非洲与美洲按自身逻辑发展；大航海由商业与王朝竞争驱动，殖民帝国缺乏传教建制。至2026年，世界呈多极宗教格局，技术文明高度发达但制度路径与真实历史显著不同。",
+      "conditions": [
+        {
+          "id": "b1",
+          "t": "罗马帝国以公民宗教、皇帝崇拜与多元秘仪整合地中海；犹太教在第二圣殿后期及拉比传统中延续。",
+          "r": [
+            "europe",
+            "west-central-asia"
+          ],
+          "k": "culture"
+        },
+        {
+          "id": "b2",
+          "t": "汉帝国儒学官僚制与丝绸之路贸易网络支撑东亚秩序。",
+          "r": [
+            "east-asia"
+          ],
+          "k": "politics"
+        },
+        {
+          "id": "b3",
+          "t": "笈多前后印度教、佛教与耆那教竞争，南亚港口连接印度洋贸易。",
+          "r": [
+            "south-asia"
+          ],
+          "k": "economy"
+        },
+        {
+          "id": "b4",
+          "t": "萨珊波斯以琐罗亚斯德教为国教，与罗马争夺西亚商路。",
+          "r": [
+            "west-central-asia"
+          ],
+          "k": "politics"
+        },
+        {
+          "id": "b5",
+          "t": "撒哈拉以南非洲的班图扩张、跨撒哈拉商路与尼罗河国家并行发展。",
+          "r": [
+            "africa"
+          ],
+          "k": "economy"
+        },
+        {
+          "id": "b6",
+          "t": "中美洲城邦与安第斯山地社会独立发展农业与祭祀国家。",
+          "r": [
+            "americas"
+          ],
+          "k": "society"
+        },
+        {
+          "id": "b7",
+          "t": "波利尼西亚航海社会与美拉尼西亚农业村落分布太平洋岛屿。",
+          "r": [
+            "oceania"
+          ],
+          "k": "society"
+        }
+      ],
+      "trajectories": [
+        {
+          "r": "east-asia",
+          "events": [
+            {
+              "id": "e1",
+              "y": 220,
+              "t": "汉末分裂与士族庄园",
+              "d": "汉室衰落后，儒学士族以庄园经济与九品官人法维持地方秩序，佛教与道教在乱世中扩张，形成东亚特有的宗教-士族共生结构。",
+              "c": [
+                "b2"
+              ],
+              "r": [
+                "east-asia"
+              ],
+              "k": "politics",
+              "s": 3
+            },
+            {
+              "id": "e2",
+              "y": 618,
+              "t": "科举帝国重建",
+              "d": "隋唐式王朝以科举吸纳寒门，重建统一官僚帝国；丝路贸易与造纸、印刷技术扩散，东亚成为人口与技术密集核心。",
+              "c": [
+                "e1"
+              ],
+              "r": [
+                "east-asia"
+              ],
+              "k": "politics",
+              "s": 3
+            },
+            {
+              "id": "e3",
+              "y": 1100,
+              "t": "宋式商业革命",
+              "d": "水稻农业、纸币、瓷器和远洋航运推动城市化与市场网络，东亚经济规模领先，官僚国家以税收而非教会组织社会。",
+              "c": [
+                "e2"
+              ],
+              "r": [
+                "east-asia"
+              ],
+              "k": "economy",
+              "s": 3
+            },
+            {
+              "id": "e4",
+              "y": 1600,
+              "t": "白银流入与明清财政",
+              "d": "美洲白银经马尼拉流入，明清财政货币化，人口激增；海禁与走私并存，东亚与全球贸易深度绑定。",
+              "c": [
+                "e3"
+              ],
+              "r": [
+                "east-asia"
+              ],
+              "k": "economy",
+              "s": 2
+            },
+            {
+              "id": "e5",
+              "y": 1890,
+              "t": "东亚工业化竞争",
+              "d": "面对西方工业压力，日本式改革与清朝洋务竞争，东亚出现民族国家工业化浪潮，区域战争与条约体系形成。",
+              "c": [
+                "e4"
+              ],
+              "r": [
+                "east-asia"
+              ],
+              "k": "science-technology",
+              "s": 3
+            },
+            {
+              "id": "e6",
+              "y": 1980,
+              "t": "东亚技术出口带",
+              "d": "东亚经济体以制造业出口和技术追赶形成全球供应链核心，威权与民主政体并存，区域一体化有限。",
+              "c": [
+                "e5"
+              ],
+              "r": [
+                "east-asia"
+              ],
+              "k": "economy",
+              "s": 2
+            }
+          ],
+          "quiet": null,
+          "refs": [
+            "b2"
+          ]
+        },
+        {
+          "r": "south-asia",
+          "events": [
+            {
+              "id": "e7",
+              "y": 500,
+              "t": "笈多式古典整合",
+              "d": "印度教神庙经济与梵语文化整合南亚，佛教向东南亚与东亚传播，种姓与村社制度稳定地方社会。",
+              "c": [
+                "b3"
+              ],
+              "r": [
+                "south-asia"
+              ],
+              "k": "culture",
+              "s": 3
+            },
+            {
+              "id": "e8",
+              "y": 1200,
+              "t": "德里苏丹式突厥政权",
+              "d": "中亚突厥军事集团入主北印度，带来波斯行政与伊斯兰教，与印度教王公形成分层统治，印度洋贸易繁荣。",
+              "c": [
+                "e7"
+              ],
+              "r": [
+                "south-asia"
+              ],
+              "k": "politics",
+              "s": 3
+            },
+            {
+              "id": "e9",
+              "y": 1600,
+              "t": "莫卧儿式集权与棉纺出口",
+              "d": "北印度帝国以曼萨布达尔制集权，棉纺织品大量出口，南亚成为全球最大制造业区域之一。",
+              "c": [
+                "e8"
+              ],
+              "r": [
+                "south-asia"
+              ],
+              "k": "economy",
+              "s": 3
+            },
+            {
+              "id": "e10",
+              "y": 1850,
+              "t": "殖民统治与民族主义",
+              "d": "英国式东印度公司式征服后，印度民族主义以宗教社群与语言为动员基础，反殖民运动兴起。",
+              "c": [
+                "e9"
+              ],
+              "r": [
+                "south-asia"
+              ],
+              "k": "politics",
+              "s": 3
+            },
+            {
+              "id": "e11",
+              "y": 1950,
+              "t": "分治与共和国",
+              "d": "南亚以宗教人口为界分治，印度与巴基斯坦式国家独立，世俗宪法与宗教政党并存。",
+              "c": [
+                "e10"
+              ],
+              "r": [
+                "south-asia"
+              ],
+              "k": "politics",
+              "s": 3
+            },
+            {
+              "id": "e12",
+              "y": 2000,
+              "t": "服务外包与核威慑",
+              "d": "印度式经济体以软件服务与外包融入全球，核武器与区域对峙塑造南亚安全格局。",
+              "c": [
+                "e11"
+              ],
+              "r": [
+                "south-asia"
+              ],
+              "k": "science-technology",
+              "s": 2
+            }
+          ],
+          "quiet": null,
+          "refs": [
+            "b3"
+          ]
+        },
+        {
+          "r": "west-central-asia",
+          "events": [
+            {
+              "id": "e13",
+              "y": 224,
+              "t": "萨珊中央集权",
+              "d": "萨珊波斯以琐罗亚斯德教祭司与官僚整合伊朗高原，与罗马长期争夺美索不达米亚商路。",
+              "c": [
+                "b4"
+              ],
+              "r": [
+                "west-central-asia"
+              ],
+              "k": "politics",
+              "s": 3
+            },
+            {
+              "id": "e14",
+              "y": 650,
+              "t": "阿拉伯一神教帝国",
+              "d": "阿拉伯半岛出现以严格一神论为基础的宗教-政治运动，迅速征服波斯与东罗马属地，形成哈里发式帝国，琐罗亚斯德教与犹太教成为受保护社群。",
+              "c": [
+                "b4"
+              ],
+              "r": [
+                "west-central-asia",
+                "africa"
+              ],
+              "k": "politics",
+              "s": 4
+            },
+            {
+              "id": "e15",
+              "y": 1000,
+              "t": "巴格达式学术与贸易枢纽",
+              "d": "哈里发治下城市翻译希腊与波斯学术，数学、医学与航海技术发展，西亚成为欧亚贸易与知识中转站。",
+              "c": [
+                "e14"
+              ],
+              "r": [
+                "west-central-asia"
+              ],
+              "k": "science-technology",
+              "s": 3
+            },
+            {
+              "id": "e16",
+              "y": 1450,
+              "t": "奥斯曼式突厥帝国",
+              "d": "安纳托利亚突厥政权征服君士坦丁堡，控制黑海与东地中海，以军事采邑制与宗教多元治理。",
+              "c": [
+                "e15"
+              ],
+              "r": [
+                "west-central-asia",
+                "europe"
+              ],
+              "k": "politics",
+              "s": 3
+            },
+            {
+              "id": "e17",
+              "y": 1900,
+              "t": "石油与民族国家",
+              "d": "石油资源与帝国解体使西亚形成民族国家体系，世俗民族主义与伊斯兰政党竞争。",
+              "c": [
+                "e16"
+              ],
+              "r": [
+                "west-central-asia"
+              ],
+              "k": "economy",
+              "s": 3
+            },
+            {
+              "id": "e18",
+              "y": 1979,
+              "t": "宗教革命与区域对峙",
+              "d": "什叶派与逊尼派竞争激化，一场宗教革命建立神权共和国，与世俗共和国及外部大国对峙。",
+              "c": [
+                "e17"
+              ],
+              "r": [
+                "west-central-asia"
+              ],
+              "k": "politics",
+              "s": 3
+            }
+          ],
+          "quiet": null,
+          "refs": [
+            "b4"
+          ]
+        },
+        {
+          "r": "europe",
+          "events": [
+            {
+              "id": "e19",
+              "y": 476,
+              "t": "西罗马解体与蛮族王国",
+              "d": "西罗马帝国解体后，日耳曼王国以罗马法、地方主教式行政与军事贵族维持秩序，无教廷主导的政教体系。",
+              "c": [
+                "b1"
+              ],
+              "r": [
+                "europe"
+              ],
+              "k": "politics",
+              "s": 3
+            },
+            {
+              "id": "e20",
+              "y": 800,
+              "t": "加洛林式帝国与修道院文化",
+              "d": "法兰克君主以军事扩张与宫廷学术整合西欧，修道院式学术中心保存古典文本，但无统一教会权威。",
+              "c": [
+                "e19"
+              ],
+              "r": [
+                "europe"
+              ],
+              "k": "culture",
+              "s": 3
+            },
+            {
+              "id": "e21",
+              "y": 1200,
+              "t": "商业城市与大学",
+              "d": "意大利与汉萨城市以贸易和金融自治，大学在王室与城市资助下发展法学、医学与自然哲学。",
+              "c": [
+                "e20"
+              ],
+              "r": [
+                "europe"
+              ],
+              "k": "economy",
+              "s": 3
+            },
+            {
+              "id": "e22",
+              "y": 1500,
+              "t": "大航海与殖民帝国",
+              "d": "伊比利亚与西北欧王国以商业和王朝竞争驱动远洋探险，建立殖民帝国，传教建制薄弱，贸易公司主导治理。",
+              "c": [
+                "e21"
+              ],
+              "r": [
+                "europe",
+                "americas",
+                "africa"
+              ],
+              "k": "economy",
+              "s": 4
+            },
+            {
+              "id": "e23",
+              "y": 1780,
+              "t": "工业革命与世俗国家",
+              "d": "煤炭、蒸汽与殖民市场推动工业革命，革命与战争催生世俗民族国家与成文宪法。",
+              "c": [
+                "e22"
+              ],
+              "r": [
+                "europe"
+              ],
+              "k": "science-technology",
+              "s": 4
+            },
+            {
+              "id": "e24",
+              "y": 1914,
+              "t": "世界大战与帝国崩溃",
+              "d": "民族主义与联盟体系引发世界大战，欧洲帝国解体，福利国家与民主政体在战后扩展。",
+              "c": [
+                "e23"
+              ],
+              "r": [
+                "europe"
+              ],
+              "k": "politics",
+              "s": 3
+            },
+            {
+              "id": "e25",
+              "y": 1950,
+              "t": "欧洲一体化",
+              "d": "战后欧洲以煤钢共同体与共同市场推进一体化，世俗福利国家成为常态。",
+              "c": [
+                "e24"
+              ],
+              "r": [
+                "europe"
+              ],
+              "k": "politics",
+              "s": 3
+            }
+          ],
+          "quiet": null,
+          "refs": [
+            "b1"
+          ]
+        },
+        {
+          "r": "africa",
+          "events": [
+            {
+              "id": "e26",
+              "y": 700,
+              "t": "跨撒哈拉贸易与加纳式王国",
+              "d": "骆驼商队连接西非黄金与北非盐，加纳式王国以税收与伊斯兰商人整合萨赫勒。",
+              "c": [
+                "b5"
+              ],
+              "r": [
+                "africa"
+              ],
+              "k": "economy",
+              "s": 3
+            },
+            {
+              "id": "e27",
+              "y": 1300,
+              "t": "马里式帝国与廷巴克图学术",
+              "d": "马里式帝国控制金矿与商路，廷巴克图成为伊斯兰学术中心，与北非哈里发世界联系紧密。",
+              "c": [
+                "e26"
+              ],
+              "r": [
+                "africa"
+              ],
+              "k": "culture",
+              "s": 3
+            },
+            {
+              "id": "e28",
+              "y": 1650,
+              "t": "大西洋奴隶贸易与沿海国家",
+              "d": "欧洲需求驱动大西洋奴隶贸易，西非沿海出现中央集权王国，人口与社会结构受深刻冲击。",
+              "c": [
+                "e22"
+              ],
+              "r": [
+                "africa"
+              ],
+              "k": "society",
+              "s": 3
+            },
+            {
+              "id": "e29",
+              "y": 1885,
+              "t": "殖民瓜分与抵抗",
+              "d": "欧洲列强瓜分非洲，本地国家与宗教运动抵抗，殖民经济以矿产与经济作物为主。",
+              "c": [
+                "e28"
+              ],
+              "r": [
+                "africa"
+              ],
+              "k": "politics",
+              "s": 3
+            },
+            {
+              "id": "e30",
+              "y": 1960,
+              "t": "独立与一党国家",
+              "d": "非洲国家独立，边界继承殖民划分，一党制与军人政权常见，泛非主义与区域组织发展。",
+              "c": [
+                "e29"
+              ],
+              "r": [
+                "africa"
+              ],
+              "k": "politics",
+              "s": 3
+            },
+            {
+              "id": "e31",
+              "y": 2000,
+              "t": "资源经济与城市化",
+              "d": "石油、矿产与移动通信推动城市化，青年人口与宗教复兴并存。",
+              "c": [
+                "e30"
+              ],
+              "r": [
+                "africa"
+              ],
+              "k": "economy",
+              "s": 2
+            }
+          ],
+          "quiet": null,
+          "refs": [
+            "b5"
+          ]
+        },
+        {
+          "r": "americas",
+          "events": [
+            {
+              "id": "e32",
+              "y": 600,
+              "t": "玛雅与安第斯国家",
+              "d": "中美洲玛雅城邦与安第斯山地社会以农业集约、祭祀与长途贸易发展复杂国家。",
+              "c": [
+                "b6"
+              ],
+              "r": [
+                "americas"
+              ],
+              "k": "society",
+              "s": 3
+            },
+            {
+              "id": "e33",
+              "y": 1450,
+              "t": "阿兹特克与印加式帝国",
+              "d": "墨西哥谷地与安第斯形成贡赋帝国，道路与仓储系统支撑人口稠密社会。",
+              "c": [
+                "e32"
+              ],
+              "r": [
+                "americas"
+              ],
+              "k": "politics",
+              "s": 3
+            },
+            {
+              "id": "e34",
+              "y": 1550,
+              "t": "殖民征服与混血社会",
+              "d": "欧洲征服者利用本地联盟与疫病征服大帝国，殖民行政与种植园经济形成，天主教传教建制薄弱但殖民社会仍以宗教混合为特征。",
+              "c": [
+                "e22"
+              ],
+              "r": [
+                "americas"
+              ],
+              "k": "society",
+              "s": 4
+            },
+            {
+              "id": "e35",
+              "y": 1800,
+              "t": "独立战争与共和国",
+              "d": "克里奥尔精英领导独立战争，美洲形成共和国体系，奴隶制与种植园经济延续至19世纪。",
+              "c": [
+                "e34"
+              ],
+              "r": [
+                "americas"
+              ],
+              "k": "politics",
+              "s": 3
+            },
+            {
+              "id": "e36",
+              "y": 1900,
+              "t": "出口经济与移民",
+              "d": "美洲以农产品与矿产出口融入全球，欧洲与亚洲移民重塑人口结构。",
+              "c": [
+                "e35"
+              ],
+              "r": [
+                "americas"
+              ],
+              "k": "economy",
+              "s": 2
+            },
+            {
+              "id": "e37",
+              "y": 1970,
+              "t": "冷战干预与民主化",
+              "d": "冷战干预与债务危机交替，1980年代后民主化与区域贸易协定扩展。",
+              "c": [
+                "e36"
+              ],
+              "r": [
+                "americas"
+              ],
+              "k": "politics",
+              "s": 2
+            }
+          ],
+          "quiet": null,
+          "refs": [
+            "b6"
+          ]
+        },
+        {
+          "r": "oceania",
+          "events": [
+            {
+              "id": "e38",
+              "y": 1200,
+              "t": "波利尼西亚远航定居",
+              "d": "波利尼西亚航海者以星象与洋流知识定居夏威夷、新西兰与复活节岛，形成岛屿农业社会。",
+              "c": [
+                "b7"
+              ],
+              "r": [
+                "oceania"
+              ],
+              "k": "society",
+              "s": 3
+            },
+            {
+              "id": "e39",
+              "y": 1788,
+              "t": "英国殖民与移民",
+              "d": "英国在澳大利亚建立流放殖民地，随后自由移民与羊毛经济扩展，原住民社会受严重冲击。",
+              "c": [
+                "e22"
+              ],
+              "r": [
+                "oceania"
+              ],
+              "k": "politics",
+              "s": 3
+            },
+            {
+              "id": "e40",
+              "y": 1901,
+              "t": "联邦与太平洋殖民地",
+              "d": "澳大利亚联邦成立，新西兰与太平洋岛屿殖民地纳入英帝国体系，白人移民社会与原住民并存。",
+              "c": [
+                "e39"
+              ],
+              "r": [
+                "oceania"
+              ],
+              "k": "politics",
+              "s": 2
+            },
+            {
+              "id": "e41",
+              "y": 1970,
+              "t": "太平洋岛国独立",
+              "d": "太平洋岛国相继独立，区域组织与渔业协定发展，移民与侨汇成为经济支柱。",
+              "c": [
+                "e40"
+              ],
+              "r": [
+                "oceania"
+              ],
+              "k": "politics",
+              "s": 2
+            }
+          ],
+          "quiet": null,
+          "refs": [
+            "b7"
+          ]
+        }
+      ],
+      "effects": [
+        {
+          "id": "e42",
+          "y": 70,
+          "t": "罗马宗教多元固化",
+          "d": "无基督教竞争，罗马帝国以皇帝崇拜与秘仪整合，犹太教获有限宽容，宗教多元成为地中海常态。",
+          "c": [
+            "intervention:1",
+            "b1"
+          ],
+          "r": [
+            "europe",
+            "west-central-asia"
+          ],
+          "k": "culture",
+          "s": 3
+        },
+        {
+          "id": "e43",
+          "y": 313,
+          "t": "无米兰敕令式转折",
+          "d": "帝国未出现基督教合法化与国教化，君士坦丁式皇帝继续扶植太阳神与秘仪，元老院贵族保持多神信仰。",
+          "c": [
+            "e42"
+          ],
+          "r": [
+            "europe"
+          ],
+          "k": "politics",
+          "s": 3
+        },
+        {
+          "id": "e44",
+          "y": 600,
+          "t": "拉比犹太教与波斯宗教竞争",
+          "d": "犹太教在无基督教压力下以拉比学术与社区自治延续，琐罗亚斯德教与摩尼教在西亚竞争。",
+          "c": [
+            "e42",
+            "b4"
+          ],
+          "r": [
+            "west-central-asia",
+            "europe"
+          ],
+          "k": "culture",
+          "s": 2
+        },
+        {
+          "id": "e45",
+          "y": 750,
+          "t": "无教廷的欧洲秩序",
+          "d": "欧洲无教皇权威，君主以军事贵族与地方主教式行政整合，修道院式学术中心由王室资助。",
+          "c": [
+            "e43"
+          ],
+          "r": [
+            "europe"
+          ],
+          "k": "politics",
+          "s": 3
+        },
+        {
+          "id": "e46",
+          "y": 1000,
+          "t": "伊斯兰式学术网络扩展",
+          "d": "阿拉伯一神教帝国治下，希腊学术经翻译运动保存，数学与医学经伊比利亚与西西里传入欧洲。",
+          "c": [
+            "e14",
+            "e44"
+          ],
+          "r": [
+            "west-central-asia",
+            "europe"
+          ],
+          "k": "science-technology",
+          "s": 3
+        },
+        {
+          "id": "e47",
+          "y": 1300,
+          "t": "无十字军的地中海贸易",
+          "d": "欧洲与伊斯兰世界以商业条约与朝圣旅行维持贸易，威尼斯式城市主导地中海航运，宗教战争较少。",
+          "c": [
+            "e45",
+            "e46"
+          ],
+          "r": [
+            "europe",
+            "west-central-asia"
+          ],
+          "k": "economy",
+          "s": 2
+        },
+        {
+          "id": "e48",
+          "y": 1550,
+          "t": "商业殖民与有限传教",
+          "d": "欧洲殖民帝国以贸易公司治理，传教建制薄弱，殖民地宗教以本地信仰与殖民者多神/一神混合为主。",
+          "c": [
+            "e22",
+            "e47"
+          ],
+          "r": [
+            "americas",
+            "africa",
+            "south-asia"
+          ],
+          "k": "society",
+          "s": 3
+        },
+        {
+          "id": "e49",
+          "y": 1750,
+          "t": "世俗启蒙与科学革命",
+          "d": "无教会权威的欧洲更早以世俗哲学与科学社团组织知识，启蒙思想与革命政治传播。",
+          "c": [
+            "e46",
+            "e47"
+          ],
+          "r": [
+            "europe"
+          ],
+          "k": "science-technology",
+          "s": 3
+        },
+        {
+          "id": "e50",
+          "y": 1900,
+          "t": "多极帝国与世俗民族主义",
+          "d": "欧洲、西亚、东亚与美洲多极竞争，世俗民族主义与伊斯兰现代主义、印度教民族主义并存。",
+          "c": [
+            "e49",
+            "e17",
+            "e10"
+          ],
+          "r": [
+            "europe",
+            "west-central-asia",
+            "south-asia",
+            "east-asia"
+          ],
+          "k": "politics",
+          "s": 3
+        },
+        {
+          "id": "e51",
+          "y": 1945,
+          "t": "无基督教民主党的战后秩序",
+          "d": "战后欧洲以社会民主与自由保守政党重建，无基督教民主党主导，福利国家与一体化推进。",
+          "c": [
+            "e50",
+            "e25"
+          ],
+          "r": [
+            "europe"
+          ],
+          "k": "politics",
+          "s": 2
+        },
+        {
+          "id": "e52",
+          "y": 1975,
+          "t": "全球宗教多元与世俗化",
+          "d": "全球宗教格局以伊斯兰、印度教、佛教、犹太教与多神复兴并存，世俗化在欧洲与东亚显著。",
+          "c": [
+            "e51",
+            "e18",
+            "e12"
+          ],
+          "r": [
+            "europe",
+            "west-central-asia",
+            "south-asia",
+            "east-asia",
+            "africa"
+          ],
+          "k": "culture",
+          "s": 3
+        },
+        {
+          "id": "e53",
+          "y": 2000,
+          "t": "数字网络与多极治理",
+          "d": "互联网与移动通信连接多极世界，国际组织与区域集团并存，宗教与世俗政党竞争公共空间。",
+          "c": [
+            "e52",
+            "e31",
+            "e37"
+          ],
+          "r": [
+            "europe",
+            "east-asia",
+            "americas",
+            "africa",
+            "south-asia",
+            "oceania"
+          ],
+          "k": "science-technology",
+          "s": 3
+        },
+        {
+          "id": "e54",
+          "y": 2020,
+          "t": "气候与人口转型",
+          "d": "全球人口增长放缓，东亚与欧洲老龄化，非洲青年人口增长，气候政策与能源转型成为多极竞争议题。",
+          "c": [
+            "e53"
+          ],
+          "r": [
+            "europe",
+            "east-asia",
+            "africa",
+            "south-asia",
+            "americas",
+            "oceania"
+          ],
+          "k": "environment",
+          "s": 2
+        }
+      ],
+      "regions": [
+        {
+          "r": "east-asia",
+          "t": "东亚为多极世界的人口与技术核心，以出口制造、城市化和强官僚国家为特征；儒学、佛教与道教并存，无基督教影响。",
+          "refs": [
+            "e1",
+            "e2",
+            "e3",
+            "e4",
+            "e5",
+            "e6"
+          ],
+          "unknowns": [
+            "具体王朝名称与边界"
+          ]
+        },
+        {
+          "r": "south-asia",
+          "t": "南亚以印度教与伊斯兰社群并存，民主共和国与核威慑，软件服务与制造业出口融入全球。",
+          "refs": [
+            "e7",
+            "e8",
+            "e9",
+            "e10",
+            "e11",
+            "e12"
+          ],
+          "unknowns": [
+            "分治具体边界"
+          ]
+        },
+        {
+          "r": "west-central-asia",
+          "t": "西亚北非以伊斯兰一神教帝国遗产与石油经济为核心，世俗共和国与神权共和国对峙，学术与贸易传统深厚。",
+          "refs": [
+            "e13",
+            "e14",
+            "e15",
+            "e16",
+            "e17",
+            "e18"
+          ],
+          "unknowns": [
+            "哈里发继承谱系"
+          ]
+        },
+        {
+          "r": "europe",
+          "t": "欧洲为世俗民族国家与一体化联盟，工业革命发源地，无教廷主导，福利国家与多党民主常态。",
+          "refs": [
+            "e19",
+            "e20",
+            "e21",
+            "e22",
+            "e23",
+            "e24",
+            "e25"
+          ],
+          "unknowns": [
+            "具体王朝与条约"
+          ]
+        },
+        {
+          "r": "africa",
+          "t": "非洲以资源经济、城市化与青年人口为特征，殖民边界继承，区域组织与宗教复兴并存。",
+          "refs": [
+            "e26",
+            "e27",
+            "e28",
+            "e29",
+            "e30",
+            "e31"
+          ],
+          "unknowns": [
+            "具体国名与领导人"
+          ]
+        },
+        {
+          "r": "americas",
+          "t": "美洲为共和国体系与出口经济，殖民遗产与移民社会，宗教混合，区域贸易协定与不平等并存。",
+          "refs": [
+            "e32",
+            "e33",
+            "e34",
+            "e35",
+            "e36",
+            "e37"
+          ],
+          "unknowns": [
+            "具体国名与边界"
+          ]
+        },
+        {
+          "r": "oceania",
+          "t": "大洋洲以澳大利亚、新西兰与太平洋岛国为主，移民社会与原住民并存，渔业与侨汇经济。",
+          "refs": [
+            "e38",
+            "e39",
+            "e40",
+            "e41"
+          ],
+          "unknowns": [
+            "岛国具体名称"
+          ]
+        }
+      ],
+      "setting": {
+        "politics": "多极体系：欧洲联盟式一体化、东亚强国家、西亚宗教共和国与世俗共和国、南亚民主共和国、美洲共和国群、非洲区域组织。无基督教民主党或教廷外交。",
+        "economy": "全球供应链以东亚制造、南亚服务、西亚能源、非洲矿产、美洲农业与欧洲金融为核心；贸易公司历史遗产影响企业治理。",
+        "society": "宗教多元：伊斯兰、印度教、佛教、犹太教、多神复兴与世俗主义并存；欧洲与东亚世俗化显著，非洲与西亚宗教活跃。",
+        "science-technology": "科学革命与工业革命路径不同但成果相当；数字网络、核能与生物技术普及；无教会与科学的历史冲突叙事。",
+        "environment": "化石能源转型、气候政策、森林与渔业管理成为多极竞争议题；人口老龄化与非洲青年增长并存。",
+        "culture": "文化以语言、民族与宗教社群多元并存；古典文本经修道院、伊斯兰学术与东亚印刷传统保存；全球流行文化多中心。"
+      },
+      "quietPeriods": [],
+      "limits": [
+        "后世宗教与政治标签为条件性类比，不保证真实人物或王朝身份。",
+        "具体边界、国名与领导人未定，留待后续细化。",
+        "事件为条件性假设，非校准预测。"
+      ]
+    }
+  },
+  "review": {
+    "verdict": "repair",
+    "reason": "Three future-cause defects and one missing intervention dependency in trajectories require correction.",
+    "issues": [
+      {
+        "id": "e51",
+        "reason": "e51 (1945) depends on e25 (1950), a future cause."
+      },
+      {
+        "id": "e52",
+        "reason": "e52 (1975) depends on e18 (1979) and e12 (2000), future causes."
+      },
+      {
+        "id": "e48",
+        "reason": "e48 depends on intervention e22 but is in the south-asia trajectory; move it out of that trajectory."
+      }
+    ],
+    "questions": [],
+    "edits": {
+      "events": [
+        {
+          "id": "e51",
+          "y": 1945,
+          "t": "无基督教民主党的战后秩序",
+          "d": "战后欧洲以社会民主与自由保守政党重建，无基督教民主党主导，福利国家与一体化推进。",
+          "c": [
+            "e50"
+          ],
+          "r": [
+            "europe"
+          ],
+          "k": "politics",
+          "s": 2
+        },
+        {
+          "id": "e52",
+          "y": 1975,
+          "t": "全球宗教多元与世俗化",
+          "d": "全球宗教格局以伊斯兰、印度教、佛教、犹太教与多神复兴并存，世俗化在欧洲与东亚显著。",
+          "c": [
+            "e51",
+            "e17",
+            "e11"
+          ],
+          "r": [
+            "europe",
+            "west-central-asia",
+            "south-asia",
+            "east-asia",
+            "africa"
+          ],
+          "k": "culture",
+          "s": 3
+        },
+        {
+          "id": "e48",
+          "y": 1550,
+          "t": "商业殖民与有限传教",
+          "d": "欧洲殖民帝国以贸易公司治理，传教建制薄弱，殖民地宗教以本地信仰与殖民者多神/一神混合为主。",
+          "c": [
+            "e22",
+            "e47"
+          ],
+          "r": [
+            "americas",
+            "africa"
+          ],
+          "k": "society",
+          "s": 3
+        }
+      ],
+      "trajectories": [
+        {
+          "r": "east-asia",
+          "eventIds": [
+            "e1",
+            "e2",
+            "e3",
+            "e4",
+            "e5",
+            "e6"
+          ],
+          "quiet": null,
+          "refs": [
+            "b2"
+          ]
+        },
+        {
+          "r": "south-asia",
+          "eventIds": [
+            "e7",
+            "e8",
+            "e9",
+            "e10",
+            "e11",
+            "e12"
+          ],
+          "quiet": null,
+          "refs": [
+            "b3"
+          ]
+        },
+        {
+          "r": "west-central-asia",
+          "eventIds": [
+            "e13",
+            "e14",
+            "e15",
+            "e16",
+            "e17",
+            "e18"
+          ],
+          "quiet": null,
+          "refs": [
+            "b4"
+          ]
+        },
+        {
+          "r": "europe",
+          "eventIds": [
+            "e19",
+            "e20",
+            "e21",
+            "e22",
+            "e23",
+            "e24",
+            "e25"
+          ],
+          "quiet": null,
+          "refs": [
+            "b1"
+          ]
+        },
+        {
+          "r": "africa",
+          "eventIds": [
+            "e26",
+            "e27",
+            "e28",
+            "e29",
+            "e30",
+            "e31"
+          ],
+          "quiet": null,
+          "refs": [
+            "b5"
+          ]
+        },
+        {
+          "r": "americas",
+          "eventIds": [
+            "e32",
+            "e33",
+            "e34",
+            "e35",
+            "e36",
+            "e37"
+          ],
+          "quiet": null,
+          "refs": [
+            "b6"
+          ]
+        },
+        {
+          "r": "oceania",
+          "eventIds": [
+            "e38",
+            "e39",
+            "e40",
+            "e41"
+          ],
+          "quiet": null,
+          "refs": [
+            "b7"
+          ]
+        }
+      ]
+    }
+  },
+  "finalMilestones": 27
+}

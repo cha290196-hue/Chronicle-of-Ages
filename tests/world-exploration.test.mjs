@@ -3,8 +3,6 @@ import assert from 'node:assert/strict';
 import {exploreWorld} from '../src/world-exploration.mjs';
 import {exploreCore} from '../src/core.js';
 import {auditKnowledge} from '../src/exploration-knowledge.mjs';
-import {contextOf,worldChat} from './fixtures/world-chat.mjs';
-import {simulateOmega} from '../src/chronicle-adapter.mjs';
 
 const branch={id:'B',anchorYear:1644,events:[],facts:[],knowledge:[],titleEn:'An alternate Earth',summaryEn:'A conditional world'};
 const candidate={nameEn:'Urban life in France in 1850',nameZh:'1850年的法国城市生活',descriptionEn:'Institutions condition daily life.',descriptionZh:'制度塑造日常生活。',
@@ -22,6 +20,8 @@ function chat({mode='in_world',facts=[candidate],comparison=null,calls=[]}={}){
  };
 }
 const run=(callChat,extra={})=>{let n=0;return exploreWorld({question:'1850年法国普通人怎样生活？',branch,events:[],facts:[],callChat,config:{},makeId:()=> 'knowledge-'+(++n),...extra})};
+import {contextOf} from './fixtures/minute-world.mjs';
+
 test('a missing database detail launches planned inference and reviewed incremental knowledge',async()=>{
  const calls=[],before=structuredClone(branch);
  const first=await run(chat({calls}));
@@ -50,15 +50,6 @@ test('knowledge cannot use future events as evidence or mutate immutable macro h
 test('failed final answer yields no returned candidate knowledge for the app to commit',async()=>{
  const original=chat();
  await assert.rejects(run(async(...args)=>{if(args[2].stage==='question-answer')throw Error('Network lost');return original(...args)}),/Network lost/);
-});
-test('historical queries retrieve the matching state and do not receive future regional summaries',async()=>{
- const {worldline}=await simulateOmega({prompt:'公元2020年改变制度',config:{},callChat:worldChat(),makeId:()=> 'world'});
- const calls=[];const original=chat({calls,facts:[]});
- await run(async(...args)=>args[2].stage==='question-plan'?{mode:'in_world',year:2021,scope:'local',missing:[],comparisonRequired:false}:original(...args),
-  {branch:worldline,events:worldline.events,facts:worldline.facts,question:'2021年的生活怎样？'});
- const context=calls.find(c=>c.stage==='question-inference').context;
- assert.ok(context.causalGraph.records.every(r=>(r.year??r.firstYear??r.startYear)<=2021));
- assert.ok(context.globalState.every(r=>r.summary.startsWith('Established')));
 });
 test('the real core bridge retrieves older related dialogue while following the new inference plan',async()=>{
  const old=globalThis.fetch,requests=[];const fake=chat({facts:[]});

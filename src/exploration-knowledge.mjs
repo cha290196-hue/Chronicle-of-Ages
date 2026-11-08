@@ -4,7 +4,7 @@
  * The gate checks structure, time, duplication, explicit conflicts and provenance;
  * it cannot prove speculative history.
  */
-import {validYear,tick,LAST_YEAR} from './ucm-omega.mjs';
+import {validYear,tick,LAST_YEAR} from './worldline-contract.mjs';
 
 const list=x=>Array.isArray(x)?x:[];
 const clip=(v,n=550)=>String(v??'').trim().slice(0,n);

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {auditKnowledge,mergeKnowledge,sanitizeKnowledge} from '../src/exploration-knowledge.mjs';
 import {exploreCore,worldFacts,sanitizeWorldline,worldEvents} from '../src/core.js';
-import {resolveAncestry,runMatrix} from '../src/ucm-omega.mjs';
+import {resolveAncestry,compileInterventions} from '../src/worldline-contract.mjs';
 import {readFile} from 'node:fs/promises';
 
 const past={id:'record-1644',year:1644,en:'Ming continues',zh:'明朝延续',origin:'derived'};
@@ -70,25 +70,13 @@ test('an updated parent shares only its established pre-fork knowledge with desc
  assert.equal(g.facts.some(f=>f.id===note2.id),false);
  assert.ok(worldFacts([b,c],c).some(f=>f.id===note1.id),'existing descendants see new earlier parent knowledge');
  assert.equal(worldFacts([b,c],c).some(f=>f.id===note2.id),false);
- const ran=await runMatrix({branches:[b],parentId:'B',interpretation:{operations:[{
-  kind:'historical_change',scope:'earth',mode:'point',startYear:1900,
-  target:'New regional event',value:'yes'}]},scenarioCount:1,maxWindows:1,
-  propose:async ({knownFacts,window})=>({
-   events:[{id:'new-child-event',year:window.from,en:'New child event',causes:['intervention:1'],
-    requires:[note1.id]}],
-   facts:[]})
- });
- assert.equal(ran.preferred.events.length,1,'fresh fork can rely on previously discovered facts');
+ assert.ok(g.facts.some(f=>f.id===note1.id),'fresh forks can rely on established earlier knowledge');
 });
 
 test('a future discovery cannot be used to justify an edit before its own existence',async()=>{
  const future=auditKnowledge({candidates:[candidate({firstYear:1950,validUntil:1950,nameEn:'Future policy',nameZh:'未来政策'})],makeId:idFactory}).accepted[0];
  const b={...branch,knowledge:[future]};
- await assert.rejects(()=>runMatrix({branches:[b],parentId:'B',
-  interpretation:{operations:[{kind:'branch_fact',scope:'earth',mode:'point',
-   startYear:1900,target:'Future policy',value:'revised',parentFactId:future.id}]},
-  propose:async()=>({events:[],facts:[]})
- }),/UNKNOWN_BRANCH_FACT/);
+ assert.throws(()=>compileInterventions({operations:[{kind:'branch_fact',scope:'earth',mode:'point',startYear:1900,target:'Future policy',value:'revised',parentFactId:future.id}]},{parentFacts:resolveAncestry({branches:[b],parentId:'B',atYear:1900}).facts}),/UNKNOWN_BRANCH_FACT/);
 });
 
 test('both old archives and new knowledge archives load without mutating macro-event skeleton',()=>{

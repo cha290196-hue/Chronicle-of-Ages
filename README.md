@@ -39,7 +39,7 @@ The reference timeline covers approximately **3200 BCE – 1 January 2026**. Its
 | Surface | Operation |
 | :--- | :--- |
 | **Chronology** | Navigate a pan-and-zoom timeline with recorded events and diverging branches. |
-| **Worldline computation** | Validate an Earth-specific change, propagate consequences through chronological checkpoints, and reconcile the resulting world state. |
+| **Worldline computation** | Validate an Earth-specific change, complete global macro history, validate causal links and review the resulting world state. |
 | **World database** | Inspect, search, add, edit or delete derived records, including new knowledge produced by a divergence. |
 | **Computation Core** | Ask questions grounded in a selected world's event ledger and knowledge records. |
 | **Visual generation** | Generate a world illustration with a configured image-generation endpoint. |
@@ -56,36 +56,13 @@ The reference timeline covers approximately **3200 BCE – 1 January 2026**. Its
 
 ## Computation pipeline
 
-```text
-EARTH REFERENCE CHRONOLOGY
-             │
-             ▼
-    CHANGE + ANCHOR VALIDATION
-             │
-             ▼
-      WORLD STATE SNAPSHOT
-       historical records
-       inherited branch data
-             │
-             ▼
-   CAUSAL CHECKPOINT PROPAGATION
-     temporal event ledger
-       new entity registry
-       cause relationships
-             │
-             ▼
-      WORLD RECONCILIATION
-       summary · uncertainty
-             │
-             ▼
-     EDITABLE WORLD DATABASE
-             │
-             ├── Further worldline forks
-             ├── Grounded questions
-             └── Optional illustrations
-```
+1. Interpret the historical intervention and synthesize a complete macro world.
+2. Validate exact dates, ancestry, causal references, worldwide and temporal coverage.
+3. Independently review and apply bounded explicit corrections.
+4. Store the complete world, then explore and persist additional details through the Core.
 
-The engine calculates multiple intervals from the selected point of divergence to the fixed 2026 boundary. Each checkpoint receives the original modification, the relevant reference history, inherited pre-fork records and the accumulated generated state. The next stage adds dated records and new concepts. Records are structurally checked before entering the branch ledger.
+
+The production engine completes a macro world through 2026 in one synthesis request plus one independent review, with deterministic causal and coverage checks. It targets about one minute under a bounded budget. Settings and macro events come first; the Core adds question-driven detail to the same persistent world. Provider latency can cause a timeout, which never saves a partial world. See the [engine specification](docs/ENGINE.md) and [measurements](docs/MINUTE-EVALUATION.md).
 
 ## Get started
 
@@ -160,4 +137,4 @@ Architecture and interface patterns were informed by the following materials; im
 <div align="center"><sub>CHRONICLE OF AGES &nbsp; / &nbsp; UNIFIED COMPUTATION MATRIX</sub></div>
 ## Stateful simulation
 
-The production engine is **UCM-Ω/2**: intervention admission, a global pre-fork state independent of display milestones, autonomous regional processes, chronological transitions, causal constraints and independent review. Milestones are selected from accepted ledger events. The Analysis Core plans focused inferences, checks new conditional knowledge and stores it in the selected worldline. Archive format 2 preserves causal records and reads older archives. See the [engine specification and primary research](docs/ENGINE.md) for methods, costs and evidence limits.
+The production engine is **Chronicle Minute / 3**. It creates a complete global macro history, reviews the same causal ledger and stores the accepted world. The Core extends details through later questions. Existing saved worlds remain readable. The previous algorithm is fully [archived](archive/ucm-omega-v2/README.md), with no production fallback. This balances speed and macro quality rather than claiming unlimited fine-grained inference. [Implementation and limits](docs/ENGINE.md).

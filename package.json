@@ -1,11 +1,13 @@
 {
   "name": "chronicle-of-ages",
   "private": true,
-  "version": "2.0.0",
+  "version": "3.0.0",
   "type": "module",
   "scripts": {
     "test": "node --test tests/*.mjs",
     "serve": "python3 -m http.server 8080"
   },
-  "engines": { "node": ">=20" }
+  "engines": {
+    "node": ">=20"
+  }
 }

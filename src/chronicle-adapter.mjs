@@ -1,2 +1,2 @@
-/** Public browser adapter. All production work uses the stateful v2 engine. */
-export {simulateWorld as simulateOmega} from './world-simulation.mjs';
+/** Formal entry: new whole-horizon, budgeted engine. No archived fallback. */
+export {simulateMinute} from './minute-simulation.mjs';

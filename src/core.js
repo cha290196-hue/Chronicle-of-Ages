@@ -1,11 +1,11 @@
 import {sanitizeSimulation} from './world-model.mjs';
 import {exploreWorld} from './world-exploration.mjs';
-import { simulateOmega } from './chronicle-adapter.mjs';
+import { simulateMinute } from './chronicle-adapter.mjs';
 import {recordRequestUsage} from './usage-meter.mjs';
 import {usageBillingProvider} from './deepseek-pricing.mjs';
 import {parseModelJSON,normalizeModelContent,ModelJSONError} from './structured-output.mjs';
 import {auditKnowledge,sanitizeKnowledge,summarizeKnowledge} from './exploration-knowledge.mjs';
-import {BASELINE,FIRST_YEAR,LAST_YEAR,PHYSICAL_CONSTANTS,validYear} from './data.js';
+import {BASELINE,validYear} from './data.js';
 
 export const DEFAULT_CONFIG={provider:'openrouter',endpoint:'https://openrouter.ai/api/v1/chat/completions',model:'',key:'',textEnabled:true,imageEnabled:false,imageProvider:'openrouter',imageEndpoint:'https://openrouter.ai/api/v1/images',imageModel:'',imageKey:'',remember:false};
 export const PROVIDERS={
@@ -52,6 +52,9 @@ export function validEndpoint(value){
 export function extractJSON(content){return parseModelJSON(content)}
 export function explainError(error,lang='en'){
  const code=String(error?.code||'');
+ if(code==='MINUTE_DEADLINE')return lang==='zh'?'约一分钟的推演预算已用完，未保存未完成的世界线。请重试或使用响应更快的模型。':'The one-minute inference budget expired. No incomplete worldline was saved. Retry or use a faster responding model.';
+ if(code==='MINUTE_REVIEW_REJECTED')return (lang==='zh'?'这次宏观推演未通过内容审查。':'This macro history did not pass content review.')+((error.reason||error[lang==='zh'?'reasonZh':'reasonEn'])?' '+(error.reason||error[lang==='zh'?'reasonZh':'reasonEn']):'');
+ if(code.startsWith('MINUTE_'))return (lang==='zh'?'模型的完整世界结果未通过检查，未保存世界线。':'The complete world result failed validation. No worldline was saved.')+' ['+code+']';
  if(code==='INTAKE_MODEL_INVALID'){
   const cause=String(error.causeCode||'INTAKE_INVALID');
   return (lang==='zh'?'模型对输入的解析在自动修正后仍未通过检查，请重试；这不表示你的历史设想无效。':'The model could not encode the input after automatic repair. Retry; this does not establish that your premise is invalid.')+' ['+cause+']';
@@ -85,17 +88,17 @@ export function explainError(error,lang='en'){
  if(error?.name==='AbortError'||error?.message==='ABORTED')return lang==='zh'?'推演已停止。':'Simulation stopped.';
  if(error?.message==='INVALID_JSON'||error?.message==='BAD_RESPONSE'){
   const reason=error?.reason;
-  const phase=error?.phase;
-  const phaseZh=phase==='validation'?'历史干预识别':phase==='synthesis'?'最终世界线总结':phase==='propagation'?'历史时段推演':'结构化结果生成';
-  const phaseEn=phase==='validation'?'interpreting the historical intervention':phase==='synthesis'?'summarizing the worldline':phase==='propagation'?'modeling a historical window':'structured output';
+  const phase=error?.minuteDiagnostics?.stage||error?.phase;
+  const phaseZh=phase==='minute-world'?'全球宏观推演':phase==='minute-review'?'完整世界审查':phase==='validation'?'历史干预识别':phase==='synthesis'?'最终世界线总结':phase==='propagation'?'历史时段推演':'结构化结果生成';
+  const phaseEn=phase==='minute-world'?'computing the complete macro history':phase==='minute-review'?'reviewing the complete world':phase==='validation'?'interpreting the historical intervention':phase==='synthesis'?'summarizing the worldline':phase==='propagation'?'modeling a historical window':'structured output';
   const zhPrefix=phaseZh+'：',enPrefix='During '+phaseEn+': ';
   if(lang==='zh')return zhPrefix+(reason==='truncated'
-   ?'模型输出达到长度上限，即使自动恢复仍未获得完整内容。已拒绝保存不完整的历史。'
-   :reason==='empty'?'模型返回了空白结构化内容；DeepSeek JSON 模式可能出现这种情况，恢复请求仍未成功。'
-   :'模型返回的结构化内容不合法，自动恢复也未成功；已拒绝把不完整结果写入世界线。');
-  return enPrefix+(reason==='truncated'?'Model output reached its length limit and recovery did not produce a complete response.'
-   :reason==='empty'?'The model returned blank structured output; recovery also failed.'
-   :'The model returned malformed structured output after recovery. No incomplete history was saved.');
+   ?'模型输出达到长度上限，未获得完整内容。已拒绝保存不完整的历史。'
+   :reason==='empty'?'模型返回了空白结构化内容；DeepSeek JSON 模式可能出现这种情况，此次请求未获得完整内容。'
+   :'模型返回的结构化内容不合法；已拒绝把不完整结果写入世界线。');
+  return enPrefix+(reason==='truncated'?'Model output reached its length limit and no complete response was obtained.'
+   :reason==='empty'?'The model returned blank structured output; no complete result was obtained.'
+   :'The model returned malformed structured output and no incomplete history was saved.');
  }
  if(error?.message==='INVALID_ENDPOINT')return lang==='zh'?'接口地址必须是 HTTPS（本机允许 HTTP）。':'Use an HTTPS API endpoint (HTTP allowed for localhost).';
  if(error?.message==='NOT_CONFIGURED')return lang==='zh'?'请先配置文本模型的接口、模型和密钥。':'Configure the text model endpoint, model and key first.';
@@ -108,12 +111,13 @@ export function explainError(error,lang='en'){
  return msg.slice(0,360);
 }
 /**
- * OpenAI-compatible chat bridge shared by UCM-Ω and progressive discovery.
+ * OpenAI-compatible chat bridge shared by the bounded engine and progressive discovery.
  * A bad 200-OK JSON body is a model format problem, not an API connection problem.
  * Recovery retries the JSON task once with a concise JSON-only instruction.
  * Never accept a partially parsed JSON object as confirmed worldline data.
  */
-export async function callChat(config,messages,{signal,json=false,temperature=.35,maxTokens=3200,purpose='other',stage='other',reasoning=false}={}){
+export async function callChat(config,messages,{signal,json=false,temperature=.35,maxTokens=3200,purpose='other',stage='other',reasoning=false,profile=null}={}){
+ const bounded=profile==='minute';
  const c=safeConfig(config);
  if(!configured(c))throw new Error('NOT_CONFIGURED');
  if(!validEndpoint(c.endpoint))throw new Error('INVALID_ENDPOINT');
@@ -123,11 +127,11 @@ export async function callChat(config,messages,{signal,json=false,temperature=.3
  if(c.provider==='deepseek'){
   const think=reasoning||(!json&&maxTokens>256);
   baseBody.thinking={type:think?'enabled':'disabled'};
-  if(think){baseBody.max_tokens=Math.max(maxTokens,reasoning?32768:8192);baseBody.reasoning_effort='high';}
+  if(think){baseBody.max_tokens=bounded?maxTokens:Math.max(maxTokens,reasoning?32768:8192);baseBody.reasoning_effort=bounded?'low':'high';}
   // DeepSeek's max_tokens is an output ceiling, not pre-billed tokens.
   // Give structured historical tasks enough room to finish JSON without
   // discarding detail or paying for repeated truncation/re-generation.
-  if(json&&purpose==='simulation')baseBody.max_tokens=Math.max(baseBody.max_tokens,8192);
+  if(!bounded&&json&&purpose==='simulation')baseBody.max_tokens=Math.max(baseBody.max_tokens,8192);
  }
  const doCall=async({format=json,recovery=false,previousFailure=null}={})=>{
   const startedAt=Date.now();
@@ -190,15 +194,7 @@ export async function callChat(config,messages,{signal,json=false,temperature=.3
  };
  try{return await doCall({format:json})}
  catch(first){
-  if(!json||signal?.aborted)throw first;
-  // A confirmed 8192-token cutoff in a PRIMARY history window cannot
-  // be made whole by another request with the SAME 8192-token ceiling.
-  // Its caller's adaptive time/region split is the lossless next step.
-  // Retain JSON retries for syntax/blank output, summaries, coverage and
-  // smaller requests that can still benefit from another completion.
-  if(c.provider==='deepseek'&&purpose==='simulation'&&stage==='historical-window'
-     &&first?.reason==='truncated'&&first?.finishReason==='length'
-     &&baseBody.max_tokens>=8192)throw first;
+  if(bounded||!json||signal?.aborted)throw first;
   const unsupportedFormat=first?.status===400||first?.status===422;
   const malformed=first?.message==='INVALID_JSON';
   if(!unsupportedFormat&&!malformed)throw first;
@@ -214,9 +210,6 @@ export async function callChat(config,messages,{signal,json=false,temperature=.3
   }
  }
 }
-const CONTEXT=`You are a causal alternate-history simulation engine with a strict Earth-worldline ontology. The immutable reference world is recorded Earth history from the first known writing to 2026-01-01. Accept changes only if they (a) alter a recorded Earth historical phenomenon, (b) change an actual physical constant of this Earth's universe, or (c) explicitly introduce a fictional event ON EARTH at a grounded year in that chronological span (e.g. alien arrival on Earth in 1234). A fictional planet or unknown event elsewhere without an Earth anchor is not a valid edit. After a divergence, named entities and technologies invented by that branch become valid local knowledge and can be revised in later forks. Keep factual baseline distinct from branch assumptions. Propagate plausible causal consequences, respecting chronology, geography, technological prerequisites, demographics, institutional inertia, and uncertainty. Never present speculative results as documented historical fact. Avoid reintroducing baseline events automatically after divergence if no longer plausible. Respond with VALID JSON only, no markdown. Keep strings concise. Produce fields in English and Chinese where specified. All events must use integer historical years from -3200 to 2026; BCE years are negative, there is no year 0. The simulation ends on 2026-01-01.`;
-const YEAR_RE=/(?:公元前\s*|\bBCE?\s*)(\d{1,4})|\b(\d{3,4})\s*(?:AD|CE|年)?\b/gi;
-export function explicitYears(text){const years=[];for(const m of String(text).matchAll(YEAR_RE)){let y=m[1]?-Number(m[1]):Number(m[2]);if(validYear(y))years.push(y)}return years}
 export function inheritedState(branches,parentId,atYear){
  if(!parentId)return {events:[],facts:[]};
  const byId=new Map(branches.map(b=>[b.id,b]));const chain=[];let cursor=byId.get(parentId);const seen=new Set();
@@ -246,57 +239,6 @@ export function worldFacts(branches,branch){
  }
  return uniq(items);
 }
-export function baselineContext(year,count=20){
- const sorted=[...BASELINE].sort((a,b)=>Math.abs(a.year-year)-Math.abs(b.year-year));
- return sorted.slice(0,count).sort((a,b)=>a.year-b.year).map(e=>`${e.year} ${e.en}: ${e.descriptionEn}`).join('\n');
-}
-export function classifyTemporalIntent(prompt){
- const text=String(prompt||'');
- const discrete=/(发明|发现|研发出|制造出|首次|建成|抵达|登陆|入侵|登基|颁布|签署|创立|invent(?:ed|ion)?|discover(?:ed|y)?|land(?:ed)?|arriv(?:e|ed|al)|enact(?:ed)?|signed|founded)/i.test(text);
- const cumulative=/(天下大乱|渐渐|逐渐|逐步|日益|慢慢|积累|蔓延|传播|衰退|衰亡|衰弱|腐败|动荡|社会失序|长期|多年|gradual(?:ly)?|slowly|over (?:many |several )?(?:years|decades)|social unrest|turmoil|decline|spread|deteriorat(?:e|ion))/i.test(text);
- if(discrete&&!cumulative)return 'point';
- if(cumulative&&!discrete)return 'gradual';
- return null
-}
-export function normalizeTemporalAnchor(assessment,prompt='',parent=null){
- const anchorYear=nYear(assessment?.anchorYear);
- if(!validYear(anchorYear))throw new Error('ANCHOR_INVALID');
- const timeMode=assessment?.timeMode==='gradual'?'gradual':'point';
- const transitionEndYear=timeMode==='gradual'?nYear(assessment?.transitionEndYear):anchorYear;
- if(!validYear(transitionEndYear)||transitionEndYear<anchorYear||(timeMode==='gradual'&&transitionEndYear===anchorYear))throw new Error('ANCHOR_INVALID');
- if(parent&&anchorYear<parent.anchorYear)throw new Error('ANCHOR_PRECEDES_PARENT');
- const explicit=explicitYears(prompt);
- if(explicit.length&&assessment?.type!=='physical_constant'){
-  if(timeMode==='point'&&explicit.length===1&&Math.abs(explicit[0]-anchorYear)>2)throw new Error('ANCHOR_INVALID');
-  if(timeMode==='gradual'&&explicit.length===1&&Math.abs(explicit[0]-anchorYear)>2&&Math.abs(explicit[0]-transitionEndYear)>2)throw new Error('ANCHOR_INVALID');
-  if(explicit.length>=2&&(anchorYear<Math.min(...explicit)-2||transitionEndYear>Math.max(...explicit)+2))throw new Error('ANCHOR_INVALID');
- }
- return {anchorYear,timeMode,transitionEndYear,timeBasisEn:truncate(assessment?.timeBasisEn||'',320),timeBasisZh:truncate(assessment?.timeBasisZh||'',320)};
-}
-export function planSegments(start){
- if(!validYear(start))throw new Error('ANCHOR_INVALID');
- if(start===LAST_YEAR)return [[start,LAST_YEAR]];
- const distance=LAST_YEAR-start,count=distance>1800?6:distance>600?5:distance>100?4:distance>15?3:2;
- const ends=[];let from=start;
- for(let i=1;i<=count;i++){let to=Math.min(LAST_YEAR,Math.round(start+distance*i/count));if(to===0)to=1;if(to<from)to=from;ends.push([from,to]);from=to}
- return ends;
-}
-const normalizedEvent=(raw,range)=>{
- const year=nYear(raw?.year);
- if(!validYear(year)||year<range[0]||year>range[1])return null;
- const en=plain(raw?.en||raw?.title),zh=plain(raw?.zh||en);
- if(!en)return null;
- return {id:makeId(),year,en,zh,descriptionEn:plain(raw?.descriptionEn||raw?.description||en),descriptionZh:plain(raw?.descriptionZh||raw?.descriptionEn||raw?.description||zh),category:['science','technology','culture','governance','exploration','conflict','society','other'].includes(raw?.category)?raw.category:'other',origin:'derived',certainty:['high','medium','low'].includes(raw?.certainty)?raw.certainty:'medium',causes:list(raw?.causes).map(x=>truncate(x,180)).slice(0,4)};
-};
-const normalizedFact=(raw,range)=>{
- const firstYear=nYear(raw?.firstYear??range[0]);if(!validYear(firstYear)||firstYear<range[0]||firstYear>range[1])return null;
- const nameEn=plain(raw?.nameEn||raw?.name),nameZh=plain(raw?.nameZh||nameEn);
- if(!nameEn)return null;
- return {id:makeId(),firstYear,nameEn,nameZh,descriptionEn:plain(raw?.descriptionEn||raw?.description),descriptionZh:plain(raw?.descriptionZh||raw?.descriptionEn||raw?.description),kind:truncate(raw?.kind||'concept',60),origin:'derived',certainty:['high','medium','low'].includes(raw?.certainty)?raw.certainty:'medium'};
-};
-function mergeFacts(target,incoming){
- for(const f of incoming){const existing=target.find(x=>x.nameEn?.toLowerCase()===f.nameEn?.toLowerCase());if(existing)Object.assign(existing,{descriptionEn:f.descriptionEn,descriptionZh:f.descriptionZh,firstYear:Math.min(existing.firstYear,f.firstYear)});else target.push(f)}
-}
 export function sanitizeWorldline(input){
  if(!object(input)||typeof input.id!=='string'||!validYear(input.anchorYear)||!Array.isArray(input.events)||!Array.isArray(input.facts))return null;
  const simulation=sanitizeSimulation(input.simulation);if(input.simulation&&!simulation)return null;
@@ -308,16 +250,15 @@ export function sanitizeWorldline(input){
 }
 /**
  * The public simulation entry point used by app.js.
- * UCM-Ω/2 advances one authoritative global state with evidence-carrying
- * transitions, era-sensitive windows and independent semantic review.
- * simulateLegacy is retained solely for compatibility with old integrations.
+ * Chronicle Minute creates a complete macro history and independently reviews it
+ * within a bounded budget. The previous generators are sealed in archive/.
  */
-export async function simulate({prompt,branches=[],parentId=null,config,lang='en',signal,onProgress=()=>{},autoComplete=false,clarifications=[]}) {
+export async function simulate({prompt,branches=[],parentId=null,config,lang='en',signal,onProgress=()=>{},autoComplete=false,clarifications=[],budgetMs}) {
  if(!configured(config))throw new Error('NOT_CONFIGURED');
  try{
-  const {worldline}=await simulateOmega({
+  const {worldline}=await simulateMinute({
    prompt,branches,parentId,baseline:BASELINE,config,lang,signal,onProgress,
-   callChat,makeId,autoComplete,clarifications
+   callChat,makeId,autoComplete,clarifications,budgetMs
   });
   return worldline;
  }catch(error){
@@ -326,59 +267,6 @@ export async function simulate({prompt,branches=[],parentId=null,config,lang='en
  }
 }
 
-export async function simulateLegacy({prompt,branches=[],parentId=null,config,lang='en',signal,onProgress=()=>{}}){
- prompt=truncate(prompt,2000);if(!prompt)throw new Error('EMPTY_PROMPT');if(!configured(config))throw new Error('NOT_CONFIGURED');
- const parent=branches.find(b=>b.id===parentId)||null;
- const inheritedForValidation=parent?{events:worldEvents(branches,parent).slice(-45),facts:worldFacts(branches,parent).slice(-70)}:{events:[],facts:[]};
- onProgress({phase:'validation',index:0,total:1});
- let assessment=await callChat(config,[
-  {role:'system',content:CONTEXT},
-  {role:'user',content:`Validate this proposed edit. It MUST refer to Earth, its recorded past, a real physical constant, or a dated fictional event explicitly happening on Earth. Classify the NATURE of the modification rather than the vagueness of its date: timeMode=point for an individual invention, discovery, landing or other discrete act, even when only a dynasty or era is supplied (infer a plausible year); timeMode=gradual for turmoil, declining authority, widespread migration or other accumulating developments (infer their onset and a later establishment year). Do not collapse gradual social change into one instantaneous event. An edit to branch-derived knowledge is allowed only if supplied in the parent world data. For fictional arrivals on Earth, mark earth_intrusion, which is valid even though it did not happen in reality. Assessments need not reject physically impossible changes to actual constants. Return JSON {"valid":boolean,"reasonEn":string,"reasonZh":string,"anchorYear":integer,"timeMode":"point|gradual","transitionEndYear":integer,"timeBasisEn":string,"timeBasisZh":string,"type":"historical_change|earth_intrusion|physical_constant|branch_fact","changeEn":string,"changeZh":string}. For point, transitionEndYear=anchorYear. For gradual, anchorYear is the onset and transitionEndYear is when the changing condition has developed. Explain the inferred historical range briefly in timeBasis. User change: ${JSON.stringify(prompt)}. Parent world local records: ${JSON.stringify(inheritedForValidation).slice(0,10000)}. Date-related baseline: ${explicitYears(prompt).length?baselineContext(explicitYears(prompt)[0],24):"No explicit numeric year; infer the era from the user wording without assuming a default century."}.`}
- ],{signal,json:true,maxTokens:1000,temperature:.12});
- if(assessment.valid!==true)throw new Error(`ANCHOR_INVALID${assessment.reasonEn?`: ${truncate(lang==='zh'?assessment.reasonZh:assessment.reasonEn,180)}`:''}`);
- const intent=classifyTemporalIntent(prompt);
- if(intent==='point'&&!assessment.timeMode)assessment={...assessment,timeMode:'point',transitionEndYear:assessment.anchorYear};
- if((intent&&assessment.timeMode&&intent!==assessment.timeMode)||(intent==='gradual'&&!assessment.timeMode)){
-  const corrected=await callChat(config,[
-   {role:'system',content:CONTEXT},
-   {role:'user',content:`The proposed Earth modification is ${JSON.stringify(prompt)}. Classify it as ${intent}: ${intent==='point'?'a discrete invention/discovery/occurrence, even if the historical era is broad':'a historical condition accumulating over a span, not one sudden occurrence'}. Infer historically plausible timing from the wording. Return JSON {"anchorYear":integer,"transitionEndYear":integer,"timeBasisEn":string,"timeBasisZh":string}. For point return the same year twice; for gradual return onset and later establishment. Previous classification: ${JSON.stringify(assessment)}.`}
-  ],{signal,json:true,maxTokens:600,temperature:.12});
-  assessment={...assessment,anchorYear:corrected.anchorYear,transitionEndYear:corrected.transitionEndYear,timeBasisEn:corrected.timeBasisEn,timeBasisZh:corrected.timeBasisZh,timeMode:intent};
- }
- const temporal=normalizeTemporalAnchor(assessment,prompt,parent);const year=temporal.anchorYear;
- const knownChange=['historical_change','earth_intrusion','physical_constant','branch_fact'].includes(assessment.type)?assessment.type:'historical_change';
- if(knownChange==='branch_fact'&&!parent)throw new Error('ANCHOR_INVALID');
- const inherited=inheritedState(branches,parentId,year),segments=planSegments(year);
- const branch={id:makeId(),parentId:parent?.id||null,anchorYear:year,...temporal,prompt,type:knownChange,createdAt:new Date().toISOString(),titleEn:'',titleZh:'',summaryEn:'',summaryZh:'',events:[],facts:[],inherited,impacts:[],certainty:'medium',image:null};
- const prior=parent?`${parent.titleEn}\n${parent.summaryEn}`:'Recorded Earth baseline';
- for(let i=0;i<segments.length;i++){
-  if(signal?.aborted)throw new DOMException('Aborted','AbortError');
-  const range=segments[i];onProgress({phase:'propagation',index:i,total:segments.length});
-  const recent=branch.events.slice(-32);const facts=worldFacts(branches,branch).slice(-65);
-  const data=await callChat(config,[
-   {role:'system',content:CONTEXT},
-   {role:'user',content:`Perform checkpoint ${i+1}/${segments.length} for [${range[0]}, ${range[1]}], inclusive. Earth divergence: ${JSON.stringify({prompt,year,type:knownChange,...temporal,changeEn:assessment.changeEn,changeZh:assessment.changeZh})}. In gradual mode, change accumulates between anchorYear and transitionEndYear and does not happen all at once; in point mode a discrete event happens at the inferred anchorYear. Parent state: ${prior}. Inherited facts/events before divergence: ${JSON.stringify(inherited).slice(0,14500)}. This branch's already computed events: ${JSON.stringify(recent).slice(0,14500)}. Accumulated knowledge: ${JSON.stringify(facts).slice(0,12000)}. Relevant baseline comparison ONLY (not assumed to happen after divergence): ${baselineContext(Math.round((range[0]+range[1])/2),16)}. Show realistic causal chains through multiple domains with non-magical second-order consequences. Ensure each event is within [${range[0]},${range[1]}], minimum 3 and maximum 7 consequential events unless the interval is extremely short, and every event includes causes naming earlier entities/events or explicitly the initial change. New technologies, people, institutions and concepts are represented in facts with firstYear, and must not predate their causes. No silent resets to our history. Maintain continuity and uncertainty. OUTPUT JSON {"events":[{"year":integer,"en":string,"zh":string,"descriptionEn":string,"descriptionZh":string,"category":"science|technology|culture|governance|exploration|conflict|society|other","certainty":"high|medium|low","causes":[string]}],"facts":[{"firstYear":integer,"nameEn":string,"nameZh":string,"descriptionEn":string,"descriptionZh":string,"kind":string,"certainty":"high|medium|low"}],"stateEn":string,"stateZh":string}.`}
-  ],{signal,json:true,maxTokens:4300,temperature:.48});
-  if(!object(data)||!Array.isArray(data.events))throw new Error('BAD_RESPONSE');
-  for(const item of data.events.slice(0,10)){const e=normalizedEvent(item,range);if(e&&!branch.events.some(x=>x.year===e.year&&x.en.toLowerCase()===e.en.toLowerCase()))branch.events.push(e)}
-  const fresh=list(data.facts).slice(0,18).map(f=>normalizedFact(f,range)).filter(Boolean);
-  mergeFacts(branch.facts,fresh);
-  branch.summaryEn=plain(data.stateEn||branch.summaryEn);branch.summaryZh=plain(data.stateZh||branch.summaryZh);
- }
- onProgress({phase:'synthesis',index:segments.length,total:segments.length});
- const reviewed=await callChat(config,[
-  {role:'system',content:CONTEXT},
-  {role:'user',content:`Reconcile the generated worldline to 2026-01-01, with a concise readable snapshot. Do not imply certainty or disguise speculative changes as historical records. Identify any significant causal tensions in the forecast. Output JSON {"titleEn":string,"titleZh":string,"summaryEn":string,"summaryZh":string,"impacts":[string],"certainty":"low|medium|high"}. Original edit: ${prompt}. Temporal range: ${JSON.stringify(temporal)}. Computed events: ${JSON.stringify(branch.events).slice(0,22000)}. New facts: ${JSON.stringify(branch.facts).slice(0,12000)}. Previous state: ${branch.summaryEn}.`}
- ],{signal,json:true,maxTokens:2000,temperature:.3});
- branch.titleEn=truncate(reviewed.titleEn||assessment.changeEn||prompt,90);
- branch.titleZh=truncate(reviewed.titleZh||assessment.changeZh||branch.titleEn,90);
- branch.summaryEn=plain(reviewed.summaryEn||branch.summaryEn);
- branch.summaryZh=plain(reviewed.summaryZh||branch.summaryEn);
- branch.impacts=list(reviewed.impacts).slice(0,8).map(x=>plain(x));
- branch.certainty=['high','medium','low'].includes(reviewed.certainty)?reviewed.certainty:'medium';
- branch.events.sort((a,b)=>a.year-b.year);
- return branch;
-}
 function terms(text){
  const words=String(text).toLowerCase().match(/[a-z0-9]{3,}|[\u3400-\u9fff]{2,}/g)||[],out=[];
  const common=new Set(['什么','如何','这个','世界','是否','为什么','请问','哪些','情况','怎么']);

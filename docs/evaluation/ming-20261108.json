@@ -1,0 +1,935 @@
+{
+  "input": "假如明朝没有灭亡，而是延续了下来",
+  "totalMs": 37900,
+  "metrics": {
+    "anchorYear": 1644,
+    "completedThrough": 2026,
+    "events": 33,
+    "milestones": 5,
+    "regions": 7,
+    "independent": 24,
+    "review": "repair",
+    "timing": {
+      "elapsedMs": 37893,
+      "budgetMs": 62000,
+      "targetMs": 60000,
+      "requests": [
+        {
+          "stage": "minute-world",
+          "elapsedMs": 31737,
+          "maxTokens": 7600,
+          "reasoning": false
+        },
+        {
+          "stage": "minute-review",
+          "elapsedMs": 6151,
+          "maxTokens": 2800,
+          "reasoning": false
+        }
+      ],
+      "autoComplete": true,
+      "completed": true
+    }
+  },
+  "roundTrip": true,
+  "calls": [
+    {
+      "model": "deepseek-flash",
+      "maxTokens": 7600,
+      "thinking": {
+        "type": "disabled"
+      },
+      "ms": 31736,
+      "status": 200,
+      "usage": {
+        "prompt_tokens": 2484,
+        "completion_tokens": 4474,
+        "total_tokens": 6958,
+        "prompt_tokens_details": {
+          "cached_tokens": 2304
+        },
+        "prompt_cache_hit_tokens": 2304,
+        "prompt_cache_miss_tokens": 180
+      },
+      "finish": "stop"
+    },
+    {
+      "model": "deepseek-v4-pro",
+      "maxTokens": 2800,
+      "thinking": {
+        "type": "disabled"
+      },
+      "ms": 6150,
+      "status": 200,
+      "usage": {
+        "prompt_tokens": 6182,
+        "completion_tokens": 381,
+        "total_tokens": 6563,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 6182
+      },
+      "finish": "stop"
+    }
+  ],
+  "draft": {
+    "admission": {
+      "intent": "edit",
+      "decision": "accept",
+      "valid": true,
+      "reasonEn": "A counterfactual in which the Ming dynasty survives is a finite, materially meaningful change to an existing polity; its effects can be traced through ordinary fiscal, military and institutional mechanisms.",
+      "reasonZh": "假设明朝延续是一个有限且具有实质意义的政治实体变更，其影响可通过常规的财政、军事与制度机制推演。",
+      "earthRelevance": "direct",
+      "materiality": "material",
+      "criticalUnknowns": [],
+      "questions": [],
+      "completions": [
+        {
+          "field": "forkYear",
+          "en": "Fork set at 1644, the year the Ming historically fell to Li Zicheng and the Qing; the Ming court survives the 1644 crisis.",
+          "zh": "分叉点定于1644年，即明亡于李自成与清的历史年份；明廷渡过1644年危机。"
+        },
+        {
+          "field": "survivalMechanism",
+          "en": "Default: a combination of a more successful defensive redeployment, a negotiated settlement with northern frontier forces, and the death or marginalization of key rebel leaders leaves the Ming court in control of North China.",
+          "zh": "默认：防御重新部署较为成功、与北方边军达成妥协、关键民变领袖死亡或被边缘化，使明廷保有对华北的控制。"
+        },
+        {
+          "field": "scope",
+          "en": "The Ming state persists as a Chinese imperial polity; no assumption of territorial expansion or industrial revolution is made.",
+          "zh": "明作为中华帝国政体延续；不预设领土扩张或工业革命。"
+        }
+      ],
+      "preservedContext": [
+        {
+          "en": "Manchu and other Northeast Asian peoples, the Qing banner system, and Inner Asian politics continue to exist independently.",
+          "zh": "满洲及其他东北亚民族、八旗制度与内亚政治继续独立存在。"
+        },
+        {
+          "en": "Global trade, European expansion, and the Scientific Revolution proceed on their own trajectories.",
+          "zh": "全球贸易、欧洲扩张与科学革命按自身轨迹推进。"
+        }
+      ],
+      "uncertaintyNotes": [
+        {
+          "en": "The exact survival mechanism is a chosen assumption; downstream outcomes are conditional.",
+          "zh": "存续机制为选定假设；后续结果为条件性推演。"
+        }
+      ],
+      "causalBridge": [
+        {
+          "mechanism": "Ming court retains control of North China after 1644, altering fiscal extraction, military organization and elite recruitment in East Asia.",
+          "evidenceIds": [],
+          "support": "user-premise"
+        }
+      ],
+      "operations": [
+        {
+          "kind": "historical_change",
+          "scope": "earth",
+          "mode": "point",
+          "startYear": 1644,
+          "endYear": 1644,
+          "target": "Ming dynasty",
+          "value": "survives 1644 crisis and continues as ruling Chinese state",
+          "parentFactId": null,
+          "description": "The Ming court survives the 1644 collapse; rebel forces are defeated or co-opted and the Qing do not establish rule over China proper.",
+          "temporalBasis": "user premise with default fork year 1644",
+          "assumptions": [
+            "Ming retains North China",
+            "Qing remain a frontier power"
+          ]
+        }
+      ]
+    },
+    "world": {
+      "title": "明祚延绵：1644年后的另一种东亚与世界",
+      "summary": "明朝在1644年危机中存续，中国进入一个长期由明廷主导、但财政与军事压力持续的帝国秩序。满清退回东北与内亚，俄国东扩与日本、朝鲜、东南亚的贸易网络重塑区域格局。欧洲的科学革命、殖民扩张与工业化按自身逻辑推进，最终以条约体系而非征服方式打开中国。至2026年，明式帝国已转型为联邦立宪君主国，东亚形成多极均势。",
+      "conditions": [
+        {
+          "id": "b1",
+          "t": "明末财政依赖白银流入与里甲赋役，辽东军费沉重，卫所制衰败",
+          "r": [
+            "east-asia"
+          ],
+          "k": "economy"
+        },
+        {
+          "id": "b2",
+          "t": "满清在东北建立八旗与汗国体制，蒙古诸部为其盟友或对手",
+          "r": [
+            "east-asia",
+            "west-central-asia"
+          ],
+          "k": "politics"
+        },
+        {
+          "id": "b3",
+          "t": "欧洲列强在东南亚建立贸易据点，白银与火器流入东亚",
+          "r": [
+            "europe",
+            "east-asia",
+            "oceania"
+          ],
+          "k": "economy"
+        },
+        {
+          "id": "b4",
+          "t": "莫卧儿帝国统治南亚大部，印度洋贸易活跃",
+          "r": [
+            "south-asia"
+          ],
+          "k": "politics"
+        },
+        {
+          "id": "b5",
+          "t": "奥斯曼与萨法维在西亚对峙，内陆商路与朝圣网络维系",
+          "r": [
+            "west-central-asia"
+          ],
+          "k": "politics"
+        },
+        {
+          "id": "b6",
+          "t": "西非与东非王国参与大西洋与印度洋奴隶贸易，内陆农业国家兴起",
+          "r": [
+            "africa"
+          ],
+          "k": "economy"
+        },
+        {
+          "id": "b7",
+          "t": "美洲殖民帝国以银矿与种植园为核心，原住民人口崩溃后重建",
+          "r": [
+            "americas"
+          ],
+          "k": "economy"
+        },
+        {
+          "id": "b8",
+          "t": "大洋洲原住民社会与欧洲航海者接触尚浅，波利尼西亚航海网络延续",
+          "r": [
+            "oceania"
+          ],
+          "k": "society"
+        }
+      ],
+      "trajectories": [
+        {
+          "r": "east-asia",
+          "events": [
+            {
+              "id": "e1",
+              "y": 1683,
+              "t": "明廷海禁松弛与东南海商复兴",
+              "d": "明廷为筹措军费默许闽粤海商出海，月港与澳门贸易回升，白银重新流入，东南士绅与商人形成利益集团。",
+              "c": [
+                "b1",
+                "b3"
+              ],
+              "r": [
+                "east-asia"
+              ],
+              "k": "economy",
+              "s": 2
+            },
+            {
+              "id": "e2",
+              "y": 1720,
+              "t": "卫所改募兵与火器营建立",
+              "d": "面对北方边患，明廷以募兵替代世袭卫所，设立火器营并仿制西洋铳炮，军费进一步货币化。",
+              "c": [
+                "b1",
+                "b2"
+              ],
+              "r": [
+                "east-asia"
+              ],
+              "k": "science-technology",
+              "s": 2
+            },
+            {
+              "id": "e3",
+              "y": 1790,
+              "t": "江南棉纺与市镇扩张",
+              "d": "江南市镇以棉纺织与丝织为主，人口增长与商业化推动地方市场网络，士绅主持水利与慈善。",
+              "c": [
+                "b1"
+              ],
+              "r": [
+                "east-asia"
+              ],
+              "k": "economy",
+              "s": 2
+            },
+            {
+              "id": "e4",
+              "y": 1855,
+              "t": "朝鲜与日本锁国松动",
+              "d": "日本在外部压力下开港，朝鲜在明与日本之间维持平衡，东亚海域贸易与情报网络扩展。",
+              "c": [
+                "b3"
+              ],
+              "r": [
+                "east-asia"
+              ],
+              "k": "politics",
+              "s": 2
+            },
+            {
+              "id": "e5",
+              "y": 1930,
+              "t": "东亚工业带形成",
+              "d": "日本工业化与明国沿海通商口岸的机器工业相互竞争，上海、天津与大阪形成区域工业带。",
+              "c": [
+                "e3",
+                "e4"
+              ],
+              "r": [
+                "east-asia"
+              ],
+              "k": "economy",
+              "s": 3
+            }
+          ],
+          "quiet": null,
+          "refs": [
+            "b1",
+            "b2",
+            "b3"
+          ]
+        },
+        {
+          "r": "south-asia",
+          "events": [
+            {
+              "id": "e6",
+              "y": 1707,
+              "t": "莫卧儿帝国内战与地方割据",
+              "d": "奥朗则布死后莫卧儿陷入继承战争，马拉塔与锡克势力崛起，地方纳瓦布与柴明达尔扩大自治。",
+              "c": [
+                "b4"
+              ],
+              "r": [
+                "south-asia"
+              ],
+              "k": "politics",
+              "s": 2
+            },
+            {
+              "id": "e7",
+              "y": 1810,
+              "t": "英国东印度公司扩大印度统治",
+              "d": "欧洲战争与印度内乱使东印度公司通过条约与战争控制更多土邦，印度棉织品与鸦片贸易纳入全球市场。",
+              "c": [
+                "b3",
+                "e6"
+              ],
+              "r": [
+                "south-asia"
+              ],
+              "k": "economy",
+              "s": 3
+            },
+            {
+              "id": "e8",
+              "y": 1920,
+              "t": "印度民族运动与自治要求",
+              "d": "受过英语教育的城市中产与国大党组织反殖民运动，要求自治与关税保护，纺织业成为民族资本核心。",
+              "c": [
+                "e7"
+              ],
+              "r": [
+                "south-asia"
+              ],
+              "k": "politics",
+              "s": 2
+            }
+          ],
+          "quiet": null,
+          "refs": [
+            "b4",
+            "b3"
+          ]
+        },
+        {
+          "r": "west-central-asia",
+          "events": [
+            {
+              "id": "e9",
+              "y": 1730,
+              "t": "纳迪尔沙崛起与波斯重建",
+              "d": "纳迪尔沙统一波斯，远征印度与中亚，短暂重建区域霸权，但财政依赖战利品。",
+              "c": [
+                "b5"
+              ],
+              "r": [
+                "west-central-asia"
+              ],
+              "k": "politics",
+              "s": 2
+            },
+            {
+              "id": "e10",
+              "y": 1880,
+              "t": "俄国与英国在中亚的缓冲带",
+              "d": "俄国征服中亚诸汗国，英国从印度北进，阿富汗成为缓冲国，铁路与电报进入内陆。",
+              "c": [
+                "b5",
+                "e7"
+              ],
+              "r": [
+                "west-central-asia"
+              ],
+              "k": "politics",
+              "s": 2
+            },
+            {
+              "id": "e11",
+              "y": 1955,
+              "t": "石油经济与海湾城市兴起",
+              "d": "波斯湾石油开发使海湾酋长国与伊朗财政转型，外籍劳工与城市基础设施扩张。",
+              "c": [
+                "e10"
+              ],
+              "r": [
+                "west-central-asia"
+              ],
+              "k": "economy",
+              "s": 3
+            }
+          ],
+          "quiet": null,
+          "refs": [
+            "b5"
+          ]
+        },
+        {
+          "r": "europe",
+          "events": [
+            {
+              "id": "e12",
+              "y": 1687,
+              "t": "科学革命与启蒙出版",
+              "d": "牛顿力学与实验哲学在欧洲传播，印刷与学会网络使知识生产制度化，国家赞助与商业出版并行。",
+              "c": [
+                "b3"
+              ],
+              "r": [
+                "europe"
+              ],
+              "k": "science-technology",
+              "s": 3
+            },
+            {
+              "id": "e13",
+              "y": 1780,
+              "t": "英国工业革命扩展",
+              "d": "蒸汽机、煤铁与棉纺在英格兰结合，工厂制扩展至欧陆，铁路与电报随后重塑市场。",
+              "c": [
+                "e12"
+              ],
+              "r": [
+                "europe"
+              ],
+              "k": "economy",
+              "s": 4
+            },
+            {
+              "id": "e14",
+              "y": 1914,
+              "t": "欧洲列强战争与帝国重组",
+              "d": "民族主义与联盟体系导致大战，帝国崩溃与民族国家建立，福利国家与大众政治兴起。",
+              "c": [
+                "e13"
+              ],
+              "r": [
+                "europe"
+              ],
+              "k": "politics",
+              "s": 3
+            },
+            {
+              "id": "e15",
+              "y": 1990,
+              "t": "欧洲一体化与数字网络",
+              "d": "战后欧洲一体化扩展，数字通信与服务业成为增长核心，环境政策与移民政治成为焦点。",
+              "c": [
+                "e14"
+              ],
+              "r": [
+                "europe"
+              ],
+              "k": "society",
+              "s": 2
+            }
+          ],
+          "quiet": null,
+          "refs": [
+            "b3"
+          ]
+        },
+        {
+          "r": "africa",
+          "events": [
+            {
+              "id": "e16",
+              "y": 1750,
+              "t": "西非内陆国家与跨撒哈拉贸易",
+              "d": "阿散蒂与索科托等国家以黄金、奴隶与农产品参与跨撒哈拉与大西洋贸易，伊斯兰学者网络扩展。",
+              "c": [
+                "b6"
+              ],
+              "r": [
+                "africa"
+              ],
+              "k": "economy",
+              "s": 2
+            },
+            {
+              "id": "e17",
+              "y": 1885,
+              "t": "柏林会议与非洲瓜分",
+              "d": "欧洲列强划定非洲势力范围，殖民行政与种植园经济建立，铁路与传教网络改变社会结构。",
+              "c": [
+                "e13",
+                "b6"
+              ],
+              "r": [
+                "africa"
+              ],
+              "k": "politics",
+              "s": 3
+            },
+            {
+              "id": "e18",
+              "y": 1960,
+              "t": "非洲独立与资源民族主义",
+              "d": "战后去殖民化使多数非洲国家独立，矿产与石油国有化与冷战援助塑造政治经济。",
+              "c": [
+                "e17"
+              ],
+              "r": [
+                "africa"
+              ],
+              "k": "politics",
+              "s": 2
+            }
+          ],
+          "quiet": null,
+          "refs": [
+            "b6"
+          ]
+        },
+        {
+          "r": "americas",
+          "events": [
+            {
+              "id": "e19",
+              "y": 1776,
+              "t": "北美殖民地独立与联邦建立",
+              "d": "英国北美殖民地因税收与代表权冲突独立，建立联邦共和国，西进与奴隶制矛盾持续。",
+              "c": [
+                "b7",
+                "e13"
+              ],
+              "r": [
+                "americas"
+              ],
+              "k": "politics",
+              "s": 3
+            },
+            {
+              "id": "e20",
+              "y": 1865,
+              "t": "美国内战与废奴",
+              "d": "南北经济制度冲突引发内战，联邦胜利后废奴与重建，工业化与铁路扩张加速。",
+              "c": [
+                "e19"
+              ],
+              "r": [
+                "americas"
+              ],
+              "k": "society",
+              "s": 3
+            },
+            {
+              "id": "e21",
+              "y": 1945,
+              "t": "美国成为全球超级大国",
+              "d": "两次世界大战后美国以工业与金融实力主导西方秩序，联合国与布雷顿森林体系建立。",
+              "c": [
+                "e20"
+              ],
+              "r": [
+                "americas"
+              ],
+              "k": "politics",
+              "s": 3
+            }
+          ],
+          "quiet": null,
+          "refs": [
+            "b7"
+          ]
+        },
+        {
+          "r": "oceania",
+          "events": [
+            {
+              "id": "e22",
+              "y": 1788,
+              "t": "英国在澳洲建立殖民地",
+              "d": "英国在澳洲东岸建立流放殖民地，与原住民冲突，羊毛与金矿推动移民与自治。",
+              "c": [
+                "b3",
+                "b8"
+              ],
+              "r": [
+                "oceania"
+              ],
+              "k": "politics",
+              "s": 2
+            },
+            {
+              "id": "e23",
+              "y": 1901,
+              "t": "澳大利亚联邦成立",
+              "d": "各殖民地联合成立联邦，白澳政策与劳工运动塑造政治，太平洋岛屿被列强瓜分。",
+              "c": [
+                "e22"
+              ],
+              "r": [
+                "oceania"
+              ],
+              "k": "politics",
+              "s": 2
+            },
+            {
+              "id": "e24",
+              "y": 1975,
+              "t": "太平洋岛国独立与区域组织",
+              "d": "斐济、巴新等岛国独立，太平洋岛国论坛成立，渔业与气候议题进入区域政治。",
+              "c": [
+                "e23"
+              ],
+              "r": [
+                "oceania"
+              ],
+              "k": "politics",
+              "s": 2
+            }
+          ],
+          "quiet": null,
+          "refs": [
+            "b8",
+            "b3"
+          ]
+        }
+      ],
+      "effects": [
+        {
+          "id": "e25",
+          "y": 1644,
+          "t": "明廷渡过甲申之变",
+          "d": "李自成军攻入北京前明廷调集边军与火器营，起义军内部分裂，明廷保住京师与华北，清军未能入关。",
+          "c": [
+            "intervention:1",
+            "b1",
+            "b2"
+          ],
+          "r": [
+            "east-asia"
+          ],
+          "k": "politics",
+          "s": 4
+        },
+        {
+          "id": "e26",
+          "y": 1660,
+          "t": "明与清对峙与边境贸易",
+          "d": "明廷与满洲汗国在辽东对峙，双方通过边境互市与蒙古中介维持贸易，明以岁币与互市换取和平。",
+          "c": [
+            "e25",
+            "b2"
+          ],
+          "r": [
+            "east-asia",
+            "west-central-asia"
+          ],
+          "k": "politics",
+          "s": 3
+        },
+        {
+          "id": "e27",
+          "y": 1700,
+          "t": "明廷财政改革与白银货币化",
+          "d": "为支付边军与募兵费用，明廷推行一条鞭法式银纳与商税扩展，东南商税与盐专卖成为财政支柱。",
+          "c": [
+            "e25",
+            "e1"
+          ],
+          "r": [
+            "east-asia"
+          ],
+          "k": "economy",
+          "s": 3
+        },
+        {
+          "id": "e28",
+          "y": 1760,
+          "t": "明式火器与军事技术竞赛",
+          "d": "明廷与满洲、日本在火器上竞争，仿制西洋炮铳并设立军工工场，技术知识经传教士与商人流入。",
+          "c": [
+            "e2",
+            "e26"
+          ],
+          "r": [
+            "east-asia"
+          ],
+          "k": "science-technology",
+          "s": 2
+        },
+        {
+          "id": "e29",
+          "y": 1840,
+          "t": "通商口岸与条约体系",
+          "d": "欧洲列强以海军压力要求通商，明廷在沿海开放口岸并设立海关，鸦片与白银问题引发改革争论。",
+          "c": [
+            "e13",
+            "e27"
+          ],
+          "r": [
+            "east-asia",
+            "europe"
+          ],
+          "k": "economy",
+          "s": 3
+        },
+        {
+          "id": "e30",
+          "y": 1895,
+          "t": "明廷立宪改革与士绅议会",
+          "d": "甲午式危机后明廷推行立宪与地方议会，士绅与商人参与省政，皇权与内阁分权逐步制度化。",
+          "c": [
+            "e29",
+            "e3"
+          ],
+          "r": [
+            "east-asia"
+          ],
+          "k": "politics",
+          "s": 3
+        },
+        {
+          "id": "e31",
+          "y": 1935,
+          "t": "明国工业化与东亚战争",
+          "d": "明国与日本在东亚争夺市场与资源，战争与动员推动重工业与铁路建设，战后明国转向联邦制。",
+          "c": [
+            "e30",
+            "e5"
+          ],
+          "r": [
+            "east-asia",
+            "oceania"
+          ],
+          "k": "politics",
+          "s": 3
+        },
+        {
+          "id": "e32",
+          "y": 1970,
+          "t": "东亚经济奇迹与区域合作",
+          "d": "明国、日本与东南亚经济体形成产业链，区域贸易协定与开发银行建立，环境治理成为议题。",
+          "c": [
+            "e31",
+            "e11"
+          ],
+          "r": [
+            "east-asia",
+            "south-asia",
+            "oceania"
+          ],
+          "k": "economy",
+          "s": 3
+        },
+        {
+          "id": "e33",
+          "y": 2008,
+          "t": "明国联邦宪政与全球多极秩序",
+          "d": "明国完成联邦立宪君主制转型，与美、欧、印度等形成多极均势，气候与数字治理成为共同议程。",
+          "c": [
+            "e30",
+            "e21",
+            "e15"
+          ],
+          "r": [
+            "east-asia",
+            "europe",
+            "americas",
+            "south-asia"
+          ],
+          "k": "politics",
+          "s": 3
+        }
+      ],
+      "regions": [
+        {
+          "r": "east-asia",
+          "t": "明式联邦立宪君主国主导东亚，与日本、朝鲜、东南亚形成紧密产业链；沿海城市带与内陆发展差距仍存，环境治理与老龄化是主要挑战。",
+          "refs": [
+            "e25",
+            "e27",
+            "e30",
+            "e33"
+          ],
+          "unknowns": [
+            "明室具体世系与末代君主姓名",
+            "联邦各邦边界细节"
+          ]
+        },
+        {
+          "r": "south-asia",
+          "t": "印度在去殖民化后成为联邦共和国，纺织与信息技术产业崛起，与明国及海湾经济体贸易密切，印巴分治未按原历史发生。",
+          "refs": [
+            "e7",
+            "e8",
+            "e32"
+          ],
+          "unknowns": [
+            "印度独立运动领袖姓名"
+          ]
+        },
+        {
+          "r": "west-central-asia",
+          "t": "波斯与中亚诸国在俄国、英国与本地王朝之间重组，海湾石油经济与伊朗革命式运动塑造区域政治，阿富汗为缓冲国。",
+          "refs": [
+            "e9",
+            "e10",
+            "e11"
+          ],
+          "unknowns": [
+            "伊朗革命具体年份与领袖"
+          ]
+        },
+        {
+          "r": "europe",
+          "t": "欧洲经历工业革命、两次大战与一体化，欧盟式机构与福利国家并存，数字服务业与绿色转型领先。",
+          "refs": [
+            "e12",
+            "e13",
+            "e14",
+            "e15"
+          ],
+          "unknowns": [
+            "欧盟具体条约名称"
+          ]
+        },
+        {
+          "r": "africa",
+          "t": "非洲国家在去殖民化后以资源与农业为主，区域组织与外部投资并存，城市化与青年人口增长迅速。",
+          "refs": [
+            "e16",
+            "e17",
+            "e18"
+          ],
+          "unknowns": [
+            "各国独立年份细节"
+          ]
+        },
+        {
+          "r": "americas",
+          "t": "美国为全球超级大国，拉美国家以资源与制造业参与全球市场，美洲国家组织与贸易协定维系区域秩序。",
+          "refs": [
+            "e19",
+            "e20",
+            "e21"
+          ],
+          "unknowns": [
+            "拉美具体政治领袖"
+          ]
+        },
+        {
+          "r": "oceania",
+          "t": "澳大利亚与新西兰为发达经济体，太平洋岛国以渔业、旅游与气候外交为生，区域组织协调安全与援助。",
+          "refs": [
+            "e22",
+            "e23",
+            "e24",
+            "e31"
+          ],
+          "unknowns": [
+            "太平洋岛国具体边界"
+          ]
+        }
+      ],
+      "setting": {
+        "politics": "多极均势：明国联邦、美国、欧盟、印度与俄国等主要力量通过联合国式机构与区域组织协调；东亚无单一霸权。",
+        "economy": "全球贸易与产业链高度整合，东亚制造业、海湾能源、印度服务与非洲资源互补；数字货币与区域结算并存。",
+        "society": "城市化与老龄化并行，东亚与欧洲福利制度扩展，移民与族群政治成为常态议题。",
+        "science-technology": "信息技术、生物技术与绿色能源为前沿，明国与欧美日形成竞争性创新网络。",
+        "environment": "气候变暖与海平面上升威胁太平洋岛国与沿海城市，各国推行减排与适应政策。",
+        "culture": "儒家式文官传统与立宪主义在东亚融合，全球流行文化与区域语言网络并存。"
+      },
+      "quietPeriods": [],
+      "limits": [
+        "明存续的具体机制为选定假设，后续事件为条件性推演。",
+        "未预设明国必然工业化或扩张；其转型依赖条约压力与内部改革。",
+        "人名、具体条约与边界细节未定，留待后续推演。"
+      ]
+    }
+  },
+  "review": {
+    "verdict": "repair",
+    "reason": "One future-cause defect (e19 depends on e13 dated 1780) and one missing causal link for e22; otherwise the world is coherent and covers all regions and checkpoints.",
+    "issues": [
+      {
+        "id": "e19",
+        "reason": "e19 (1776) depends on e13 (1780), a future cause. Remove e13 from e19's causes; e19 can stand on b7 alone or on earlier European context."
+      },
+      {
+        "id": "e22",
+        "reason": "e22 (1788) lacks a causal link to European expansion; add e13 (1780) as a cause to ground British colonization in industrial-era maritime capacity."
+      }
+    ],
+    "questions": [],
+    "edits": {
+      "events": [
+        {
+          "id": "e19",
+          "y": 1776,
+          "t": "北美殖民地独立与联邦建立",
+          "d": "英国北美殖民地因税收与代表权冲突独立，建立联邦共和国，西进与奴隶制矛盾持续。",
+          "c": [
+            "b7"
+          ],
+          "r": [
+            "americas"
+          ],
+          "k": "politics",
+          "s": 3
+        },
+        {
+          "id": "e22",
+          "y": 1788,
+          "t": "英国在澳洲建立殖民地",
+          "d": "英国在澳洲东岸建立流放殖民地，与原住民冲突，羊毛与金矿推动移民与自治。",
+          "c": [
+            "b3",
+            "b8",
+            "e13"
+          ],
+          "r": [
+            "oceania"
+          ],
+          "k": "politics",
+          "s": 2
+        }
+      ]
+    }
+  },
+  "finalMilestones": 17
+}
