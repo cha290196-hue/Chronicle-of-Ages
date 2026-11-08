@@ -2,6 +2,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {WorldCanvas} from '../src/canvas.js';
 
+test('terminal events have a distinct hit target from the worldline selection tip',()=>{
+ const ctx=new Proxy({measureText:()=>({width:40})},{get:(o,k)=>k in o?o[k]:()=>{}});
+ const canvas=Object.create(WorldCanvas.prototype);
+ Object.assign(canvas,{ctx,width:1200,height:800,zoom:1,lang:'en',hit:[],x:year=>1000+(year-2026),nodeActive:()=>true});
+ canvas.nodes([{id:'endpoint-event',year:2026,en:'A terminal event'}],400,'B',true);
+ canvas.drawTip(1000,400,'B',true);
+ assert.equal(canvas.nearest(1000,372).event.id,'endpoint-event');
+ assert.equal(canvas.nearest(1000,400).kind,'tip');
+});
+
 test('same-year clusters expose every event through a list instead of repeatedly selecting the first',()=>{
  const events=[{id:'a',year:1700},{id:'b',year:1700},{id:'c',year:1700}];
  let opened=null,focused=false;
