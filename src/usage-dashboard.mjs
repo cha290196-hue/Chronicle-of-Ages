@@ -37,7 +37,7 @@ export function renderUsageDashboard({lang='en',provider='custom',model='',endpo
    <div class="usage-pricing-actions"><button type="button" class="secondary-btn" data-action="save-usage-price">${u('保存单价','Save prices')}</button><span>${u('不预设其他模型价格','No assumed pricing for other models')}</span></div>
   </div>`;
  const size=Math.max(1,...rows.map(r=>r.totalTokens));
- const hasReportedCost=tot.providerCostCalls>0;
+ const hasReportedCost=rows.some(r=>!r.officialDeepSeekTier&&(r.providerCostCalls||0)>0);
  const hasRateEstimate=rows.some(r=>r.configuredPrice&&r.meteredCalls>r.providerCostCalls);
  const hasPriced=hasReportedCost||hasRateEstimate;
  const modelRows=rows.slice(0,15).map(r=>`<div class="usage-model-row">
