@@ -61,7 +61,7 @@ test('worldline replay adds autonomous history via coverage pass instead of rena
  const chat=async (_config,messages)=>{
   const p=messages.at(-1).content;
   if(p.startsWith('Classify user input'))return {intent:'edit',valid:true,operations:[op]};
-  if(p.startsWith('Propose counterfactual events')){
+  if(p.includes('Propose counterfactual events')){
    assert.match(p,/entire alternative EARTH/);
    assert.match(p,/Recorded A-line events/);
    if(p.includes('INDEPENDENT WORLD COVERAGE REVIEW')){
