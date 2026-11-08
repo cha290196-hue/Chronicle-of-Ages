@@ -2,6 +2,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {WorldCanvas} from '../src/canvas.js';
 
+test('same-year clusters expose every event through a list instead of repeatedly selecting the first',()=>{
+ const events=[{id:'a',year:1700},{id:'b',year:1700},{id:'c',year:1700}];
+ let opened=null,focused=false;
+ const canvas=Object.create(WorldCanvas.prototype);
+ Object.assign(canvas,{zoom:12,onCluster:(all,id)=>{opened={all,id}},focus:()=>{focused=true},onEvent:()=>assert.fail('must not discard siblings')});
+ canvas.zoomCluster({cluster:events,branchId:'B'});
+ assert.deepEqual(opened,{all:events,id:'B'});assert.equal(focused,false);
+});
+
 test('cluster selection increases zoom and centers around the selected period',()=>{
  let target;
  const view={zoom:.36,focus:(year,zoom)=>{target=[year,zoom]}};

@@ -2,8 +2,8 @@ import {BASELINE,FIRST_YEAR,LAST_YEAR,displayYear,eventLabel} from './data.js';
 
 const clamp=(n,lo,hi)=>Math.min(hi,Math.max(lo,n));
 export class WorldCanvas{
- constructor(element,{onEvent=()=>{},onBranch=()=>{},onYear=()=>{}}={}){
-  this.el=element;this.ctx=element.getContext('2d');this.onEvent=onEvent;this.onBranch=onBranch;this.onYear=onYear;
+ constructor(element,{onEvent=()=>{},onBranch=()=>{},onYear=()=>{},onCluster=null}={}){
+  this.el=element;this.ctx=element.getContext('2d');this.onEvent=onEvent;this.onBranch=onBranch;this.onYear=onYear;this.onCluster=onCluster;
   this.mobile=window.matchMedia('(max-width: 680px)').matches;this.year=this.mobile?1:1680;this.zoom=.36;this.vertical=0;this.drag=null;this.hit=[];this.branches=[];this.active=null;this.lang='en';this.pointers=new Map();this.pinching=null;this.hover=null;this.width=1;this.height=1;this.dpr=1;this._raf=0;
   this.resizeObserver=new ResizeObserver(()=>this.resize());this.resizeObserver.observe(element);
   element.addEventListener('pointerdown',e=>this.pointerDown(e));element.addEventListener('pointermove',e=>this.pointerMove(e));element.addEventListener('pointerup',e=>this.pointerUp(e));element.addEventListener('pointercancel',e=>this.pointerUp(e,true));element.addEventListener('pointerleave',()=>this.clearTooltip());
@@ -47,7 +47,9 @@ nodeActive(branchId,year){
  const i=lineage.findIndex(b=>b.id===branchId);
  return i>=0&&year>=lineage[i].anchorYear&&year<(lineage[i+1]?.anchorYear??LAST_YEAR+1)
 }
- zoomCluster(item){const events=item?.cluster;if(!events?.length)return;const from=events[0].year,to=events.at(-1).year;if(this.zoom>=11.99){this.onEvent(events[0],item.branchId);return}this.focus(Math.round((from+to)/2),Math.max(this.zoom*2.8,Math.min(12,72/Math.max(to-from,1))))}
+ zoomCluster(item){const events=item?.cluster;if(!events?.length)return;const from=events[0].year,to=events.at(-1).year;
+  if(this.onCluster){this.onCluster(events,item.branchId);if(from===to||this.zoom>=11.99)return}
+  if(this.zoom>=11.99){this.onEvent(events[0],item.branchId);return}this.focus(Math.round((from+to)/2),Math.max(this.zoom*2.8,Math.min(12,72/Math.max(to-from,1))))}
  pointerDown(e){if(e.button!==0&&e.pointerType==='mouse')return;this.clearTooltip();this.el.setPointerCapture?.(e.pointerId);this.pointers.set(e.pointerId,{x:e.offsetX,y:e.offsetY});if(this.pointers.size===2){const p=[...this.pointers.values()];this.pinching={distance:Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y),zoom:this.zoom};this.drag=null;return}this.drag={x:e.offsetX,y:e.offsetY,year:this.year,vertical:this.vertical,moved:false};this.el.style.cursor='grabbing'}
  pointerMove(e){if(this.pointers.has(e.pointerId))this.pointers.set(e.pointerId,{x:e.offsetX,y:e.offsetY});if(this.pointers.size>=2&&this.pinching){const p=[...this.pointers.values()],d=Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y);const mid=(p[0].x+p[1].x)/2;this.zoomAt((this.pinching.zoom*clamp(d/Math.max(this.pinching.distance,1),.25,4))/this.zoom,mid);return}
  if(this.drag){const dx=e.offsetX-this.drag.x,dy=e.offsetY-this.drag.y;if(Math.hypot(dx,dy)>5)this.drag.moved=true;this.year=this.drag.year-dx/this.zoom;this.vertical=clamp(this.drag.vertical+dy,-900,900);this.invalidate();this.onYear(this.year)}else{if(this.mobile||e.pointerType==='touch'){this.clearTooltip();return}const item=this.nearest(e.offsetX,e.offsetY);this.hover=item;this.el.style.cursor=item?'pointer':'grab';this.invalidate();const tip=document.getElementById('canvas-tooltip');if(tip){if(item){tip.hidden=false;tip.textContent=item.kind==='tip'?(this.lang==='zh'?'切换世界线':'Select worldline'):item.cluster?(item.cluster.length+' '+(this.lang==='zh'?'个事件 · 点击放大':'events · click to zoom')):item.event?`${displayYear(item.event.year,this.lang)} · ${eventLabel(item.event,this.lang)}`:(this.lang==='zh'?'选择世界线':'Select worldline');tip.style.left=`${clamp(e.offsetX+18,8,this.width-230)}px`;tip.style.top=`${clamp(e.offsetY-20,8,this.height-54)}px`}else tip.hidden=true}}
@@ -124,10 +126,10 @@ nodeActive(branchId,year){
   // Coalesce nearby timestamps at this zoom. Click a group to inspect its period.
   for(const e of visible){
    const x=this.x(e.year),last=clusters.at(-1);
-   if(last&&x-last.firstX<18&&this.zoom<11.99){last.events.push(e);last.xSum+=x}
+   if(last&&x-last.firstX<18&&(this.zoom<11.99||x===last.firstX)){last.events.push(e);last.xSum+=x}
    else clusters.push({events:[e],firstX:x,xSum:x});
   }
-  const rows=[{dy:-43,right:-999},{dy:43,right:-999},{dy:-83,right:-999},{dy:83,right:-999}];
+  const rows=[{dy:-43,right:-999},{dy:70,right:-999},{dy:-83,right:-999},{dy:110,right:-999}];
   for(const group of clusters){
    const x=group.xSum/group.events.length,e=group.events[0],grouped=group.events.length>1;
    const current=grouped?this.hover?.cluster===group.events:this.hover?.event?.id===e.id;
