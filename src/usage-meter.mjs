@@ -60,7 +60,7 @@ function accumulate(bucket,entry){
 }
 export function readUsageMeter(){
  const raw=storageGet(USAGE_STORAGE_KEY);
- if(!raw)return {version:1,totals:empty(),models:{},recent:[]};
+ if(!raw)return {version:1,deepseekPricingV2:true,totals:empty(),models:{},recent:[]};
  try{
   const parsed=JSON.parse(raw);
   if(parsed.version!==1||!parsed.totals||!parsed.models||!Array.isArray(parsed.recent))throw Error('corrupted');
@@ -79,7 +79,7 @@ export function readUsageMeter(){
    storageSet(USAGE_STORAGE_KEY,parsed);
   }
   return parsed;
- }catch{return {version:1,totals:empty(),models:{},recent:[]}}
+ }catch{return {version:1,deepseekPricingV2:true,totals:empty(),models:{},recent:[]}}
 }
 export function recordRequestUsage({provider='custom',model='unknown',channel='text',purpose='other',success=false,payload=null}={}){
  const state=readUsageMeter();
