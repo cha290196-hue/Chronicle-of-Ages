@@ -1,5 +1,6 @@
 import { simulateOmega } from './chronicle-adapter.mjs';
 import {recordRequestUsage} from './usage-meter.mjs';
+import {usageBillingProvider} from './deepseek-pricing.mjs';
 import {parseModelJSON,normalizeModelContent,ModelJSONError} from './structured-output.mjs';
 import {auditKnowledge,sanitizeKnowledge,summarizeKnowledge} from './exploration-knowledge.mjs';
 import {BASELINE,FIRST_YEAR,LAST_YEAR,PHYSICAL_CONSTANTS,validYear} from './data.js';
@@ -89,6 +90,7 @@ export async function callChat(config,messages,{signal,json=false,temperature=.3
  const c=safeConfig(config);
  if(!configured(c))throw new Error('NOT_CONFIGURED');
  if(!validEndpoint(c.endpoint))throw new Error('INVALID_ENDPOINT');
+ const meteredProvider=usageBillingProvider(c.provider,c.endpoint);
  const baseBody={model:c.model,messages,temperature,max_tokens:maxTokens,stream:false};
  if(json)baseBody.response_format={type:'json_object'};
  if(c.provider==='deepseek'){
@@ -111,19 +113,19 @@ export async function callChat(config,messages,{signal,json=false,temperature=.3
   if(c.provider==='openrouter'&&typeof location!=='undefined')options.headers['HTTP-Referer']=location.origin;
   let response;
   try{response=await fetch(c.endpoint,options)}
-  catch(e){recordRequestUsage({provider:c.provider,model:c.model,purpose,success:false});if(signal?.aborted)throw new DOMException('Aborted','AbortError');throw e}
+  catch(e){recordRequestUsage({provider:meteredProvider,model:c.model,purpose,success:false});if(signal?.aborted)throw new DOMException('Aborted','AbortError');throw e}
   if(!response.ok){
    let detail='',failurePayload=null;
    try{failurePayload=await response.json();detail=failurePayload?.error?.message||failurePayload?.message||''}catch{}
-   recordRequestUsage({provider:c.provider,model:c.model,purpose,success:false,payload:failurePayload});
+   recordRequestUsage({provider:meteredProvider,model:c.model,purpose,success:false,payload:failurePayload});
    const ex=new Error(`HTTP ${response.status}${detail?`: ${String(detail).slice(0,220)}`:''}`);
    ex.status=response.status;
    throw ex;
   }
   let payload;
   try{payload=await response.json()}
-  catch(e){recordRequestUsage({provider:c.provider,model:c.model,purpose,success:false});throw e}
-  recordRequestUsage({provider:c.provider,model:c.model,purpose,success:true,payload});
+  catch(e){recordRequestUsage({provider:meteredProvider,model:c.model,purpose,success:false});throw e}
+  recordRequestUsage({provider:meteredProvider,model:c.model,purpose,success:true,payload});
   const choice=payload?.choices?.[0];
   const message=choice?.message||{};
   let result=normalizeModelContent(message.content??message.text??choice?.text??payload?.output_text);
