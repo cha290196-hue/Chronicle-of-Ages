@@ -1,0 +1,90 @@
+{
+  "intent": "edit",
+  "decision": "accept",
+  "valid": true,
+  "reasonEn": "The input imposes a counterfactual initial condition — that a distinct Christian religion never arose — rather than asking about the existing world. Read by the ordinary, most conservative interpretation, this is a never-arose premise, not a later erasure of Christians and not the removal of Jesus of Nazareth or of Jewish messianic activity. The divergence is anchored, as a chosen assumption, at c. 30 CE, the conventional focal date of the crucifixion and of the earliest Christ-believing movement, after which the movement is modeled as remaining a current within Judaism rather than becoming a separate, enduring religion. This is a material historical change of the first rank, earth-scoped, and is admissible.",
+  "reasonZh": "该输入施加的是一个反事实初始条件——一个独立的基督教从未兴起——而不是对既有世界的提问。按最普通、最保守的解读，这是“从未产生”的前提，而非后来对基督徒的清除，也不等于抹去拿撒勒的耶稣或犹太教的弥赛亚活动。分歧点作为选定假设锚定在约公元30年，即钉十字架与最早信奉基督的运动通常聚焦的年份；此后该运动被建模为留在犹太教内部的一股潮流，而未成为独立且延续的宗教。这是头等重要的物质性历史改变，范围限于地球，可以受理。",
+  "earthRelevance": "direct",
+  "materiality": "material",
+  "criticalUnknowns": [],
+  "questions": [],
+  "completions": [
+    {
+      "field": "timing",
+      "en": "No year given; the divergence is anchored at 30 CE, the conventional focal date of the crucifixion and of the earliest Christ-believing movement, so that 'never emerged' means never arose rather than a later removal.",
+      "zh": "未给出年份；分歧点锚定于公元30年，即钉十字架与最早信奉基督的运动通常聚焦的年份，因此“从未出现”意为从未兴起，而非后来被清除。"
+    },
+    {
+      "field": "scope",
+      "en": "Earth-scoped, centered on Roman Judaea and the Mediterranean world where the movement originated, with the later missionary expansion simply never occurring rather than being suppressed.",
+      "zh": "范围限于地球，以运动发源的罗马犹太行省与地中海世界为中心；后来的传教扩展只是从未发生，而非遭到压制。"
+    },
+    {
+      "field": "identity",
+      "en": "Jesus of Nazareth is retained as a historical Jewish preacher; what is removed is the emergence of a durable, trans-local religion centered on him.",
+      "zh": "拿撒勒的耶稣保留为历史中的犹太传道者；被移除的是一个以他为中心、跨地域且延续的宗教之兴起。"
+    },
+    {
+      "field": "nonErasure",
+      "en": "Second Temple Jewish messianic and apocalyptic currents, Judaism, and all other religious and philosophical traditions are preserved and continue to develop on their own terms.",
+      "zh": "第二圣殿时期的犹太弥赛亚与启示潮流、犹太教以及所有其他宗教与哲学传统均予保留，并按自身逻辑继续发展。"
+    },
+    {
+      "field": "mode",
+      "en": "Modeled as a point change at the divergence year; the absence simply becomes historically evident over the following decades without any additional intervention.",
+      "zh": "建模为分歧年份的点状改变；这一缺席在随后数十年中自然成为历史事实，无需额外干预。"
+    }
+  ],
+  "causalBridge": [
+    {
+      "mechanism": "Without a durable Christ-believing movement, the trans-local network of assemblies, appointed overseers, shared letters and a forming canon never comes into existence.",
+      "support": "user-premise"
+    },
+    {
+      "mechanism": "Absent that network, there is no Christian constituency, clergy or scripture for later imperial, legal and cultural actors to patronize, persecute, convene or transmit.",
+      "support": "branch-supported"
+    },
+    {
+      "mechanism": "Downstream consequences for later Mediterranean and European institutions are left to be simulated rather than asserted here; they are conditional hypotheses, not established results.",
+      "support": "speculative"
+    }
+  ],
+  "operations": [
+    {
+      "kind": "historical_change",
+      "scope": "earth",
+      "mode": "point",
+      "startYear": 30,
+      "endYear": 30,
+      "target": "emergence of a distinct, enduring Christian religion",
+      "value": false,
+      "units": null,
+      "parentFactId": null,
+      "description": "At the focal point of the earliest Christ-believing movement (c. 30 CE), the movement does not develop into a separate, self-reproducing religion. No distinct Christian assembly network, episcopate, canon or self-identifying gentile church arises; the messianic ferment around Jesus remains a current within Second Temple Judaism and its later Rabbinic development.",
+      "temporalBasis": "Chosen assumption: conventional dating of the crucifixion to c. 30 CE, the event around which the distinct movement formed; the user supplied no year.",
+      "assumptions": [
+        "Never-arose reading, not later erasure of Christians.",
+        "Jesus of Nazareth and Jewish messianic activity are not removed.",
+        "All unrelated peoples, religions and institutions persist unchanged at the point of divergence.",
+        "No new mechanisms or physical laws are introduced; the change is an initial-condition edit only."
+      ]
+    },
+    {
+      "kind": "branch_fact",
+      "scope": "earth",
+      "mode": "point",
+      "startYear": 30,
+      "endYear": 30,
+      "target": "status of Jesus of Nazareth and Jewish messianic currents",
+      "value": true,
+      "units": null,
+      "parentFactId": null,
+      "description": "Jesus of Nazareth remains a historical Jewish preacher whose following does not outlive its initial milieu as a separate religion; Second Temple Jewish messianic and apocalyptic currents continue and are reshaped by the events of 66-70 CE on their own trajectory.",
+      "temporalBasis": "Chosen assumption consistent with the non-erasure default and the c. 30 CE divergence anchor.",
+      "assumptions": [
+        "Preserves persons and movements not entailed by the premise.",
+        "Subsequent Jewish history is not treated as determined by this edit."
+      ]
+    }
+  ]
+}

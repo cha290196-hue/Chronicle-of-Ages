@@ -26,3 +26,8 @@ export function renderCompletionNotes(worldline,lang='en'){
  if(!notes.length)return '';
  return `<details class="input-completion-notes"><summary>${lang==='zh'?'自动补全的前提':'Completed premises'}</summary><ul>${notes.map(n=>`<li>${h(n)}</li>`).join('')}</ul></details>`;
 }
+
+export function renderIntakeDiagnostics(diagnostics,lang='en'){
+ if(!list(diagnostics).length)return '';
+ return `<details class="intake-diagnostics"><summary>${lang==='zh'?'查看检查详情':'View admission details'}</summary><pre>${h(JSON.stringify(diagnostics,null,2))}</pre></details>`;
+}
