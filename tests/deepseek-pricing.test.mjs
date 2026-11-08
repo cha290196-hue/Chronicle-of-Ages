@@ -10,6 +10,7 @@ import {
 } from '../src/usage-meter.mjs';
 import {renderUsageDashboard} from '../src/usage-dashboard.mjs';
 import {readFile} from 'node:fs/promises';
+import {callChat} from '../src/core.js';
 
 const storage=()=>{const m=new Map();return {
  getItem:k=>m.get(k)??null,setItem:(k,v)=>m.set(k,String(v)),removeItem:k=>m.delete(k)
@@ -116,6 +117,32 @@ test('new requests are automatically priced and aggregated in CNY, with original
   assert.equal(summarizeUsage().deepseekEstimatedCny,0);
   assert.ok(costBefore>0);
  }finally{globalThis.localStorage=old}
+});
+test('a real DeepSeek-shaped Chat Completions JSON response produces automatic official RMB usage',async()=>{
+ const previousStorage=globalThis.localStorage,previousFetch=globalThis.fetch;
+ globalThis.localStorage=storage();
+ globalThis.fetch=async(url,opts)=>{
+  assert.equal(url,'https://api.deepseek.com/chat/completions');
+  const body=JSON.parse(opts.body);
+  assert.equal(body.model,'deepseek-flash');
+  return {ok:true,status:200,json:async()=>({
+   choices:[{finish_reason:'stop',message:{content:'{"events":[],"facts":[]}'}}],
+   usage:{prompt_tokens:1000,completion_tokens:200,
+    prompt_cache_hit_tokens:400,prompt_cache_miss_tokens:600,total_tokens:1200}
+  })};
+ };
+ try{
+  const answer=await callChat({provider:'deepseek',endpoint:'https://api.deepseek.com/chat/completions',
+   model:'deepseek-flash',key:'not-a-real-key'},[{role:'user',content:'structured test'}],
+   {json:true,purpose:'simulation'});
+  assert.deepEqual(answer,{events:[],facts:[]});
+  const stored=readUsageMeter();
+  assert.equal(stored.totals.calls,1);
+  assert.equal(stored.recent[0].provider,'deepseek');
+  assert.equal(stored.totals.deepseekExactCalls,1);
+  assert.ok(stored.totals.deepseekEstimatedCny>0);
+  assert.equal(stored.recent[0].usage.cached,400);
+ }finally{globalThis.localStorage=previousStorage;globalThis.fetch=previousFetch}
 });
 test('older local usage records can be repriced from retained timestamped entries once without changing tokens',()=>{
  const old=globalThis.localStorage;const store=storage();globalThis.localStorage=store;
