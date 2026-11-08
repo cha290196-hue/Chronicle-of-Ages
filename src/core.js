@@ -266,15 +266,17 @@ export function sanitizeWorldline(input){
 }
 /**
  * The public simulation entry point used by app.js.
- * UCM-Ω is authoritative; the original simulator remains available only
- * as simulateLegacy and is never invoked by this production path.
+ * UCM-Ω is authoritative; the production pipeline advances ONE canonical
+ * candidate trajectory through all six causal windows. Extra whole-history
+ * candidate runs are NOT a speed optimization and are disabled here.
+ * The original simulator remains available only as simulateLegacy.
  */
 export async function simulate({prompt,branches=[],parentId=null,config,lang='en',signal,onProgress=()=>{}}) {
  if(!configured(config))throw new Error('NOT_CONFIGURED');
  try{
   const {worldline}=await simulateOmega({
    prompt,branches,parentId,baseline:BASELINE,config,lang,signal,onProgress,
-   callChat,makeId,scenarioCount:2,maxWindows:6
+   callChat,makeId,scenarioCount:1,maxWindows:6
   });
   return worldline;
  }catch(error){

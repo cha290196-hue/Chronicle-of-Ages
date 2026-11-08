@@ -276,7 +276,7 @@ export function evaluateScenario(scenario){
  * `propose` is a user-supplied async callback; this module neither calls an API nor invents facts.
  * Returns alternative scenarios and transparent consistency diagnostics, NOT probabilities.
  */
-export async function runMatrix({baseline=[],branches=[],parentId=null,interpretation,propose,scenarioCount=2,maxWindows=6,maxParallelScenarios=2,signal,onProgress=()=>{},landmarks=[]}){
+export async function runMatrix({baseline=[],branches=[],parentId=null,interpretation,propose,scenarioCount=1,maxWindows=6,signal,onProgress=()=>{},landmarks=[]}){
  if(typeof propose!=='function')throw new MatrixError('PROPOSER_REQUIRED');
  const parent=parentId===null?null:branches.find(b=>b.id===parentId);
  // A discovered fact cannot support a new fork earlier than that fact exists.
@@ -291,33 +291,23 @@ export async function runMatrix({baseline=[],branches=[],parentId=null,interpret
  const firstYear=actions.reduce((best,a)=>tick(a.startYear)<tick(best)?a.startYear:best,actions[0].startYear);
  const inherited=resolveAncestry({baseline,branches,parentId,atYear:firstYear});
  const windows=adaptiveWindows(firstYear,LAST_YEAR,{maxWindows,landmarks});
- const count=Math.max(1,Math.min(5,Math.trunc(scenarioCount)||2));
- // Candidate scenarios share an initial intervention, not subsequent events.
- // They can run in parallel; EACH scenario's chronological windows remain
- // strictly sequential and retain all validation/coverage/repair passes.
- const parallelism=Math.max(1,Math.min(3,count,Math.trunc(maxParallelScenarios)||2));
- const controller=new AbortController();
- const runSignal=controller.signal;
- const onExternalAbort=()=>controller.abort();
- if(signal?.aborted)controller.abort();
- else signal?.addEventListener?.('abort',onExternalAbort,{once:true});
+ const trajectories=[];
+ const count=Math.max(1,Math.min(5,Math.trunc(scenarioCount)||1));
  let completedWindows=0,plannedWindows=count*windows.length;
- const report=progress=>onProgress({...progress,parallelScenarios:parallelism,scenarioCount:count});
- async function runScenario(s){
-  if(runSignal.aborted)throw new MatrixError('ABORTED');
+ for(let s=0;s<count;s++){
   const events=[],facts=[],rejected=[],snapshots=[];
   for(let w=0;w<windows.length;w++){
    // On malformed/truncated provider output, subdivide this exact window.
    // Successful earlier subdivisions are not regenerated or discarded.
    await runAdaptiveWindow({
-    window:windows[w],signal:runSignal,maxDepth:12,maxTasks:72,
+    window:windows[w],signal,maxDepth:12,maxTasks:72,
     onSplit:({children,window,reason})=>{
      plannedWindows+=children-1;
-     report({phase:'propagation',index:completedWindows,total:plannedWindows,scenario:s+1,window,reason,subdividing:true});
+     onProgress({phase:'propagation',index:completedWindows,total:plannedWindows,scenario:s+1,window,reason,subdividing:true});
     },
     execute:async (window,{focus,depth})=>{
-     if(runSignal.aborted)throw new MatrixError('ABORTED');
-     report({phase:'propagation',index:completedWindows,total:plannedWindows,scenario:s+1,window,focus,depth});
+     if(signal?.aborted)throw new MatrixError('ABORTED');
+     onProgress({phase:'propagation',index:completedWindows,total:plannedWindows,scenario:s+1,window,focus,depth});
      const knownEvents=[...inherited.events,...events],knownFacts=[...inherited.facts,...facts];
      const promptState={scenario:s+1,window,windowIndex:w,totalWindows:windows.length,
       actions,propagationFocus:focus||null,
@@ -328,12 +318,12 @@ export async function runMatrix({baseline=[],branches=[],parentId=null,interpret
        .slice(0,12).map(e=>({year:e.year,en:e.en,category:e.category})),
       worldwideCoverage:worldCoverage(events),
       instructions:'Each candidate event must cite at least one existing causal ID or a prior event ID from the same batch. Use unique event IDs. Every fact has firstYear and may use derivedFrom. The returned events are hypotheses, never recorded historical facts.'};
-     let batch=await propose({...copy(promptState),signal:runSignal});
+     let batch=await propose(copy(promptState));
      if(!batch||typeof batch!=='object')throw new MatrixError('INVALID_WINDOW_RESPONSE');
      let audit=auditBatch({proposal:batch,window,knownEvents,knownFacts,actions,scenario:s+1});
      // Existing causal-repair stage remains in place.
      if(!audit.events.length && safeList(batch.events).length){
-      const repaired=await propose({...copy(promptState),repairReasons:audit.rejected,repairAttempt:1,signal:runSignal});
+      const repaired=await propose({...copy(promptState),repairReasons:audit.rejected,repairAttempt:1});
       if(repaired&&typeof repaired==='object')
        audit=auditBatch({proposal:repaired,window,knownEvents,knownFacts,actions,scenario:s+1});
      }
@@ -343,7 +333,7 @@ export async function runMatrix({baseline=[],branches=[],parentId=null,interpret
        knownEvents:[...knownEvents,...audit.events].slice(-65).map(e=>({id:e.id,year:e.year,en:e.en,category:e.category,region:e.region,threadKey:e.threadKey})),
        knownFacts:[...knownFacts,...audit.facts].slice(-55).map(f=>({id:f.id,firstYear:f.firstYear,nameEn:f.nameEn})),
        allowedCauseIds:[...promptState.allowedCauseIds,...audit.events.map(e=>e.id)],
-       coverageReasons:worldReviewReasons(audit.events,events,window),coverageAttempt:1,signal:runSignal};
+       coverageReasons:worldReviewReasons(audit.events,events,window),coverageAttempt:1};
       const supplement=await propose(coverageState);
       if(supplement&&typeof supplement==='object'){
        const extra=auditBatch({proposal:supplement,window,
@@ -377,28 +367,8 @@ export async function runMatrix({baseline=[],branches=[],parentId=null,interpret
   }
   const trajectory={scenarioId:`scenario:${s+1}`,events,facts,rejected,snapshots};
   trajectory.audit=evaluateScenario(trajectory);
-  return trajectory;
+  trajectories.push(trajectory);
  }
- // Bound concurrent outstanding DeepSeek requests. A failed scenario aborts
- // its peers (including their in-flight HTTP calls), then waits for all to stop.
- // The returned order is deterministic and ranking is unchanged.
- const trajectories=new Array(count);
- let nextScenario=0;
- const worker=async()=>{
-  while(nextScenario<count){
-   if(runSignal.aborted)throw new MatrixError('ABORTED');
-   const index=nextScenario++;
-   trajectories[index]=await runScenario(index);
-  }
- };
- const jobs=Array.from({length:parallelism},()=>worker());
- try{await Promise.all(jobs)}
- catch(error){
-  controller.abort();
-  await Promise.allSettled(jobs);
-  if(signal?.aborted)throw new MatrixError('ABORTED');
-  throw error;
- }finally{signal?.removeEventListener?.('abort',onExternalAbort)}
  trajectories.sort((a,b)=>b.audit.score-a.audit.score||a.scenarioId.localeCompare(b.scenarioId));
  return {version:ENGINE_VERSION,origin:'counterfactual',firstYear,endYear:LAST_YEAR,actions,inherited,windows,
   preferred:trajectories[0],alternatives:trajectories.slice(1),
