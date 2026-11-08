@@ -52,6 +52,7 @@ export function validEndpoint(value){
 export function extractJSON(content){return parseModelJSON(content)}
 export function explainError(error,lang='en'){
  const code=String(error?.code||'');
+ if(code==='AUTOCOMPLETE_INCOMPLETE')return lang==='zh'?'模型未能完成自动补全，请重试或关闭自动补全后手动填写条件。':'The model could not complete the missing premises. Retry or turn off auto-completion to specify them.';
  if(['INTERVENTION_REJECTED','INTERVENTION_CLARIFY','INTERVENTION_NEGLIGIBLE','UNSUPPORTED_CAUSAL_BRIDGE','INTAKE_INVALID','UNSUPPORTED_PHYSICAL_MODEL','EXPLICIT_YEAR_MISMATCH'].includes(code)){
   const defaults={INTERVENTION_REJECTED:['该输入无法建立有依据的地球历史分叉。','This input cannot establish a supported Earth-history divergence.'],
    INTERVENTION_CLARIFY:['请补充决定地球影响的时间、地点或必要参数。','Please specify the time, location or parameters that determine its effect on Earth.'],
@@ -306,12 +307,12 @@ export function sanitizeWorldline(input){
  * transitions, era-sensitive windows and independent semantic review.
  * simulateLegacy is retained solely for compatibility with old integrations.
  */
-export async function simulate({prompt,branches=[],parentId=null,config,lang='en',signal,onProgress=()=>{}}) {
+export async function simulate({prompt,branches=[],parentId=null,config,lang='en',signal,onProgress=()=>{},autoComplete=false,clarifications=[]}) {
  if(!configured(config))throw new Error('NOT_CONFIGURED');
  try{
   const {worldline}=await simulateOmega({
    prompt,branches,parentId,baseline:BASELINE,config,lang,signal,onProgress,
-   callChat,makeId
+   callChat,makeId,autoComplete,clarifications
   });
   return worldline;
  }catch(error){
