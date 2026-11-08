@@ -96,6 +96,22 @@ test('each actual HTTP request and JSON-recovery retry is metered separately',as
   assert.equal(readUsageMeter().totals.totalTokens,246);
  }finally{globalThis.fetch=oldFetch;globalThis.localStorage=oldStorage}
 });
+test('finish_reason length on a syntactically valid JSON body is still treated as incomplete output',async()=>{
+ const oldFetch=globalThis.fetch,oldStorage=globalThis.localStorage;
+ globalThis.localStorage=memoryStorage();let calls=0;
+ globalThis.fetch=async()=>{
+  calls++;
+  return {ok:true,status:200,json:async()=>({
+   choices:[{finish_reason:calls===1?'length':'stop',message:{content:'{"events":[],"facts":[]}'}}],
+   usage:{prompt_tokens:100,completion_tokens:100,total_tokens:200}
+  })};
+ };
+ try{
+  assert.deepEqual(await callChat({provider:'custom',endpoint:'https://example.org/chat',model:'test',key:'fake'},
+   [{role:'user',content:'structured output'}],{json:true,purpose:'simulation'}),{events:[],facts:[]});
+  assert.equal(calls,2,'valid JSON at a hard output cutoff must be retried, not accepted prematurely');
+ }finally{globalThis.fetch=oldFetch;globalThis.localStorage=oldStorage}
+});
 test('adaptive time split preserves completed earlier partitions and valid later causal links',async()=>{
  let calls=0,splits=0;
  const result=await runMatrix({interpretation:{operations:[op()]},scenarioCount:1,maxWindows:1,
