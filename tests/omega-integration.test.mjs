@@ -33,9 +33,9 @@ test('public simulate uses UCM-Ω intake, audited windows and synthesis, never t
   assert.equal(branch.type,'earth_intrusion');
   assert.equal(branch.summaryZh,'因果审计后的历史情景。');
   assert.equal(intake,1);
-  assert.equal(proposals,12,'two independent scenarios each have six windows');
+  assert.equal(proposals,6,'one authoritative scenario advances through all six audited windows');
   assert.equal(synthesis,1);
-  assert.ok(branch.events.length>=6,'the audited preferred scenario is in the active branch');
+  assert.ok(branch.events.length>=6,'the audited single scenario is in the active branch');
   assert.equal(branch.events.some(e=>e.year===0),false);
   assert.ok(worldEvents([],branch).length>branch.events.length,'the full worldline inherits pre-fork reality');
  }finally{globalThis.fetch=oldFetch}
