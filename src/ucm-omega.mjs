@@ -6,6 +6,7 @@
  */
 
 import { normalizeWorldMetadata,worldCoverage,needsWorldReview,worldReviewReasons,curateWorldEvents } from './world-coverage.mjs';
+import {runAdaptiveWindow} from './adaptive-propagation.mjs';
 
 export const FIRST_YEAR = -3200;
 export const LAST_YEAR = 2026;
@@ -292,52 +293,77 @@ export async function runMatrix({baseline=[],branches=[],parentId=null,interpret
  const windows=adaptiveWindows(firstYear,LAST_YEAR,{maxWindows,landmarks});
  const trajectories=[];
  const count=Math.max(1,Math.min(5,Math.trunc(scenarioCount)||2));
+ let completedWindows=0,plannedWindows=count*windows.length;
  for(let s=0;s<count;s++){
   const events=[],facts=[],rejected=[],snapshots=[];
   for(let w=0;w<windows.length;w++){
-   if(signal?.aborted)throw new MatrixError('ABORTED');
-   const window=windows[w];
-   onProgress({phase:'propagation',index:s*windows.length+w,total:count*windows.length,scenario:s+1,window});
-   const knownEvents=[...inherited.events,...events],knownFacts=[...inherited.facts,...facts];
-   const promptState={scenario:s+1,window,windowIndex:w,totalWindows:windows.length,
-    actions,knownEvents:knownEvents.slice(-55).map(e=>({id:e.id,year:e.year,en:e.en,category:e.category,region:e.region,threadKey:e.threadKey,relationToIntervention:e.relationToIntervention})),
-    knownFacts:knownFacts.slice(-50).map(f=>({id:f.id,firstYear:f.firstYear,nameEn:f.nameEn})),
-    allowedCauseIds:[...actions.map(a=>a.id),...knownEvents.map(e=>e.id)],
-    // Post-fork baseline records are comparison checkpoints, NOT established facts.
-    realityCheckpoints:baseline.filter(e=>validYear(e.year)&&tick(e.year)>=tick(window.from)&&tick(e.year)<=tick(window.to))
-      .slice(0,12).map(e=>({year:e.year,en:e.en,category:e.category})),
-    worldwideCoverage:worldCoverage(events),
-    instructions:'Each candidate event must cite at least one existing causal ID or a prior event ID from the same batch. Use unique event IDs. Every fact has firstYear and may use derivedFrom. The returned events are hypotheses, never recorded historical facts.'};
-   let batch=await propose(copy(promptState));
-   if(!batch||typeof batch!=='object')batch={events:[],facts:[]};
-   let audit=auditBatch({proposal:batch,window,knownEvents,knownFacts,actions,scenario:s+1});
-   // One explicit repair attempt when the model proposed no valid events.
-   if(!audit.events.length && safeList(batch.events).length){
-    const repaired=await propose({...copy(promptState),repairReasons:audit.rejected,repairAttempt:1});
-    if(repaired&&typeof repaired==='object')audit=auditBatch({proposal:repaired,window,knownEvents,knownFacts,actions,scenario:s+1});
-   }
-   // An explicit independent-world review is triggered by tunnel vision,
-   // but absence of events in a given continent never obliges an invention.
-   if(needsWorldReview(audit.events,events,window)){
-    const coverageState={...copy(promptState),
-     knownEvents:[...knownEvents,...audit.events].slice(-65).map(e=>({id:e.id,year:e.year,en:e.en,category:e.category,region:e.region,threadKey:e.threadKey})),
-     knownFacts:[...knownFacts,...audit.facts].slice(-55).map(f=>({id:f.id,firstYear:f.firstYear,nameEn:f.nameEn})),
-     allowedCauseIds:[...promptState.allowedCauseIds,...audit.events.map(e=>e.id)],
-     coverageReasons:worldReviewReasons(audit.events,events,window),
-     coverageAttempt:1};
-    const supplement=await propose(coverageState);
-    if(supplement&&typeof supplement==='object'){
-     const extra=auditBatch({proposal:supplement,window,
-      knownEvents:[...knownEvents,...audit.events],knownFacts:[...knownFacts,...audit.facts],actions,scenario:s+1});
-     audit.events.push(...extra.events);audit.facts.push(...extra.facts);
-     audit.rejected.push(...extra.rejected);
+   // On malformed/truncated provider output, subdivide this exact window.
+   // Successful earlier subdivisions are not regenerated or discarded.
+   await runAdaptiveWindow({
+    window:windows[w],signal,maxDepth:12,maxTasks:72,
+    onSplit:({children,window,reason})=>{
+     plannedWindows+=children-1;
+     onProgress({phase:'propagation',index:completedWindows,total:plannedWindows,scenario:s+1,window,reason,subdividing:true});
+    },
+    execute:async (window,{focus,depth})=>{
+     if(signal?.aborted)throw new MatrixError('ABORTED');
+     onProgress({phase:'propagation',index:completedWindows,total:plannedWindows,scenario:s+1,window,focus,depth});
+     const knownEvents=[...inherited.events,...events],knownFacts=[...inherited.facts,...facts];
+     const promptState={scenario:s+1,window,windowIndex:w,totalWindows:windows.length,
+      actions,propagationFocus:focus||null,
+      knownEvents:knownEvents.slice(-55).map(e=>({id:e.id,year:e.year,en:e.en,category:e.category,region:e.region,threadKey:e.threadKey,relationToIntervention:e.relationToIntervention})),
+      knownFacts:knownFacts.slice(-50).map(f=>({id:f.id,firstYear:f.firstYear,nameEn:f.nameEn})),
+      allowedCauseIds:[...actions.map(a=>a.id),...knownEvents.map(e=>e.id)],
+      realityCheckpoints:baseline.filter(e=>validYear(e.year)&&tick(e.year)>=tick(window.from)&&tick(e.year)<=tick(window.to))
+       .slice(0,12).map(e=>({year:e.year,en:e.en,category:e.category})),
+      worldwideCoverage:worldCoverage(events),
+      instructions:'Each candidate event must cite at least one existing causal ID or a prior event ID from the same batch. Use unique event IDs. Every fact has firstYear and may use derivedFrom. The returned events are hypotheses, never recorded historical facts.'};
+     let batch=await propose(copy(promptState));
+     if(!batch||typeof batch!=='object')throw new MatrixError('INVALID_WINDOW_RESPONSE');
+     let audit=auditBatch({proposal:batch,window,knownEvents,knownFacts,actions,scenario:s+1});
+     // Existing causal-repair stage remains in place.
+     if(!audit.events.length && safeList(batch.events).length){
+      const repaired=await propose({...copy(promptState),repairReasons:audit.rejected,repairAttempt:1});
+      if(repaired&&typeof repaired==='object')
+       audit=auditBatch({proposal:repaired,window,knownEvents,knownFacts,actions,scenario:s+1});
+     }
+     // Review a biased regional history without demanding invented milestones.
+     if(needsWorldReview(audit.events,events,window)&&!focus){
+      const coverageState={...copy(promptState),
+       knownEvents:[...knownEvents,...audit.events].slice(-65).map(e=>({id:e.id,year:e.year,en:e.en,category:e.category,region:e.region,threadKey:e.threadKey})),
+       knownFacts:[...knownFacts,...audit.facts].slice(-55).map(f=>({id:f.id,firstYear:f.firstYear,nameEn:f.nameEn})),
+       allowedCauseIds:[...promptState.allowedCauseIds,...audit.events.map(e=>e.id)],
+       coverageReasons:worldReviewReasons(audit.events,events,window),coverageAttempt:1};
+      const supplement=await propose(coverageState);
+      if(supplement&&typeof supplement==='object'){
+       const extra=auditBatch({proposal:supplement,window,
+        knownEvents:[...knownEvents,...audit.events],knownFacts:[...knownFacts,...audit.facts],actions,scenario:s+1});
+       audit.events.push(...extra.events);audit.facts.push(...extra.facts);
+       audit.rejected.push(...extra.rejected);
+      }
+     }
+     // Selection determines major-event salience only. Keep the FULL audited
+     // causal ledger, including quieter milestones and prerequisites.
+     const curated=curateWorldEvents(audit.events,{previous:events,maxEvents:9,
+      requiredEventIds:audit.facts.map(f=>f.derivedFrom).filter(Boolean)});
+     const salient=new Set(curated.events.map(e=>e.id));
+     const full=audit.events.map(e=>({...e,salient:salient.has(e.id)}));
+     events.push(...full);facts.push(...audit.facts);rejected.push(...audit.rejected);
+     snapshots.push({window,focus,accepted:full.length,major:salient.size,
+      rejected:audit.rejected.length,worldCoverage:worldCoverage([...events]),
+      summary:plain(batch.summary,900)});
+     completedWindows++;
+     return {window,accepted:full.length};
     }
-   }
-   const curated=curateWorldEvents(audit.events,{previous:events,maxEvents:9,
-    requiredEventIds:audit.facts.map(f=>f.derivedFrom).filter(Boolean)});
-   events.push(...curated.events);facts.push(...audit.facts);rejected.push(...audit.rejected);
-   snapshots.push({window,accepted:curated.events.length,omitted:curated.omitted.length,
-    rejected:audit.rejected.length,worldCoverage:curated.coverage,summary:plain(batch.summary,900)});
+   });
+  }
+  // Once all subdivided windows are assembled, independently revalidate
+  // every event, fact, cross-window causal edge and mutually exclusive claim.
+  const global=auditBatch({proposal:{events,facts},window:{from:firstYear,to:LAST_YEAR},
+   knownEvents:inherited.events,knownFacts:inherited.facts,actions,scenario:s+1});
+  if(global.events.length!==events.length||global.facts.length!==facts.length||global.rejected.length){
+   throw new MatrixError('GLOBAL_CAUSAL_AUDIT_FAILED',
+    `Rejected ${global.rejected.length} cross-window dependencies; no partial worldline committed`);
   }
   const trajectory={scenarioId:`scenario:${s+1}`,events,facts,rejected,snapshots};
   trajectory.audit=evaluateScenario(trajectory);
