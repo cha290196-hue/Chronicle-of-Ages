@@ -107,7 +107,7 @@ export async function callChat(config,messages,{signal,json=false,temperature=.3
   if(c.provider==='openrouter'&&typeof location!=='undefined')options.headers['HTTP-Referer']=location.origin;
   let response;
   try{response=await fetch(c.endpoint,options)}
-  catch(e){if(signal?.aborted)throw new DOMException('Aborted','AbortError');throw e}
+  catch(e){recordRequestUsage({provider:c.provider,model:c.model,purpose,success:false});if(signal?.aborted)throw new DOMException('Aborted','AbortError');throw e}
   if(!response.ok){
    let detail='',failurePayload=null;
    try{failurePayload=await response.json();detail=failurePayload?.error?.message||failurePayload?.message||''}catch{}
@@ -250,7 +250,7 @@ export function sanitizeWorldline(input){
  const scrubFact=f=>object(f)&&validYear(f.firstYear)&&toText(f.id)&&toText(f.nameEn)?{...f,id:truncate(f.id,100),nameEn:plain(f.nameEn),nameZh:plain(f.nameZh||f.nameEn),descriptionEn:plain(f.descriptionEn),descriptionZh:plain(f.descriptionZh),kind:truncate(f.kind,60)}:null;
  const gradual=input.timeMode==='gradual',end=gradual?nYear(input.transitionEndYear):input.anchorYear;
  if(!validYear(end)||end<input.anchorYear||(gradual&&end===input.anchorYear))return null;
- return {id:truncate(input.id,100),parentId:toText(input.parentId)||null,anchorYear:input.anchorYear,timeMode:gradual?'gradual':'point',transitionEndYear:end,timeBasisEn:truncate(input.timeBasisEn||'',320),timeBasisZh:truncate(input.timeBasisZh||'',320),prompt:truncate(input.prompt,2000),type:truncate(input.type||'historical_change',50),titleEn:plain(input.titleEn),titleZh:plain(input.titleZh||input.titleEn),summaryEn:plain(input.summaryEn),summaryZh:plain(input.summaryZh||input.summaryEn),createdAt:truncate(input.createdAt,40),events:input.events.slice(0,200).map(scrubEvent).filter(Boolean),facts:input.facts.slice(0,200).map(scrubFact).filter(Boolean),knowledge:list(input.knowledge).map(sanitizeKnowledge).filter(Boolean),inherited:{events:list(input.inherited?.events).slice(0,200).map(scrubEvent).filter(Boolean),facts:list(input.inherited?.facts).slice(0,200).map(scrubFact).filter(Boolean)},impacts:list(input.impacts).slice(0,8).map(x=>plain(x)),certainty:truncate(input.certainty||'medium',20),image:object(input.image)?{data:toText(input.image.data).slice(0,5_000_000),prompt:plain(input.image.prompt)}:null};
+ return {id:truncate(input.id,100),parentId:toText(input.parentId)||null,anchorYear:input.anchorYear,timeMode:gradual?'gradual':'point',transitionEndYear:end,timeBasisEn:truncate(input.timeBasisEn||'',320),timeBasisZh:truncate(input.timeBasisZh||'',320),prompt:truncate(input.prompt,2000),type:truncate(input.type||'historical_change',50),titleEn:plain(input.titleEn),titleZh:plain(input.titleZh||input.titleEn),summaryEn:plain(input.summaryEn),summaryZh:plain(input.summaryZh||input.summaryEn),createdAt:truncate(input.createdAt,40),events:input.events.slice(0,1500).map(scrubEvent).filter(Boolean),facts:input.facts.slice(0,1500).map(scrubFact).filter(Boolean),knowledge:list(input.knowledge).map(sanitizeKnowledge).filter(Boolean),inherited:{events:list(input.inherited?.events).slice(0,1500).map(scrubEvent).filter(Boolean),facts:list(input.inherited?.facts).slice(0,1500).map(scrubFact).filter(Boolean)},impacts:list(input.impacts).slice(0,8).map(x=>plain(x)),certainty:truncate(input.certainty||'medium',20),image:object(input.image)?{data:toText(input.image.data).slice(0,5_000_000),prompt:plain(input.image.prompt)}:null};
 }
 /**
  * The public simulation entry point used by app.js.
@@ -402,8 +402,17 @@ export async function generateImage({prompt,branch,config,signal}){
  const context=branch?`${branch.titleEn}. ${branch.summaryEn} Key historical features: ${branch.events.slice(-10).map(e=>e.en).join('; ')}.`:'Recorded Earth history';
  const payload={model:c.imageModel,prompt:`Illustrate this specific Earth timeline with historically and materially consistent details. ${context} Requested view: ${truncate(prompt,1100)}. Documentary visual treatment, no text labels.`,size:'1024x1024',n:1};
  const response=await fetch(c.imageEndpoint,{method:'POST',headers:{'content-type':'application/json',authorization:`Bearer ${c.imageKey}`},body:JSON.stringify(payload),signal});
- if(!response.ok){let msg='';try{msg=(await response.json())?.error?.message||''}catch{}throw new Error(`HTTP ${response.status}${msg?`: ${msg.slice(0,180)}`:''}`)}
- const json=await response.json(),image=json?.data?.[0];
+ if(!response.ok){
+  let msg='',failure=null;
+  try{failure=await response.json();msg=failure?.error?.message||''}catch{}
+  recordRequestUsage({provider:c.imageProvider,model:c.imageModel,channel:'image',purpose:'image-generation',success:false,payload:failure});
+  throw new Error(`HTTP ${response.status}${msg?`: ${msg.slice(0,180)}`:''}`);
+ }
+ let json;
+ try{json=await response.json()}
+ catch(e){recordRequestUsage({provider:c.imageProvider,model:c.imageModel,channel:'image',purpose:'image-generation',success:false});throw e}
+ recordRequestUsage({provider:c.imageProvider,model:c.imageModel,channel:'image',purpose:'image-generation',success:true,payload:json});
+ const image=json?.data?.[0];
  if(!image)throw new Error('EMPTY_RESPONSE');
  if(image.b64_json){const mime=/^image\/(png|jpeg|webp)$/.test(image.media_type||'')?image.media_type:'image/png';return {data:`data:${mime};base64,${image.b64_json}`,prompt:truncate(prompt,1000)}};
  if(image.url&&/^https:\/\//i.test(image.url))return {data:image.url,prompt:truncate(prompt,1000)};
