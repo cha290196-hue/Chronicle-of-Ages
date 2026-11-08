@@ -169,6 +169,14 @@ export async function callChat(config,messages,{signal,json=false,temperature=.3
  try{return await doCall({format:json})}
  catch(first){
   if(!json||signal?.aborted)throw first;
+  // A confirmed 8192-token cutoff in a PRIMARY history window cannot
+  // be made whole by another request with the SAME 8192-token ceiling.
+  // Its caller's adaptive time/region split is the lossless next step.
+  // Retain JSON retries for syntax/blank output, summaries, coverage and
+  // smaller requests that can still benefit from another completion.
+  if(c.provider==='deepseek'&&purpose==='simulation'&&stage==='historical-window'
+     &&first?.reason==='truncated'&&first?.finishReason==='length'
+     &&baseBody.max_tokens>=8192)throw first;
   const unsupportedFormat=first?.status===400||first?.status===422;
   const malformed=first?.message==='INVALID_JSON';
   if(!unsupportedFormat&&!malformed)throw first;
