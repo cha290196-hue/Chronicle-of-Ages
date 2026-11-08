@@ -1,4 +1,5 @@
 import { simulateOmega } from './chronicle-adapter.mjs';
+import {parseModelJSON,normalizeModelContent,ModelJSONError} from './structured-output.mjs';
 import {auditKnowledge,sanitizeKnowledge,summarizeKnowledge} from './exploration-knowledge.mjs';
 import {BASELINE,FIRST_YEAR,LAST_YEAR,PHYSICAL_CONSTANTS,validYear} from './data.js';
 
@@ -44,15 +45,7 @@ export function imageConfigured(c){return !!(c?.imageEnabled&&c?.imageEndpoint&&
 export function validEndpoint(value){
  try{const url=new URL(value);return url.protocol==='https:'||(url.protocol==='http:'&&['localhost','127.0.0.1','[::1]'].includes(url.hostname))}catch{return false}
 }
-export function extractJSON(content){
- if(object(content))return content;
- let text=String(content??'').trim();
- text=text.replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,'');
- try{return JSON.parse(text)}catch{}
- const left=text.indexOf('{'),right=text.lastIndexOf('}');
- if(left>=0&&right>left){try{return JSON.parse(text.slice(left,right+1))}catch{}}
- throw new Error('INVALID_JSON');
-}
+export function extractJSON(content){return parseModelJSON(content)}
 export function explainError(error,lang='en'){
  const code=String(error?.code||'');
  if(code==='NOT_AN_EDIT')return lang==='zh'?'这是历史问答，不是历史修改；请使用演算中枢进行提问。':'This is a history question, not an edit. Ask it in the Analysis Core.';
@@ -62,7 +55,15 @@ export function explainError(error,lang='en'){
   return lang==='zh'?'历史干预的时间、对象或约束不成立，请调整输入。':'The historical intervention contains an invalid time, target, or conflicting condition.';
  if(code==='INVALID_JSON'||code==='NO_VALID_TRAJECTORY')return lang==='zh'?'模型未能生成可通过因果校验的结果，请重新推演。':'The model could not produce a causally valid result. Try again.';
  if(error?.name==='AbortError'||error?.message==='ABORTED')return lang==='zh'?'推演已停止。':'Simulation stopped.';
- if(error?.message==='INVALID_JSON'||error?.message==='BAD_RESPONSE')return lang==='zh'?'模型返回格式无效，请重试或更换模型。':'The model returned invalid structured data. Try another model.';
+ if(error?.message==='INVALID_JSON'||error?.message==='BAD_RESPONSE'){
+  const reason=error?.reason;
+  if(lang==='zh')return reason==='truncated'?'模型的结构化结果被输出长度限制截断，自动重试后仍无法完整解析。请减少单次推演范围，或提高模型的最大输出容量。'
+   :reason==='empty'?'模型未返回有效的结构化内容，自动重试仍未解决。请检查该模型的 JSON 输出能力。'
+   :'模型返回了无法解析的结构化内容，系统已尝试自动恢复但未成功。API 连通并不意味着输出一定符合 JSON 格式。';
+  return reason==='truncated'?'The model JSON was truncated by its output limit, and automatic recovery failed. Reduce scope or increase available output tokens.'
+   :reason==='empty'?'The model returned no usable structured content even after retry.'
+   :'The model returned invalid structured content after automatic recovery attempts; API connectivity alone does not guarantee valid JSON.';
+ }
  if(error?.message==='INVALID_ENDPOINT')return lang==='zh'?'接口地址必须是 HTTPS（本机允许 HTTP）。':'Use an HTTPS API endpoint (HTTP allowed for localhost).';
  if(error?.message==='NOT_CONFIGURED')return lang==='zh'?'请先配置文本模型的接口、模型和密钥。':'Configure the text model endpoint, model and key first.';
  if(error?.message==='IMAGE_NOT_CONFIGURED')return lang==='zh'?'请先在设置中启用并填写生图模型配置。':'Enable and configure an image model in Settings first.';
@@ -73,27 +74,87 @@ export function explainError(error,lang='en'){
  if(/Failed to fetch|NetworkError|CORS|fetch failed/i.test(msg))return lang==='zh'?'无法连接模型。请检查网络、地址、服务商跨域支持及密钥。':'Cannot connect to the model. Check the network, endpoint, CORS support and API key.';
  return msg.slice(0,360);
 }
+/**
+ * OpenAI-compatible chat bridge shared by UCM-Ω and progressive discovery.
+ * A bad 200-OK JSON body is a model format problem, not an API connection problem.
+ * Recovery retries the JSON task once with a concise JSON-only instruction.
+ * Never accept a partially parsed JSON object as confirmed worldline data.
+ */
 export async function callChat(config,messages,{signal,json=false,temperature=.35,maxTokens=3200}={}){
  const c=safeConfig(config);
  if(!configured(c))throw new Error('NOT_CONFIGURED');
  if(!validEndpoint(c.endpoint))throw new Error('INVALID_ENDPOINT');
- const body={model:c.model,messages,temperature,max_tokens:maxTokens,stream:false};
- if(json)body.response_format={type:'json_object'};
- if(c.provider==='deepseek'){const think=!json&&maxTokens>256;body.thinking={type:think?'enabled':'disabled'};if(think)body.max_tokens=Math.max(maxTokens,8192)}
- const doCall=async(format)=>{
-  const options={method:'POST',headers:{'content-type':'application/json','authorization':`Bearer ${c.key}`},body:JSON.stringify(format?body:{...body,response_format:undefined}),signal};
-  if(c.provider==='openrouter')options.headers['HTTP-Referer']=location.origin;
+ const baseBody={model:c.model,messages,temperature,max_tokens:maxTokens,stream:false};
+ if(json)baseBody.response_format={type:'json_object'};
+ if(c.provider==='deepseek'){
+  const think=!json&&maxTokens>256;
+  baseBody.thinking={type:think?'enabled':'disabled'};
+  if(think)baseBody.max_tokens=Math.max(maxTokens,8192);
+ }
+ const doCall=async({format=json,recovery=false,previousFailure=null}={})=>{
+  const body={...baseBody};
+  if(!format)delete body.response_format;
+  if(recovery){
+   const retryNote='The previous reply did not produce a valid complete JSON object. Re-evaluate the original instructions and return ONE concise syntactically correct JSON object only. No markdown, preamble, commentary or code fences. Keep descriptive strings short and use empty arrays rather than inventing extra events or facts. All required keys must be present. Do not modify the original user intervention.';
+   body.messages=[...messages,{role:'user',content:retryNote}];
+   body.temperature=Math.min(Number.isFinite(temperature)?temperature:.35,.2);
+   if(previousFailure?.reason==='truncated'){
+    body.max_tokens=Math.min(8192,Math.max(maxTokens,Math.ceil(maxTokens*1.4)));
+   }
+  }
+  const options={method:'POST',headers:{'content-type':'application/json','authorization':`Bearer ${c.key}`},body:JSON.stringify(body),signal};
+  if(c.provider==='openrouter'&&typeof location!=='undefined')options.headers['HTTP-Referer']=location.origin;
   let response;
-  try{response=await fetch(c.endpoint,options)}catch(e){if(signal?.aborted)throw new DOMException('Aborted','AbortError');throw e}
-  if(!response.ok){let detail='';try{const err=await response.json();detail=err?.error?.message||err?.message||''}catch{}const ex=new Error(`HTTP ${response.status}${detail?`: ${detail.slice(0,220)}`:''}`);ex.status=response.status;throw ex}
+  try{response=await fetch(c.endpoint,options)}
+  catch(e){if(signal?.aborted)throw new DOMException('Aborted','AbortError');throw e}
+  if(!response.ok){
+   let detail='';
+   try{const err=await response.json();detail=err?.error?.message||err?.message||''}catch{}
+   const ex=new Error(`HTTP ${response.status}${detail?`: ${String(detail).slice(0,220)}`:''}`);
+   ex.status=response.status;
+   throw ex;
+  }
   const payload=await response.json();
-  let result=payload?.choices?.[0]?.message?.content;
-  if(Array.isArray(result))result=result.map(a=>a.text||'').join('\n');
-  if(!result&&payload?.choices?.[0]?.message?.refusal)throw new Error(payload.choices[0].message.refusal);
-  if(!result)throw new Error('EMPTY_RESPONSE');
-  return json?extractJSON(result):String(result);
+  const choice=payload?.choices?.[0];
+  const message=choice?.message||{};
+  let result=normalizeModelContent(message.content??message.text??choice?.text??payload?.output_text);
+  if(!result&&Array.isArray(payload?.output)){
+   result=payload.output.map(item=>normalizeModelContent(item?.content)).filter(Boolean).join('\n');
+  }
+  if(!result&&message.refusal)throw new Error(message.refusal);
+  if(!result){
+   if(!json)throw new Error('EMPTY_RESPONSE');
+   const err=new ModelJSONError(choice?.finish_reason==='length'?'truncated':'empty');
+   err.finishReason=choice?.finish_reason||null;
+   throw err;
+  }
+  if(!json)return result;
+  try{return extractJSON(result)}
+  catch(e){
+   if(e?.message!=='INVALID_JSON')throw e;
+   const err=e instanceof ModelJSONError?e:new ModelJSONError('non_json');
+   if(choice?.finish_reason==='length')err.reason='truncated';
+   err.finishReason=choice?.finish_reason||null;
+   throw err;
+  }
  };
- try{return await doCall(json)}catch(e){if(json&&(e?.status===400||e?.status===422)&&!signal?.aborted)return await doCall(false);throw e}
+ try{return await doCall({format:json})}
+ catch(first){
+  if(!json||signal?.aborted)throw first;
+  const unsupportedFormat=first?.status===400||first?.status===422;
+  const malformed=first?.message==='INVALID_JSON';
+  if(!unsupportedFormat&&!malformed)throw first;
+  // JSON-mode support varies across API-compatible providers. After one
+  // failure, retry without the strict response_format parameter.
+  try{return await doCall({format:false,recovery:true,previousFailure:first})}
+  catch(second){
+   if(second?.message==='INVALID_JSON'&&second instanceof ModelJSONError){
+    second.attempts=2;
+    if(first?.reason==='truncated'&&second.reason==='incomplete')second.reason='truncated';
+   }
+   throw second;
+  }
+ }
 }
 const CONTEXT=`You are a causal alternate-history simulation engine with a strict Earth-worldline ontology. The immutable reference world is recorded Earth history from the first known writing to 2026-01-01. Accept changes only if they (a) alter a recorded Earth historical phenomenon, (b) change an actual physical constant of this Earth's universe, or (c) explicitly introduce a fictional event ON EARTH at a grounded year in that chronological span (e.g. alien arrival on Earth in 1234). A fictional planet or unknown event elsewhere without an Earth anchor is not a valid edit. After a divergence, named entities and technologies invented by that branch become valid local knowledge and can be revised in later forks. Keep factual baseline distinct from branch assumptions. Propagate plausible causal consequences, respecting chronology, geography, technological prerequisites, demographics, institutional inertia, and uncertainty. Never present speculative results as documented historical fact. Avoid reintroducing baseline events automatically after divergence if no longer plausible. Respond with VALID JSON only, no markdown. Keep strings concise. Produce fields in English and Chinese where specified. All events must use integer historical years from -3200 to 2026; BCE years are negative, there is no year 0. The simulation ends on 2026-01-01.`;
 const YEAR_RE=/(?:公元前\s*|\bBCE?\s*)(\d{1,4})|\b(\d{3,4})\s*(?:AD|CE|年)?\b/gi;
