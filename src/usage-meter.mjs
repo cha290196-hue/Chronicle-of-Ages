@@ -127,7 +127,7 @@ export function meterRows(meter=readUsageMeter(),pricing=readUsagePricing()){
    officialDeepSeekMaxCny:row.deepseekMaxCny||0,
    officialDeepSeekExactCalls:row.deepseekExactCalls||0,
    officialDeepSeekBoundedCalls:row.deepseekBoundedCalls||0,
-   officialDeepSeekUnpricedCalls:officialDeepSeek?Math.max(0,row.meteredCalls-(row.deepseekPricedCalls||0)):0,
+   officialDeepSeekUnpricedCalls:officialDeepSeek?Math.max(0,row.calls-(row.deepseekPricedCalls||0)):0,
    configuredPrice:price,estimatedUnbilledUsd:estimated,
    combinedKnownUsd:row.providerCostUsd+(estimated??0),
    missingPrice:!officialDeepSeek&&!price&&(row.meteredCalls-row.providerCostCalls)>0
@@ -138,8 +138,9 @@ export function summarizeUsage(meter=readUsageMeter(),pricing=readUsagePricing()
  const rows=meterRows(meter,pricing);
  const estimate=rows.reduce((sum,r)=>sum+(r.estimatedUnbilledUsd??0),0);
  const deepseekRows=rows.filter(r=>r.officialDeepSeekTier);
- return {totals:clonePlain(meter.totals),rows,providerCostUsd:meter.totals.providerCostUsd,
-  estimatedUsd:estimate,coveredUsd:meter.totals.providerCostUsd+estimate,
+ const otherReportedUsd=rows.filter(r=>!r.officialDeepSeekTier).reduce((n,r)=>n+(r.providerCostUsd||0),0);
+ return {totals:clonePlain(meter.totals),rows,providerCostUsd:otherReportedUsd,
+  estimatedUsd:estimate,coveredUsd:otherReportedUsd+estimate,
   deepseekPricedCalls:deepseekRows.reduce((n,r)=>n+(r.deepseekPricedCalls||0),0),
   deepseekExactCalls:deepseekRows.reduce((n,r)=>n+r.officialDeepSeekExactCalls,0),
   deepseekBoundedCalls:deepseekRows.reduce((n,r)=>n+r.officialDeepSeekBoundedCalls,0),
