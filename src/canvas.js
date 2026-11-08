@@ -132,15 +132,18 @@ nodeActive(branchId,year){
   const rows=[{dy:-43,right:-999},{dy:70,right:-999},{dy:-83,right:-999},{dy:110,right:-999}];
   for(const group of clusters){
    const x=group.xSum/group.events.length,e=group.events[0],grouped=group.events.length>1;
+   // Keep terminal events independently clickable beside the world-selection tip.
+   const nodeY=Math.abs(x-this.x(LAST_YEAR))<26?y-28:y;
    const current=grouped?this.hover?.cluster===group.events:this.hover?.event?.id===e.id;
    const isActive=this.nodeActive(branchId,e.year);
    const radius=grouped?5.6:current?6:4;
    ctx.fillStyle='#fafaf9';ctx.strokeStyle=isActive?'#151515':'#aaa';ctx.lineWidth=current?2.7:grouped?2.3:1.9;
-   ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);ctx.fill();ctx.stroke();
-   if(!grouped){ctx.beginPath();ctx.arc(x,y,1.2,0,Math.PI*2);ctx.fillStyle=isActive?'#1d1d1d':'#bcbcbc';ctx.fill()}
-   this.hit.push(grouped?{x,y,cluster:group.events,branchId}:{x,y,event:e,branchId});
+   if(nodeY!==y){ctx.beginPath();ctx.moveTo(x,y-8);ctx.lineTo(x,nodeY+8);ctx.stroke()}
+   ctx.beginPath();ctx.arc(x,nodeY,radius,0,Math.PI*2);ctx.fill();ctx.stroke();
+   if(!grouped){ctx.beginPath();ctx.arc(x,nodeY,1.2,0,Math.PI*2);ctx.fillStyle=isActive?'#1d1d1d':'#bcbcbc';ctx.fill()}
+   this.hit.push(grouped?{x,y:nodeY,cluster:group.events,branchId}:{x,y:nodeY,event:e,branchId});
    if(grouped){
-    if(group.events.length>1){ctx.textAlign='center';ctx.textBaseline='bottom';ctx.font='600 9px system-ui';ctx.fillStyle=isActive?'#656563':'#b4b4b1';ctx.fillText(String(group.events.length),x,y-11)}
+    if(group.events.length>1){ctx.textAlign='center';ctx.textBaseline='bottom';ctx.font='600 9px system-ui';ctx.fillStyle=isActive?'#656563':'#b4b4b1';ctx.fillText(String(group.events.length),x,nodeY-11)}
     continue;
    }
    if(this.zoom<.14||x<12||x>this.width-12)continue;
