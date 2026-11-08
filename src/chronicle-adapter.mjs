@@ -2,8 +2,14 @@
  * Dependency-injected callChat and baseline keep the kernel independent of API vendors.
  */
 import {compileInterventions,runMatrix,toLegacyWorldline,MatrixError} from './ucm-omega.mjs';
+import {ModelJSONError} from './structured-output.mjs';
 
 const clip=(x,n=2000)=>String(x??'').slice(0,n);
+async function withPhase(phase,request){
+ try{return await request()}
+ catch(error){if(error&&typeof error==='object')error.phase=phase;throw error}
+}
+
 const SYSTEM = `You assist a counterfactual simulation of EARTH history, from earliest writing to 2026-01-01. The recorded baseline is immutable. Every altered worldline is complete from earliest writing to 2026, with pre-fork history inherited. Do not conflate user questions with edit requests. Fictional events ON EARTH are valid interventions, as are proposed physical-constant changes. A fictional extraterrestrial civilization becomes branch-local knowledge only after its Earth-anchored introduction. Never assert that a speculative scenario is recorded history. Dates are integer historical years -3200..-1 or 1..2026; there is NO year zero. Infer vague periods as intervals with explicit uncertainty; point inventions are not gradual merely because their date is vague. Never introduce a causal effect earlier than its cause. WORLD-FIRST RULE: the user's intervention changes the initial Earth state; it is NOT the narrative theme of the resulting centuries. Model Earth as a multi-region, multi-domain world with independent processes and only transmit intervention effects through defensible causal paths. Preserve autonomous developments where their preconditions plausibly survive. Historic events in the unedited baseline after the fork are comparisons, not automatically valid branch facts. Choose objectively important GLOBAL and REGIONAL historical milestones rather than repetitive headlines about the altered dynasty/person/event. Do not force a geographic quota or invent achievements to fill a map. Your output is internal JSON only.`;
 
 /**
@@ -21,10 +27,10 @@ export async function simulateOmega({prompt,branches=[],parentId=null,baseline=[
   facts:[...(parent.inherited?.facts||[]),...(parent.facts||[]),...(parent.knowledge||[])].slice(-55)
  }:{events:[],facts:[]};
  onProgress({phase:'validation',index:0,total:1});
- const interpretation=await callChat(config,[
+ const interpretation=await withPhase('validation',()=>callChat(config,[
   {role:'system',content:SYSTEM},
   {role:'user',content:`Classify user input into edit, question, or out_of_scope; only an edit may create a worldline. For an edit, atomize compound interventions, preserving their shared starting time and explicit dependencies. Distinguish modification kind (historical_change, earth_intrusion, physical_constant, branch_fact), temporal mechanism (point vs gradual), Earth anchoring, ambiguity, historical period, target and value. A historical date mentioned as a quantity of troops is NOT a timestamp. Support BCE before or after numeral, Chinese BCE/CE, relative dates, era endings and inferred historical dates; never write year 0. For an ambiguous historical period, give the inferred onset/year range and temporalBasis, marking inference in assumptions. Return JSON {"intent":"edit|question|out_of_scope","valid":boolean,"reasonEn":string,"reasonZh":string,"operations":[{"kind":"historical_change|earth_intrusion|physical_constant|branch_fact","scope":"earth|universe","mode":"point|gradual","startYear":integer,"endYear":integer,"target":string,"value":string|number|boolean|null,"units":string|null,"parentFactId":string|null,"description":string,"temporalBasis":string,"assumptions":[string]}]}. If point, endYear=startYear. Do not invent unsupported parent facts. User input: ${JSON.stringify(prompt)}. Newly inferred, audited parent worldline knowledge is valid branch-local context when chronologically established. Current selected parent: ${JSON.stringify(parent?{id:parent.id,anchorYear:parent.anchorYear,titleEn:parent.titleEn}:null)}. Parent-local records: ${JSON.stringify(knownLocal).slice(0,12500)}.`}
- ],{signal,json:true,maxTokens:1900,temperature:.15,purpose:'simulation'});
+ ],{signal,json:true,maxTokens:1900,temperature:.15,purpose:'simulation'}));
  if(interpretation?.intent!=='edit')throw new MatrixError(interpretation?.intent==='question'?'NOT_AN_EDIT':'OUT_OF_SCOPE',clip(lang==='zh'?interpretation?.reasonZh:interpretation?.reasonEn,160));
  if(interpretation?.valid===false)throw new MatrixError('ANCHOR_INVALID',clip(lang==='zh'?interpretation?.reasonZh:interpretation?.reasonEn,180));
  // Validation is repeated by runMatrix with the complete branch ancestry.
@@ -41,17 +47,44 @@ export async function simulateOmega({prompt,branches=[],parentId=null,baseline=[
    `This request is one partition of a larger, previously truncated window. Focus only on ${JSON.stringify(state.propagationFocus)} within the specified YEAR WINDOW. Other partitions will separately model the rest of Earth and the verified results will be merged with a global causal audit. Include all meaningful causal detail within THIS scope; do not create filler in other areas. Use unique meaningful event IDs for this scope.`:
    'Examine the whole evolving Earth across independent and interconnected regions and domains.';
   const user=`Propose counterfactual events for scenario ${state.scenario}, window [${state.window.from}, ${state.window.to}], segment ${state.windowIndex+1}/${state.totalWindows}. ${proposalContext}. You are advancing an entire alternative EARTH, not writing a sequel centered on the initial intervention. The initial intervention is fixed state, NOT a perpetual editorial focus. Interventions (do-operations): ${JSON.stringify(state.actions)}. Established prior-world events: ${JSON.stringify(previous)}. Established facts: ${JSON.stringify(knownFacts)}. Coverage of earlier world developments: ${JSON.stringify(state.worldwideCoverage)}. Recorded A-line events during THIS period, for comparison ONLY (not inherited post-fork facts): ${JSON.stringify(state.realityCheckpoints)}. ${scopedFocus} Consider East/South/West Asia, Europe, Africa, the Americas, Oceania, and global systems ONLY insofar as relevant to this scope; distinguish politics, economy, environment, population, science, technology and intercultural exchange. There is NO mandatory continent/category quota. Ask what would still develop without the initial change, what would diverge through direct/indirect causes, and what cannot be inferred. Do not name the intervention or its subject in every headline. Select only historically CONSEQUENTIAL changes, not dynasty trivia or minor filler. Each event must have a specific place/region and a stable thematic threadKey such as 'european-science' or 'ming-governance' (NOT always the original intervention); indicate significance as epochal|major|significant|moderate|minor, scope as global|transregional|regional|local and relationToIntervention as direct|indirect|independent|uncertain. INDEPENDENT events must derive causally from pre-fork history or earlier autonomous events, NOT from the new intervention or its descendants. If an independent process cannot be causally justified, do not assert it. Valid causal reference IDs: ${JSON.stringify(state.allowedCauseIds.slice(-90))}. Every event needs a unique id and causes containing real reference IDs from that list or an earlier event in THIS batch; never invent a cause reference or cite a future cause. Do not automatically copy any real-world post-fork milestone: check whether its causal preconditions still hold; an altered outcome may have a different year or may not occur. Event year must be within the inclusive window, never 0. A quiet window may legitimately yield no major events. Technologies need requires with existing fact IDs or new batch facts, else disclose assumptions. Physical-constant counterfactuals must not assert numerically precise physics without a verified quantitative model. This is candidate JSON for deterministic audit, not confirmed history. ${repair} ${coverageReview} Return JSON {"events":[{"id":string,"year":integer,"en":string,"zh":string,"descriptionEn":string,"descriptionZh":string,"category":"science|technology|culture|governance|exploration|conflict|society|other","region":string,"threadKey":string,"scope":"global|transregional|regional|local","significance":"epochal|major|significant|moderate|minor","relationToIntervention":"direct|indirect|independent|uncertain","certainty":"high|medium|low","causes":[string],"requires":[string],"assumptions":[string]}],"facts":[{"id":string,"firstYear":integer,"nameEn":string,"nameZh":string,"kind":string,"certainty":"high|medium|low","derivedFrom":string|null,"exclusiveKey":string|null,"value":string|null}],"summary":string}.`;
-  return await callChat(config,[{role:'system',content:SYSTEM},{role:'user',content:user}],{signal,json:true,maxTokens:4300,temperature:state.repairAttempt?.25:(state.coverageAttempt?.42:.48),purpose:'simulation'});
+  return await withPhase('propagation',async()=>{
+   const response=await callChat(config,[{role:'system',content:SYSTEM},{role:'user',content:user}],
+    {signal,json:true,maxTokens:4300,temperature:state.repairAttempt?.25:(state.coverageAttempt?.42:.48),purpose:'simulation'});
+   if(!response||typeof response!=='object'||!('events' in response)&&!('facts' in response))
+    throw new ModelJSONError('invalid_schema');
+   return response;
+  });
  };
  const result=await runMatrix({baseline,branches,parentId,interpretation,propose,scenarioCount,maxWindows,signal,onProgress});
  onProgress({phase:'synthesis',index:1,total:1});
  const best=result.preferred;
  // The natural-language synthesis has no rigid user-facing template. It is only
  // structured for storage in the existing bilingual branch metadata schema.
- const synthesis=await callChat(config,[
+ let synthesis;
+ try{synthesis=await withPhase('synthesis',()=>callChat(config,[
   {role:'system',content:SYSTEM},
   {role:'user',content:`Summarize the preferred scenario for a reader of a historical worldline viewer. You are describing the entire alternative Earth, not the initial intervention alone. The initial user intervention is the fork, not the exclusive topic of the following centuries. Reflect major political, scientific, social, economic and environmental developments across regions based ONLY on supported selected events, rather than repeatedly referring to the intervention. Respond faithfully to the user's intervention in the given language, with natural clear prose, not an imposed section template. Do not claim forecasts as fact. Distinguish user premises, modeled consequences and unresolved assumptions. Do not claim a numeric probability. Maintain consistency across the whole worldline through 2026-01-01. Return JSON {"titleEn":string,"titleZh":string,"summaryEn":string,"summaryZh":string,"impacts":[string]}. Interventions: ${JSON.stringify(result.actions)}. Audited events: ${JSON.stringify(best.events).slice(0,17000)}. Unresolved/rejected candidates: ${JSON.stringify(best.rejected).slice(0,2500)}. Continuity assessment: ${JSON.stringify(best.audit)}.`}
- ],{signal,json:true,maxTokens:2400,temperature:.25,purpose:'simulation'});
+ ],{signal,json:true,maxTokens:2400,temperature:.25,purpose:'simulation'}));
+  if(!clip(synthesis?.summaryEn,200).trim()&&!clip(synthesis?.summaryZh,200).trim())
+   throw Object.assign(new ModelJSONError('invalid_schema'),{phase:'synthesis'});
+ }catch(error){
+  if(error?.code!=='MODEL_JSON_INVALID'||signal?.aborted)throw error;
+  // The expensive historical ledger is already fully audited. Recover ONLY
+  // the short presentation metadata without regenerating any historical years.
+  // These two independently smaller objects use the same audited evidence.
+  const evidence=`Interventions: ${JSON.stringify(result.actions)}. Audited history: ${JSON.stringify(best.events).slice(0,17000)}. Window summaries: ${JSON.stringify(best.snapshots).slice(0,6500)}. Unresolved issues: ${JSON.stringify(best.audit)}.`;
+  const titles=await withPhase('synthesis',()=>callChat(config,[
+   {role:'system',content:SYSTEM},
+   {role:'user',content:`Produce historically precise, natural bilingual titles for this single fully audited Earth worldline, using ONLY the evidence. No invented events. Return JSON with exactly {"titleEn":string,"titleZh":string}. ${evidence}`}
+  ],{signal,json:true,maxTokens:900,temperature:.2,purpose:'simulation'}));
+  const narrative=await withPhase('synthesis',()=>callChat(config,[
+   {role:'system',content:SYSTEM},
+   {role:'user',content:`Write accurate bilingual worldline overviews of the full audited Earth history, covering global scientific, political, economic, social and environmental change where supported. No forced headings or invented facts. Distinguish uncertainty naturally. Return JSON with {"summaryEn":string,"summaryZh":string,"impacts":[string]}. ${evidence}`}
+  ],{signal,json:true,maxTokens:3600,temperature:.25,purpose:'simulation'}));
+  if(!clip(narrative?.summaryEn,200).trim()&&!clip(narrative?.summaryZh,200).trim())
+   throw Object.assign(new ModelJSONError('invalid_schema'),{phase:'synthesis'});
+  synthesis={...titles,...narrative};
+ }
  const world=toLegacyWorldline(result,{id:makeId(),parentId:parent?.id??null,prompt,
   titleEn:clip(synthesis.titleEn||result.actions[0].description,90),titleZh:clip(synthesis.titleZh||synthesis.titleEn||prompt,90),
   summaryEn:clip(synthesis.summaryEn,2400),summaryZh:clip(synthesis.summaryZh||synthesis.summaryEn,2400)});
