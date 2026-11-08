@@ -8,6 +8,9 @@ export function renderUsageDashboard({lang='en',provider='custom',model=''}={}){
  const summary=summarizeUsage(),tot=summary.totals,rows=summary.rows;
  const price=getUsagePrice(provider,model,'text');
  const size=Math.max(1,...rows.map(r=>r.totalTokens));
+ const hasReportedCost=tot.providerCostCalls>0;
+ const hasRateEstimate=rows.some(r=>r.configuredPrice&&r.meteredCalls>r.providerCostCalls);
+ const hasPriced=hasReportedCost||hasRateEstimate;
  const modelRows=rows.slice(0,15).map(r=>`<div class="usage-model-row">
   <div class="usage-model-head"><strong title="${h(r.model)}">${h(r.model)}</strong><span>${fmt(r.calls,lang)} ${u('次','calls')}</span></div>
   <div class="usage-model-rail"><span style="width:${Math.max(2,100*r.totalTokens/size).toFixed(1)}%"></span></div>
@@ -22,9 +25,9 @@ export function renderUsageDashboard({lang='en',provider='custom',model=''}={}){
    <div class="usage-metric"><span>${u('有用量 / 无记录','Metered / unknown')}</span><strong class="usage-small-value">${fmt(tot.meteredCalls,lang)} / ${fmt(tot.unmeteredCalls,lang)}</strong></div>
   </div>
   <div class="usage-costs">
-   <div><span>${u('服务商报告费用','Provider-reported cost')}</span><strong>${usd(summary.providerCostUsd)}</strong></div>
-   <div><span>${u('按自填单价估算','Custom-rate estimate')}</span><strong>${usd(summary.estimatedUsd)}</strong></div>
-   <div><span>${u('可统计部分合计','Known-priced subtotal')}</span><strong>${usd(summary.coveredUsd)}</strong></div>
+   <div><span>${u('服务商报告费用','Provider-reported cost')}</span><strong>${hasReportedCost?usd(summary.providerCostUsd):'—'}</strong></div>
+   <div><span>${u('按自填单价估算','Custom-rate estimate')}</span><strong>${hasRateEstimate?usd(summary.estimatedUsd):'—'}</strong></div>
+   <div><span>${u('可统计部分合计','Known-priced subtotal')}</span><strong>${hasPriced?usd(summary.coveredUsd):'—'}</strong></div>
   </div>
   <p class="usage-disclaimer">${u('仅统计当前浏览器启用此功能后的请求（包括重试和失败）。Token 数来自服务商返回的 usage，缺失不猜测；费用不是服务商账单。无单价的模型或图像请求可能无法估价。','Tracks this browser since feature activation, including retries and failures. Tokens use provider usage reports only. This is not a provider bill; missing usage, rates and image costs remain unknown.')}</p>
   <div class="usage-pricing">
