@@ -40,3 +40,27 @@
 
 - `tests/usage-dashboard-adaptive.test.mjs`：验证 Token 来源、用量缺失处理、手动费率、服务商报告费用优先级、重试计数、完整 JSON 但输出被截断的处理、按年份/地区/领域细分、窗口合并、保留全部审查事件和最低范围失败时明确报错。
 - 既有 UCM-Ω、世界线继承与演算中枢测试保持可用。
+
+## 5. DeepSeek 官方自动计费（2026-11-08）
+
+针对直接使用 `https://api.deepseek.com` 的模型请求，设置中的用量仪表盘无需再手动填写价格。仅当实际接口域名是 `api.deepseek.com` 且模型名匹配 `deepseek-flash`（包含官方仍接受的 V4 Flash 别名）或 `deepseek-v4-pro` 时，自动应用官方 DeepSeek 计费表；第三方代理、OpenRouter 和不明模型仍按原有独立计费规则处理。
+
+**官方价格：人民币/百万 Token。**
+
+| 型号 | 时段 | 输入命中缓存 | 输入未命中缓存 | 输出 |
+|---|---|---:|---:|---:|
+| deepseek-flash | 空闲 | ¥0.02 | ¥1 | ¥4 |
+| deepseek-flash | 高峰 | ¥0.04 | ¥2 | ¥8 |
+| deepseek-v4-pro | 空闲 | ¥0.15 | ¥4.5 | ¥13.5 |
+| deepseek-v4-pro | 高峰 | ¥0.30 | ¥9 | ¥27 |
+
+时段使用服务器请求记录时间转换为北京时间（UTC+8），高峰为中国法定节假日之外的周一至周五 09:00–12:00 和 14:00–18:00，其他时间为空闲时段。2026 年法定节假日以国务院办公厅正式安排为准。2027 年及以后尚未验证节假日日历时，界面会注明这部分规则尚需核实。官方价格可能调整，以上为**2026-11-08 核对的价格快照**，应定期对照官方网站。
+
+每次请求的计算公式：
+`人民币费用 = (缓存命中输入 Token × 命中价 + 缓存未命中输入 Token × 未命中价 + 输出 Token × 输出价) / 1,000,000`。
+
+用量读取 DeepSeek 官方 `usage.prompt_cache_hit_tokens` / `usage.prompt_cache_miss_tokens`，也支持 `usage.prompt_tokens_details.cached_tokens`。如果缓存明细缺失，界面给出“全部命中缓存”至“全部未命中缓存”的费用**区间**，不假称存在精确账单；如果输入或输出 Token 数缺失，则无法算出该次金额。浏览器历史记录只保留有限的逐请求时间戳；更早的累计 Token 没有时间及缓存详情时，不得凭空反算精确费用。
+
+仪表盘现在显示 **DeepSeek 官方价格人民币测算**，且按当前 DeepSeek 模型显示三项实时档位；手动美元单价仅保留给非官方 DeepSeek 的其他服务商。不同币种不会被合计。该值为根据官方定价的费用测算，不是服务商账户真实扣款金额，也不包括客户端未实际记录的其他 API 调用。
+
+来源：[DeepSeek 模型与价格](https://api-docs.deepseek.com/zh-cn/quick_start/pricing/)、[DeepSeek API 用量说明](https://api-docs.deepseek.com/zh-cn/api/create-chat-completion/)、[2026 年节假日正式安排](https://www.gov.cn/zhengce/content/202511/content_7047090.htm)。
