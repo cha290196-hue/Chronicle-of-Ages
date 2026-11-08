@@ -52,7 +52,18 @@ function persist(){
  try{const data={version:1,lang:state.lang,branches:state.branches,activeId:state.activeId,chats:state.chats,baselineKnowledge:state.baselineKnowledge};localStorage.setItem(STATE_KEY,JSON.stringify(data));return true}catch{notify(tr('errStorage'),true);return false}
 }
 function persistConfig(){const c={...config};if(!c.remember){delete c.key;delete c.imageKey}localStorage.setItem(CONFIG_KEY,JSON.stringify(c));for(const [name,key] of [['chronicle-key',config.key],['chronicle-image-key',config.imageKey]]){if(!config.remember&&key)sessionStorage.setItem(name,key);else sessionStorage.removeItem(name)}}
-function notify(message,error=false){const old=$('toast');if(old)old.remove();const div=document.createElement('div');div.className=`toast${error?' error':''}`;div.id='toast';div.setAttribute('role',error?'alert':'status');div.textContent=message;document.body.appendChild(div);clearTimeout(toastTimer);toastTimer=setTimeout(()=>div.remove(),3800)}
+function notify(message,error=false){
+ const old=$('toast');if(old)old.remove();
+ const div=document.createElement('div');div.className=`toast${error?' error persistent':''}`;div.id='toast';div.setAttribute('role',error?'alert':'status');
+ div.textContent=message;
+ if(error){
+  const dismiss=document.createElement('button');dismiss.type='button';dismiss.className='toast-dismiss';
+  dismiss.textContent='×';dismiss.setAttribute('aria-label',state.lang==='zh'?'关闭错误提示':'Dismiss error');
+  dismiss.addEventListener('click',()=>div.remove());div.appendChild(dismiss);
+ }
+ document.body.appendChild(div);clearTimeout(toastTimer);
+ if(!error)toastTimer=setTimeout(()=>div.remove(),3800);
+}
 function mount(){
  document.documentElement.lang=state.lang;
  root.innerHTML=`<div class="shell"><header class="topbar"><div class="logo"><img class="logo-mark" src="./assets/app-icon.png?v=20261107alpha" width="38" height="38" alt="Chronicle of Ages"><div class="logo-type"><div class="logo-name">CHRONICLE OF AGES</div><div class="logo-sub" id="logo-sub"></div></div></div><div class="topdivider"></div><div class="breadcrumb" id="breadcrumb"></div><div class="spacer"></div><div class="top-tools"><div class="top-right-dot"></div><button class="text-button" data-action="export" title="Export">${icon('download',15)}<span id="export-label"></span></button><button class="icon-button" data-action="theme" id="theme-button" type="button"></button><button class="text-button" data-action="settings" id="settings-button" title="Settings">${icon('settings',15)}<span id="settings-label"></span></button><div class="lang-switch" role="group" aria-label="Language"><button data-action="language" data-value="en" id="lang-en">EN</button><button data-action="language" data-value="zh" id="lang-zh">中</button></div><button class="text-button" data-action="fullscreen" id="fullscreen-button" title="Fullscreen">${icon('expand',15)}<span id="fullscreen-label"></span></button></div></header>

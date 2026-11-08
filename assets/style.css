@@ -314,3 +314,8 @@ html[data-theme="dark"] .backdrop{background:rgba(235,235,235,.36)}
 .usage-source-row a{color:#555;text-decoration:underline;text-underline-offset:3px}
 .usage-source-row a:hover{color:#171716}
 @media(max-width:470px){.usage-official-rates{gap:5px}.usage-official-rates>div{padding:10px 6px}.usage-official-rates strong{font-size:13px}.usage-official-rates span{font-size:8px}}
+
+/* Persistent, dismissible diagnostic notifications: never hide a model failure at 3.8 s. */
+.toast.persistent{display:flex;align-items:flex-start;gap:14px;line-height:1.7;max-width:min(640px,calc(100vw - 28px));max-height:min(48dvh,320px);overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;padding:15px 13px 15px 18px}
+.toast-dismiss{color:inherit;background:transparent;border:1px solid #7778;border-radius:4px;min-width:27px;min-height:27px;font-size:19px;line-height:1;cursor:pointer;margin:-4px -2px 0 0;flex:0 0 auto}
+.toast-dismiss:hover,.toast-dismiss:focus-visible{background:#fff2;outline-color:#fff}

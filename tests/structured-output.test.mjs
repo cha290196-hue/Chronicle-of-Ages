@@ -49,7 +49,7 @@ test('200 OK with natural-language model text recovers with a single concise JSO
   assert.equal(bodies.length,2);
   assert.equal(bodies[0].response_format.type,'json_object');
   assert.equal('response_format' in bodies[1],false,'fallback for API providers with incompatible JSON mode');
-  assert.match(bodies[1].messages.at(-1).content,/ONE concise syntactically correct JSON object/);
+  assert.match(bodies[1].messages.at(-1).content,/ONE complete syntactically correct JSON object/);
   assert.equal(bodies[1].temperature,.2);
  }finally{globalThis.fetch=prev}
 });
