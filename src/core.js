@@ -52,6 +52,10 @@ export function validEndpoint(value){
 export function extractJSON(content){return parseModelJSON(content)}
 export function explainError(error,lang='en'){
  const code=String(error?.code||'');
+ if(code==='INTAKE_MODEL_INVALID'){
+  const cause=String(error.causeCode||'INTAKE_INVALID');
+  return (lang==='zh'?'模型对输入的解析在自动修正后仍未通过检查，请重试；这不表示你的历史设想无效。':'The model could not encode the input after automatic repair. Retry; this does not establish that your premise is invalid.')+' ['+cause+']';
+ }
  if(code==='AUTOCOMPLETE_INCOMPLETE')return lang==='zh'?'模型未能完成自动补全，请重试或关闭自动补全后手动填写条件。':'The model could not complete the missing premises. Retry or turn off auto-completion to specify them.';
  if(['INTERVENTION_REJECTED','INTERVENTION_CLARIFY','INTERVENTION_NEGLIGIBLE','UNSUPPORTED_CAUSAL_BRIDGE','INTAKE_INVALID','UNSUPPORTED_PHYSICAL_MODEL','EXPLICIT_YEAR_MISMATCH'].includes(code)){
   const defaults={INTERVENTION_REJECTED:['该输入无法建立有依据的地球历史分叉。','This input cannot establish a supported Earth-history divergence.'],
@@ -70,8 +74,9 @@ export function explainError(error,lang='en'){
  if(code==='NOT_AN_EDIT')return lang==='zh'?'这是历史问答，不是历史修改；请使用演算中枢进行提问。':'This is a history question, not an edit. Ask it in the Analysis Core.';
  if(code==='OUT_OF_SCOPE'||code==='NOT_EARTH_ANCHORED')return lang==='zh'?'请输入以地球历史为起点的修改。':'Provide an edit anchored in Earth history.';
  if(code==='ANCHOR_PRECEDES_PARENT')return lang==='zh'?'修改不能早于选中世界线的分叉点。':'The edit cannot predate the selected worldline fork.';
- if(['ANCHOR_INVALID','INVALID_YEAR','INVALID_TIME_RANGE','UNKNOWN_BRANCH_FACT','UNKNOWN_BRANCH_FACT_AT_ANCHOR','CONTRADICTORY_INTERVENTIONS','EMPTY_OR_EXCESSIVE_INTERVENTION'].includes(code))
-  return lang==='zh'?'历史干预的时间、对象或约束不成立，请调整输入。':'The historical intervention contains an invalid time, target, or conflicting condition.';
+ if(code==='INVALID_YEAR')return lang==='zh'?'年份须在公元前3200年至2026年之间，且不存在公元0年。':'Years must be within 3200 BCE–2026 CE; there is no year zero.';
+ if(['ANCHOR_INVALID','INVALID_TIME_RANGE','UNKNOWN_BRANCH_FACT','UNKNOWN_BRANCH_FACT_AT_ANCHOR','CONTRADICTORY_INTERVENTIONS','EMPTY_OR_EXCESSIVE_INTERVENTION','UNKNOWN_INTERVENTION_KIND','INVALID_TIME_MODE','MISSING_TARGET'].includes(code))
+  return (lang==='zh'?'干预的时间或事实引用未通过检查，请查看检查详情。':'The intervention time or fact reference failed validation. See admission details.')+' ['+code+']';
  if(code==='NO_VALID_TRAJECTORY')return lang==='zh'?'模型未能生成可通过因果校验的结果，请重新推演。':'The model could not produce a causally valid result. Try again.';
  if(['WINDOW_EXPANSION_LIMIT','WINDOW_SCOPE_TOO_DENSE'].includes(code))
   return lang==='zh'?'该历史时段已自动按时间、地区和领域拆分，但当前模型仍无法完整生成某个子任务。系统没有用空数据替代历史，请检查模型输出上限或换用容量更高的模型。':'The engine split this historical period by time, region and domain, but the model still could not complete a subsection. No partial or empty history was substituted; check the output capacity.';
