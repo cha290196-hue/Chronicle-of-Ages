@@ -55,6 +55,7 @@ export function auditKnowledge({candidates=[],existing=[],events=[],makeId,quest
  const accepted=[],rejected=[],duplicates=[];
  const known=list(existing);
  const allowedIds=new Set([...known,...list(events)].map(x=>String(x.id)));
+ const records=new Map([...known,...list(events)].map(x=>[String(x.id),x]));
  for(const [index,raw] of list(candidates).slice(0,Math.min(28,limit*2)).entries()){
   if(!isObject(raw)||raw?.relevant===false){rejected.push({index,reason:'IRRELEVANT'});continue}
   const firstYear=raw.firstYear,validUntil=raw.validUntil??firstYear;
@@ -67,6 +68,9 @@ export function auditKnowledge({candidates=[],existing=[],events=[],makeId,quest
   const refs=list(raw.evidenceIds).map(String);
   if(refs.some(x=>!allowedIds.has(x))){
    rejected.push({index,reason:'UNKNOWN_EVIDENCE'});continue
+  }
+  if(refs.some(id=>{const r=records.get(id);const y=r?.year??r?.firstYear;return validYear(y)&&tick(y)>tick(firstYear)})){
+   rejected.push({index,reason:'EVIDENCE_IN_FUTURE'});continue
   }
   if(!refs.length&&!clip(raw.basis,420)){
    rejected.push({index,reason:'NO_CAUSAL_BASIS'});continue

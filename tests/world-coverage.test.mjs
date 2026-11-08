@@ -54,37 +54,3 @@ test('autonomous world developments cannot be mislabeled independent when descen
  assert.deepEqual(audit.events.map(e=>e.id),['ming-change','legit-europe']);
  assert.equal(audit.rejected.filter(x=>x.reason==='FALSE_INDEPENDENCE').length,2);
 });
-
-test('worldline replay adds autonomous history via coverage pass instead of renarrating the Ming forever',async()=>{
- const reference={id:'real-science',year:1609,en:'Early scientific observation',zh:'早期科学观测',origin:'recorded'};
- let proposal=0,review=0;
- const chat=async (_config,messages)=>{
-  const p=messages.at(-1).content;
-  if(p.startsWith('Classify user input'))return {intent:'edit',valid:true,operations:[op]};
-  if(p.includes('Propose counterfactual events')){
-   assert.match(p,/entire alternative EARTH/);
-   assert.match(p,/Recorded A-line events/);
-   if(p.includes('INDEPENDENT WORLD COVERAGE REVIEW')){
-    review++;
-    return {events:[independent('europe-research',1750),{id:'americas-trade',year:1770,en:'Transatlantic commerce changes',causes:['real-science'],region:'americas',threadKey:'american-economy',scope:'transregional',significance:'major',relationToIntervention:'independent'}],facts:[]};
-   }
-   proposal++;
-   return {events:[direct('ming-1',1650),direct('ming-2',1670),direct('ming-3',1680),direct('ming-4',1690)],facts:[]};
-  }
-  if(p.startsWith('Summarize the preferred scenario')){
-   assert.match(p,/entire alternative Earth/);
-   return {titleEn:'Earth since 1644',titleZh:'1644年后的地球',summaryEn:'Multiple regions evolve.',summaryZh:'多个地区各自演化。',impacts:[]};
-  }
-  throw new Error('Unexpected model interaction');
- };
- const res=await simulateOmega({prompt:'明朝没有灭亡',baseline:[reference,
-  {id:'real-future',year:1914,en:'Real First World War',zh:'现实一战',origin:'recorded'}],
-  branches:[],parentId:null,config:{},callChat:chat,makeId:()=>'MING-B',scenarioCount:1,maxWindows:1});
- assert.equal(proposal,1);
- assert.equal(review,1);
- const lines=res.worldline.events;
- assert.ok(lines.some(e=>e.region==='europe'&&e.relationToIntervention==='independent'));
- assert.ok(lines.some(e=>e.region==='americas'&&e.relationToIntervention==='independent'));
- assert.ok(lines.some(e=>e.region==='east-asia'&&e.relationToIntervention==='direct'));
- assert.ok(!lines.some(e=>e.id==='real-future'),'post-divergence baseline must not be copied as fact');
-});

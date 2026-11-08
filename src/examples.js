@@ -392,8 +392,8 @@ export const EXAMPLES = [
     "en": "What if practical mechanical clocks had appeared in East Asia by 1000 CE?"
   },
   {
-    "zh": "如果公元1500年引力常数增加百分之一？",
-    "en": "What if the gravitational constant had increased by one percent in 1500?"
+    "zh": "如果公元1500年西班牙和葡萄牙停止资助大西洋探险？",
+    "en": "What if Spain and Portugal had stopped funding Atlantic expeditions in 1500?"
   },
   {
     "zh": "如果公元1900年人类发现一种新的高效储能材料？",

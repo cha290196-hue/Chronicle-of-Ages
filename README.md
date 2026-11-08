@@ -158,3 +158,6 @@ Architecture and interface patterns were informed by the following materials; im
 ---
 
 <div align="center"><sub>CHRONICLE OF AGES &nbsp; / &nbsp; UNIFIED COMPUTATION MATRIX</sub></div>
+## Stateful simulation
+
+The production engine is **UCM-Ω/2**: intervention admission, a global pre-fork state independent of display milestones, autonomous regional processes, chronological transitions, causal constraints and independent review. Milestones are selected from accepted ledger events. The Analysis Core plans focused inferences, checks new conditional knowledge and stores it in the selected worldline. Archive format 2 preserves causal records and reads older archives. See the [engine specification and primary research](docs/ENGINE.md) for methods, costs and evidence limits.

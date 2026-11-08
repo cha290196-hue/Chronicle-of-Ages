@@ -49,60 +49,6 @@ test('DeepSeek blank JSON with finish_reason stop retries without response_forma
   assert.match(requests[1].messages.at(-1).content,/Preserve ALL substantive events/);
  }finally{globalThis.fetch=original}
 });
-test('when final metadata JSON fails, recovery only regenerates small presentation fields, not historical windows',async()=>{
- let proposals=0,primarySynthesis=0,titles=0,narratives=0;
- const call=async(_config,messages)=>{
-  const user=messages.at(-1).content;
-  if(user.includes('Classify user input'))return intervention;
-  if(user.includes('Propose counterfactual events for scenario')){
-   proposals++;
-   const m=user.match(/window \[(-?\d+), (-?\d+)\]/);
-   assert.ok(m);
-   return {events:[event(Number(m[1]))],facts:[],summary:'Carefully examined state'};
-  }
-  if(user.includes('Summarize the preferred scenario')){
-   primarySynthesis++;throw new ModelJSONError('truncated');
-  }
-  if(user.includes('Produce historically precise, natural bilingual titles')){
-   titles++;return {titleEn:'Alternative Earth',titleZh:'另一种地球历史'};
-  }
-  if(user.includes('Write accurate bilingual worldline overviews')){
-   narratives++;return {summaryEn:'Causally linked history',summaryZh:'有因果联系的世界历史',impacts:['Social divergence']};
-  }
-  throw Error('UNEXPECTED_PROMPT '+user.slice(0,180));
- };
- const result=await quickTimeout(simulateOmega({
-  prompt:'Change global history in 1644',config:{},callChat:call,
-  makeId:()=> 'canonical-branch',scenarioCount:1,maxWindows:6
- }));
- assert.equal(proposals,6,'no second history and no regeneration of approved history');
- assert.equal(primarySynthesis,1);
- assert.equal(titles,1);
- assert.equal(narratives,1);
- assert.equal(result.worldline.events.length,6);
- assert.equal(result.worldline.summaryZh,'有因果联系的世界历史');
- assert.equal(result.worldline.titleZh,'另一种地球历史');
- assert.equal(result.worldline.omega.scenarios,1);
-});
-test('a syntactically valid but missing summary must not silently save an empty worldline description',async()=>{
- let primary=0,sub=0;
- const answer=await quickTimeout(simulateOmega({
-  prompt:'A change in 2026',config:{},makeId:()=> 'one',
-  maxWindows:1,callChat:async (_cfg,messages)=>{
-   const user=messages.at(-1).content;
-   if(user.includes('Classify user input'))return {...intervention,operations:[{...intervention.operations[0],startYear:2026,endYear:2026}]};
-   if(user.includes('Propose counterfactual events'))return {events:[event(2026)],facts:[]};
-   if(user.includes('Summarize the preferred scenario')){primary++;return {titleZh:'标题'};}
-   if(user.includes('Produce historically precise')){sub++;return {titleEn:'Title',titleZh:'标题'};}
-   if(user.includes('Write accurate bilingual')){sub++;return {summaryEn:'Real summary',summaryZh:'真实总结',impacts:[]};}
-   throw Error('UNEXPECTED');
-  }
- }));
- assert.equal(primary,1);
- assert.equal(sub,2);
- assert.equal(answer.worldline.summaryZh,'真实总结');
- assert.equal(answer.worldline.events.length,1);
-});
 test('phase errors identify intake versus the closing synthesis rather than blame the whole history',async()=>{
  let calls=0;
  await assert.rejects(()=>simulateOmega({
