@@ -298,3 +298,19 @@ html[data-theme="dark"] .backdrop{background:rgba(235,235,235,.36)}
 .usage-clear{border:0;background:none;font:10px var(--mono);color:#84847f;text-decoration:underline;padding:5px;white-space:nowrap}
 .usage-clear:hover{color:#171715}
 @media(max-width:470px){.usage-metric{padding:12px 10px}.usage-metric>strong{font-size:20px}.usage-pricing-title span{font-size:8px}}
+
+/* DeepSeek verified CNY rate calculations */
+.usage-costs .usage-deepseek-cost{padding:15px 2px;align-items:center}
+.usage-costs .usage-deepseek-cost span{color:#343431;font-weight:600}
+.usage-costs .usage-deepseek-cost strong{font:600 19px var(--mono);letter-spacing:-.025em;color:#232321;font-variant-numeric:tabular-nums}
+.usage-cost-unknown{font-size:10px;line-height:1.7;color:#a06a38;margin:0 0 12px}
+.usage-pricing-official{padding:17px 14px}
+.usage-official-rates{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:12px 0 10px}
+.usage-official-rates>div{display:flex;flex-direction:column;gap:9px;min-width:0;padding:11px 9px;background:#fff;border:1px solid #eaeae6;border-radius:5px}
+.usage-official-rates span{color:#898984;font-size:9px;line-height:1.5}
+.usage-official-rates strong{color:#333;font:600 15px var(--mono);font-variant-numeric:tabular-nums}
+.usage-official-note{font-size:10px;line-height:1.8;color:#92928c;margin:7px 0 12px}
+.usage-source-row{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;padding-top:10px;border-top:1px solid #ebebe7;font:9px var(--mono);color:#93938d}
+.usage-source-row a{color:#555;text-decoration:underline;text-underline-offset:3px}
+.usage-source-row a:hover{color:#171716}
+@media(max-width:470px){.usage-official-rates{gap:5px}.usage-official-rates>div{padding:10px 6px}.usage-official-rates strong{font-size:13px}.usage-official-rates span{font-size:8px}}
