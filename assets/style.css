@@ -340,3 +340,5 @@ html[data-theme="dark"] .backdrop{background:rgba(235,235,235,.36)}
 @media(max-width:680px){.clarification-backdrop{padding:0}.clarification-drawer{border-radius:18px 18px 0 0;max-height:90dvh}.clarification-head{padding:20px 18px 14px}.clarification-body{padding:16px 18px}.clarification-actions{padding:12px 18px calc(14px + env(safe-area-inset-bottom,0px))}.auto-complete-toggle{font-size:10px}.composer-footer{gap:9px}}
 
 .intake-diagnostics{margin-top:8px}.intake-diagnostics summary{cursor:pointer;font-size:11px}.intake-diagnostics pre{max-height:180px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font:10px/1.5 var(--mono);padding:10px;background:#8881;border-radius:6px}.admission-feedback:has(.intake-diagnostics[open]){max-height:260px}
+
+.regional-domains{margin-top:10px}.regional-domains section{margin-top:12px}.world-state h5{font-size:11px;margin:0 0 5px;color:var(--ink,#333)}

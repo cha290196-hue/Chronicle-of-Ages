@@ -1,3 +1,4 @@
+import {OUTPUT_POLICY_ID} from './world-output-policy.mjs';
 import {validYear,tick,untick,LAST_YEAR,MatrixError} from './worldline-contract.mjs';
 export const REGIONS=['east-asia','south-asia','west-central-asia','europe','africa','americas','oceania'];
 export const DOMAINS=['politics','economy','society','science-technology','environment','culture'];
@@ -35,18 +36,36 @@ export function materializePeriods(raw,firstYear){
  return next;
 }
 
+/** Regional trajectory membership is a derived index, never a second causal truth. */
+export function reindexTrajectories(raw,actions=[],inherited={events:[],facts:[]}){
+ if(!raw||!Array.isArray(raw.events)||!Array.isArray(raw.trajectories))return raw;
+ const next=copy(raw),events=new Map(next.events.map(e=>[e.id,e])),roots=new Set(actions.map(a=>a.id)),memo=new Map();
+ function affected(id,path=new Set()){
+  if(roots.has(id))return true;if(memo.has(id))return memo.get(id);
+  if(path.has(id))return false; // validateMacro still rejects the cycle.
+  const e=events.get(id);if(!e)return false;
+  const trail=new Set(path).add(id),value=list(e.c).some(c=>affected(c,trail));memo.set(id,value);return value;
+ }
+ next.trajectories=next.trajectories.map(t=>({...t,eventIds:next.events.filter(e=>!affected(e.id)&&list(e.r).some(r=>r===t.r||r==='global')).map(e=>e.id)}));
+ return next;
+}
+
 /** Collect independent defects so the single audit can fix more than the first thrown error. */
-export function structuralIssues(raw,firstYear){
- const out=[],events=list(raw?.events),records=new Map([...list(raw?.conditions),...events].map(r=>[r.id,r]));
+export function structuralIssues(raw,firstYear,actions=[],inherited={events:[],facts:[]}){
+ const out=[],events=list(raw?.events),all=[...list(raw?.conditions),...events,...actions,...list(inherited.events),...list(inherited.facts)],records=new Map(all.map(r=>[r.id,r]));
  for(const b of list(raw?.conditions))if(!validYear(b.y)||tick(b.y)>tick(firstYear))out.push({code:'BACKGROUND_AFTER_FORK',id:b.id,year:b.y,forkYear:firstYear});
- for(const e of events)for(const id of list(e.c)){const p=records.get(id);if(p&&validYear(p.y)&&validYear(e.y)&&tick(p.y)>tick(e.y))out.push({code:'FUTURE_CAUSE',id:e.id,cause:id,eventYear:e.y,causeYear:p.y});}
+ for(const e of events)for(const id of list(e.c)){
+  const p=records.get(id),y=p&&(p.y??recordYear(p));
+  if(!p||!validYear(y)||(validYear(e.y)&&tick(y)>tick(e.y)))out.push({code:!p?'UNKNOWN_CAUSE':'FUTURE_CAUSE',id:e.id,cause:id,eventYear:e.y,causeYear:y,
+   eligibleEvidence:all.filter(p=>p.id!==e.id&&validYear(p.y??recordYear(p))&&validYear(e.y)&&tick(p.y??recordYear(p))<=tick(e.y)).map(p=>({id:p.id,year:p.y??recordYear(p),text:p.t||p.description||p.en||p.nameEn}))});
+ }
  for(const p of list(raw?.periods))if(!text(p.t)||!list(p.refs).length)out.push({code:'UNCOVERED_INTERVAL',to:p.to,reason:'No interval event or evidenced quietPeriods explanation; supply a justified quiet explanation or a supported event, never filler.'});
  return out;
 }
 
 /** One typed DAG unifies background conditions, interventions, inherited knowledge and events. */
-export function validateMacro(raw,{firstYear,actions,inherited={events:[],facts:[]}}){
- if(!raw||!text(raw.title)||!text(raw.summary)||!Array.isArray(raw.conditions)||!Array.isArray(raw.events)||!raw.events.length||raw.events.length>80)fail('MINUTE_STRUCTURE_INVALID','Missing title, summary or event ledger');
+export function validateMacro(raw,{firstYear,actions,inherited={events:[],facts:[]},requireRegionalDomains=false}){
+ if(!raw||!text(raw.title)||!text(raw.summary)||!Array.isArray(raw.conditions)||!Array.isArray(raw.events)||!raw.events.length)fail('MINUTE_STRUCTURE_INVALID','Missing title, summary or event ledger');
  const records=new Map([...list(inherited.events),...list(inherited.facts),...actions].map(r=>[r.id,r]));
  const local=new Set(),events=new Map();
  const idOkay=id=>typeof id==='string'&&/^[\w:.-]{1,120}$/.test(id)&&!records.has(id)&&!local.has(id);
@@ -82,6 +101,9 @@ export function validateMacro(raw,{firstYear,actions,inherited={events:[],facts:
  }
  const regions=list(raw.regions);
  if(regions.length!==REGIONS.length||new Set(regions.map(r=>r.r)).size!==REGIONS.length||REGIONS.some(r=>!regions.some(x=>x.r===r&&text(x.t)&&list(x.refs).length&&x.refs.every(id=>records.has(id)))))fail('MINUTE_WORLD_COVERAGE_INVALID','All regions need supported endpoint states');
+ if(requireRegionalDomains||regions.some(r=>r.domains))for(const r of regions){
+  if(!Array.isArray(r.domains)||r.domains.length!==DOMAINS.length||new Set(r.domains.map(d=>d.k)).size!==DOMAINS.length||DOMAINS.some(k=>!r.domains.some(d=>d.k===k&&text(d.t)&&list(d.refs).length&&d.refs.every(id=>records.has(id)))))fail('MINUTE_REGIONAL_DOMAINS_INVALID',{region:r.r,reason:'Every region needs six substantive domain states and existing evidence refs'});
+ }
  if(DOMAINS.some(d=>!text(raw.setting?.[d])))fail('MINUTE_SETTING_INVALID','Six global domains are required');
  const ends=checkpointYears(firstYear),periods=list(raw.periods);
  if(periods.length!==ends.length||periods.some((p,i)=>p.to!==ends[i]||!text(p.t)||!list(p.refs).length||p.refs.some(id=>!records.has(id)||tick(recordYear(records.get(id)))>tick(p.to))))fail('MINUTE_TEMPORAL_COVERAGE_INVALID','All checkpoints need temporally valid evidence');
@@ -108,12 +130,29 @@ export function applyMacroEdits(raw,edits){
  if(drop.size&&[...drop].some(id=>![...list(raw.events),...list(raw.conditions)].some(e=>e.id===id)))fail('MINUTE_REVIEW_INVALID','Only local event or background IDs may be removed');
  for(const key of ['events','conditions']){
   const changes=list(edits[key]);if(new Set(changes.map(r=>r.id)).size!==changes.length)fail('MINUTE_REVIEW_INVALID','Duplicate edits');
-  next[key]=[...new Map([...list(next[key]).filter(r=>!drop.has(r.id)),...changes].map(r=>[r.id,r])).values()];
+  const map=new Map(list(next[key]).filter(r=>!drop.has(r.id)).map(r=>[r.id,r]));
+  for(const change of changes){const fields=Object.fromEntries(Object.entries(change).filter(([,v])=>v!==null&&v!==undefined));map.set(change.id,{...map.get(change.id),...fields});}
+  next[key]=[...map.values()];
  }
- if(edits.regions)next.regions=[...new Map([...list(next.regions),...list(edits.regions)].map(r=>[r.r,r])).values()];
+ if(edits.regions){
+  const map=new Map(list(next.regions).map(r=>[r.r,r]));
+  for(const change of list(edits.regions)){
+   const old=map.get(change.r),fields=Object.fromEntries(Object.entries(change).filter(([,v])=>v!==null&&v!==undefined)),merged={...old,...fields};
+   if(change.domains)merged.domains=[...new Map([...list(old?.domains),...list(change.domains)].map(d=>[d.k,{...list(old?.domains).find(x=>x.k===d.k),...d}])).values()];
+   map.set(change.r,merged);
+  }
+  next.regions=[...map.values()];
+ }
  if(list(edits.quietPeriods).length)next.quietPeriods=copy(edits.quietPeriods);
  if(list(edits.trajectories).length)next.trajectories=copy(edits.trajectories);
  if(edits.setting)next.setting={...next.setting,...edits.setting};
+ for(const p of list(edits.text)){
+  const record=p.kind==='event'?next.events.find(e=>e.id===p.id):p.kind==='condition'?next.conditions.find(e=>e.id===p.id):p.kind==='region'?next.regions.find(r=>r.r===p.r):p.kind==='domain'?list(next.regions.find(r=>r.r===p.r)?.domains).find(d=>d.k===p.k):p.kind==='setting'?next.setting:null;
+  const allowed=p.kind==='event'?['t','d']:p.kind==='setting'?DOMAINS:['t'];
+  const source=record?.[p.field];
+  if(!record||!allowed.includes(p.field)||typeof source!=='string'||!text(p.from)||typeof p.to!=='string'||source.split(p.from).length!==2)fail('MINUTE_TEXT_PATCH_INVALID',{id:p.id||p.r||p.field,reason:'Text substitutions must match exactly once in a permitted field'});
+  record[p.field]=source.replace(p.from,p.to);
+ }
  for(const key of ['title','summary'])if(edits[key]!==undefined&&edits[key]!==null)next[key]=edits[key];
  return next;
 }
@@ -135,6 +174,8 @@ export function buildMinuteWorld({raw,checked,assessment,actions,inherited,first
    const rows=available.filter(r=>covers(r,region)),ending=raw.regions.find(r=>r.r===region),last=rows.slice(-2);
    return {region,summary:final?ending.t:last.map(r=>r.descriptionZh||r.zh||r.nameZh||r.en).join('；')||'Unknown at this checkpoint',evidenceIds:final?ending.refs.map(ref):last.map(r=>r.id),unknowns:final?list(ending.unknowns):[],domains:DOMAINS.map(domain=>{
     const records=rows.filter(r=>(r.domain===domain||r.impact?.domains?.includes(domain))).slice(-2);
+    const endpoint=final?list(ending.domains).find(d=>d.k===domain):null;
+    if(endpoint)return {domain,summary:endpoint.t,evidenceIds:endpoint.refs.map(ref),unknowns:list(endpoint.unknowns),status:'uncertain'};
     return {domain,summary:records.map(r=>r.descriptionZh||r.zh||r.nameZh||r.en).join('；')||'Not resolved at this checkpoint',evidenceIds:records.map(r=>r.id),status:records.length?'uncertain':'unknown'};
    })};
   });
@@ -144,5 +185,5 @@ export function buildMinuteWorld({raw,checked,assessment,actions,inherited,first
  const snapshots=checked.periods.map(p=>({year:p.to,window:{from:firstYear,to:p.to},state:state(p.to,p.to===LAST_YEAR),eventIds:events.filter(e=>tick(e.year)<=tick(p.to)).map(e=>e.id),summary:p.t,quiet:p.quiet||null}));
  const facts=DOMAINS.map((domain,i)=>({id:'setting:'+runId+':'+i,firstYear:LAST_YEAR,nameEn:domain,nameZh:domain,descriptionEn:raw.setting[domain],descriptionZh:raw.setting[domain],kind:'world-setting',origin:'derived',certainty:'conditional',evidenceIds:events.filter(e=>e.domain===domain).map(e=>e.id)}));
  return {id:runId,parentId,anchorYear:firstYear,timeMode:actions[0].mode,transitionEndYear:actions[0].endYear,timeBasisEn:actions[0].temporalBasis,timeBasisZh:actions[0].temporalBasis,prompt,type:actions[0].kind,titleEn:raw.title,titleZh:raw.title,summaryEn:raw.summary,summaryZh:raw.summary,createdAt:new Date().toISOString(),events,facts,knowledge:[],inherited:{events:inheritedEvents,facts:inherited.facts},impacts:[],certainty:'conditional',image:null,
-  simulation:{version:3,engine:'Chronicle Minute',resolution:'macro',textLanguage:lang,referenceYears:[...inherited.events,...inherited.facts].map(r=>({id:r.id,year:recordYear(r)})),actions:finalActions,genesis,snapshots,milestoneIds,completedThrough:LAST_YEAR,fullEventCount:events.length,worldRegions:REGIONS,setting:raw.setting,limits:list(raw.limits),quality:{status:'reviewed',review},timing,graph:copy(raw),admission:{...assessment,autoComplete:timing.autoComplete}}};
+  simulation:{version:3,engine:'Chronicle Minute',resolution:'dynamic',outputPolicy:raw.regions.every(r=>r.domains)?OUTPUT_POLICY_ID:null,textLanguage:lang,referenceYears:[...inherited.events,...inherited.facts].map(r=>({id:r.id,year:recordYear(r)})),actions:finalActions,genesis,snapshots,milestoneIds,completedThrough:LAST_YEAR,fullEventCount:events.length,worldRegions:REGIONS,setting:raw.setting,limits:unique([...list(raw.limits),...list(review.notes)]),quality:{status:'reviewed',review},timing,graph:copy(raw),admission:{...assessment,autoComplete:timing.autoComplete}}};
 }

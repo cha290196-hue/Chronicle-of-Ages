@@ -38,7 +38,7 @@ test('DeepSeek one-click preset uses current official chat endpoint and never ch
  assert.equal(next.imageEndpoint,source.imageEndpoint);
  assert.equal(next.imageKey,'img-only-secret');
  assert.ok(imageConfigured(next));
- assert.equal(withTextPreset(next,'deepseek','deepseek-v4-pro').model,'deepseek-v4-pro');
+ assert.equal(withTextPreset(next,'deepseek','deepseek-v4-pro').model,'deepseek-flash');
 });
 
 test('text-only mode ignores missing image API, and image-only keeps its own secret',async()=>{
@@ -67,4 +67,10 @@ test('grandchild inherits history only before each fork',()=>{
  const a={id:'a',parentId:null,anchorYear:123,events:[{id:'one',year:124},{id:'later',year:1700}],facts:[]};
  const b={id:'b',parentId:'a',anchorYear:800,events:[{id:'two',year:801}],facts:[]};
  assert.deepEqual(inheritedState([a,b],'b',1000).events.map(x=>x.id).sort(),['one','two']);
+});
+
+test('retired saved DeepSeek text profiles migrate to Flash before a core request',async()=>{
+ const {callChat}=await import('../src/core.js');const original=globalThis.fetch;let model;
+ globalThis.fetch=async(_,o)=>{model=JSON.parse(o.body).model;return {ok:true,json:async()=>({choices:[{message:{content:'answer'}}]})}};
+ try{await callChat({provider:'deepseek',model:'deepseek-v4-pro',endpoint:'https://api.deepseek.com/chat/completions',key:'test-only'},[],{maxTokens:100});assert.equal(model,'deepseek-flash');}finally{globalThis.fetch=original;}
 });

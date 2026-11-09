@@ -14,7 +14,8 @@ const validate=w=>validateMacro(w,{firstYear:1024,actions:compileInterventions(a
 test('complete public flow uses two bounded calls, full horizon, causal ledger and persistent round trip',async()=>{
  const calls=[];const {worldline:w}=await simulateMinute(args({callChat:minuteChat({calls})}));
  assert.deepEqual(calls.map(x=>x.options.stage),['minute-world','minute-review']);
- assert.deepEqual(calls.map(x=>[x.options.profile,x.options.reasoning,x.options.maxTokens]),[['minute',false,7600],['minute',false,2800]]);
+ assert.equal(calls[1].context.interventions[0].id,'intervention:1');assert.ok(calls[1].context.recordYears.some(r=>r.id==='intervention:1'&&r.year===1024));
+ assert.deepEqual(calls.map(x=>[x.options.profile,x.options.reasoning,x.options.maxTokens]),[['minute',false,65536],['minute',false,16384]]);
  assert.equal(w.anchorYear,1024);assert.equal(w.simulation.completedThrough,2026);assert.equal(w.simulation.timing.completed,true);
  assert.equal(w.simulation.snapshots.at(-1).year,2026);assert.equal(w.simulation.snapshots.at(-1).state.regions.length,7);
  assert.ok(w.events.some(e=>e.relationToIntervention==='independent'));assert.ok(w.simulation.milestoneIds.length);
@@ -45,7 +46,7 @@ test('world coverage, temporal coverage, domain coverage and unsupported quiet g
 test('review repairs actual IDs once and complete graph is revalidated',async()=>{
  const draft={admission:admission(),world:macro()};draft.world.events[0].c=['bad'];const check={...review(),verdict:'repair',edits:{events:[macro().events[0]]}};
  const {worldline:w}=await simulateMinute(args({callChat:minuteChat({draft,check})}));assert.equal(w.simulation.quality.review.verdict,'repair');
- check.edits={drop:['e1']};await assert.rejects(()=>simulateMinute(args({callChat:minuteChat({draft,check})})),/MINUTE_UNKNOWN_CAUSE/);
+ check.edits={drop:['e1']};await assert.rejects(()=>simulateMinute(args({callChat:minuteChat({draft,check})})),/MINUTE_(UNKNOWN_CAUSE|REVIEW_INVALID)/);
  assert.throws(()=>applyMacroEdits(macro(),{drop:['intervention:1']}),/MINUTE_REVIEW_INVALID/);
 });
 test('rubber-stamp review cannot override structural failures or negative content checks',async()=>{
@@ -72,10 +73,10 @@ test('children inherit only pre-fork records and reject edits to future discover
  const a=admission(1750);a.operations[0]={...a.operations[0],kind:'branch_fact',parentFactId:'later'};
  await assert.rejects(()=>simulateMinute(args({prompt:'公元1750年修改该政策',branches:[parent],parentId:parent.id,callChat:minuteChat({year:1750,draft:{admission:a,world:macro(1750)}})})),/UNKNOWN_BRANCH_FACT/);
 });
-test('provider receives real small ceilings, low reasoning and no hidden retry in bounded profile',async()=>{
+test('provider receives output headroom, explicit non-thinking and no hidden retry in bounded profile',async()=>{
  const original=globalThis.fetch,bodies=[];globalThis.fetch=async(url,o)=>{bodies.push(JSON.parse(o.body));return {ok:true,json:async()=>({choices:[{finish_reason:'stop',message:{content:'{}'}}]})}};
  const config={provider:'deepseek',endpoint:'https://api.deepseek.com/chat/completions',model:'deepseek-chat',key:'test-only'};
- try{await callChat(config,[],{json:true,maxTokens:7600,reasoning:true,profile:'minute'});await callChat(config,[],{json:true,maxTokens:2000,reasoning:false,profile:'minute'});assert.deepEqual(bodies.map(b=>b.max_tokens),[7600,2000]);assert.equal(bodies[0].reasoning_effort,'low');assert.equal(bodies[1].thinking.type,'disabled');
+ try{await callChat(config,[],{json:true,maxTokens:65536,reasoning:false,profile:'minute'});await callChat(config,[],{json:true,maxTokens:16384,reasoning:false,profile:'minute'});assert.deepEqual(bodies.map(b=>b.max_tokens),[65536,16384]);assert.equal(bodies[0].thinking.type,'disabled');assert.equal(bodies[1].thinking.type,'disabled');
  globalThis.fetch=async()=>({ok:true,json:async()=>({choices:[{finish_reason:'length',message:{content:'{}'}}]})});await assert.rejects(()=>callChat(config,[],{json:true,profile:'minute'}),e=>e.reason==='truncated');
  }finally{globalThis.fetch=original;}
 });
@@ -94,10 +95,10 @@ test('review cannot mutate immutable interventions; invalid imported DAGs are re
  const edits={conditions:[{id:'intervention:1',y:1024,t:'Override premise',r:['global'],k:'politics'}]};assert.throws(()=>validate(applyMacroEdits(macro(),edits)),/MINUTE_BACKGROUND_INVALID/);
 });
 
-test('official provider routes one fast world and one stronger short review; custom models remain explicit',()=>{
+test('all official inference stages use Flash and migrate retired saved profiles',()=>{
  const c={provider:'deepseek',endpoint:'https://api.deepseek.com/chat/completions',model:'deepseek-v4-pro'};
- assert.equal(minuteModelConfig(c,'minute-world').model,'deepseek-flash');assert.equal(minuteModelConfig(c,'minute-review').model,'deepseek-v4-pro');
- const custom={...c,provider:'custom'};assert.equal(minuteModelConfig(custom,'minute-world'),custom);assert.equal(c.model,'deepseek-v4-pro');
+ assert.equal(minuteModelConfig(c,'minute-world').model,'deepseek-flash');assert.equal(minuteModelConfig(c,'minute-review').model,'deepseek-flash');
+ const custom={...c,provider:'custom'};assert.equal(minuteModelConfig(custom,'minute-world').model,'deepseek-flash');assert.equal(c.model,'deepseek-v4-pro');
 });
 
 test('regional trajectories share one graph while remaining causally independent of the edit',()=>{
@@ -130,4 +131,54 @@ test('review issues may address a setting field as well as event IDs',async()=>{
 test('regional origins qualify as world milestones only through realized causal transmission',()=>{
  const w=macro();w.events[0].r=['europe'];w.events[0].s=3;const out=validate(w);assert.ok(out.milestones.some(e=>e.id==='e1'));assert.ok(out.reach.get('e1').has('africa'));
  const isolated={id:'isolated',y:1600,t:'Regional only',d:'A significant regional change with no modeled transmission to other regions.',c:['b1'],r:['europe'],k:'culture',s:3};w.events.push(isolated);assert.ok(!validate(w).milestones.some(e=>e.id==='isolated'));
+});
+
+test('dynamic content accepts more than 80 events without truncating long prose on persistence',async()=>{
+ const w=macro();for(let i=0;i<100;i++)w.events.push({...w.events[0],id:'wide'+i,y:1600+i});w.events[0].d='Detailed conditional history. '.repeat(300);w.summary='A developed global account. '.repeat(500);
+ const {worldline:out}=await simulateMinute(args({callChat:minuteChat({draft:{admission:admission(),world:w}})}));const restored=sanitizeWorldline(out);
+ assert.ok(out.events.length>80);assert.equal(restored.events.find(e=>e.id.endsWith(':e1')).descriptionZh,out.events.find(e=>e.id.endsWith(':e1')).descriptionZh.trim());assert.equal(restored.summaryZh,w.summary.trim());assert.equal(out.simulation.outputPolicy,'dynamic-earth-v1');
+});
+test('every new region has all six substantive domain states; a global paragraph cannot replace them',async()=>{
+ const w=macro();w.regions[0].domains.pop();await assert.rejects(()=>simulateMinute(args({callChat:minuteChat({draft:{admission:admission(),world:w}})})),/MINUTE_REVIEW_INVALID/);
+ const {worldline:out}=await simulateMinute(args());assert.equal(out.simulation.snapshots.at(-1).state.regions.reduce((n,r)=>n+r.domains.length,0),42);assert.ok(out.simulation.snapshots.at(-1).state.regions[0].domains.every(d=>d.summary.startsWith('Conditional')));
+});
+
+test('remaining time can correct a malformed audit without generating a second world',async()=>{
+ const calls=[];const {worldline:w}=await simulateMinute(args({callChat:async(_,messages,o)=>{calls.push(o.stage);if(o.stage==='minute-world')return {admission:admission(),world:macro()};if(o.stage==='minute-review')return {verdict:'repair',issues:[{id:'e1',reason:'Missing edits in malformed audit'}]};return {...review(),verdict:'repair',edits:{events:[macro().events[0]]}};}}));
+ assert.deepEqual(calls,['minute-world','minute-review','minute-repair']);assert.equal(w.simulation.timing.requests.length,3);assert.equal(w.simulation.timing.budgetMs,120000);
+});
+
+test('field-level audit corrections preserve all unchanged long prose and regional domains',()=>{
+ const w=macro();w.events[0].d='Developed historical explanation. '.repeat(500);const prior=w.regions[0].domains.map(d=>({...d}));
+ const out=applyMacroEdits(w,{events:[{id:'e1',c:['intervention:1','b1'],d:null}],regions:[{r:w.regions[0].r,domains:[{k:'politics',t:'Corrected political institutions'}]}]});
+ assert.equal(out.events[0].d,w.events[0].d);assert.equal(out.events[0].t,w.events[0].t);assert.equal(out.regions[0].domains.length,6);assert.equal(out.regions[0].domains.find(d=>d.k==='economy').t,prior.find(d=>d.k==='economy').t);assert.equal(out.regions[0].domains.find(d=>d.k==='politics').t,'Corrected political institutions');
+});
+
+test('localized audit substitutions retain the surrounding full explanation and reject ambiguous matches',()=>{
+ const w=macro(),source=w.events[0].d;const out=applyMacroEdits(w,{text:[{kind:'event',id:'e1',field:'d',from:'Established institutions',to:'Recorded institutions'}]});
+ assert.equal(out.events[0].d,source.replace('Established institutions','Recorded institutions'));assert.deepEqual(out.events.slice(1),w.events.slice(1));
+ assert.throws(()=>applyMacroEdits(w,{text:[{kind:'event',id:'e1',field:'d',from:'missing phrase',to:'anything'}]}),/MINUTE_TEXT_PATCH_INVALID/);
+});
+
+test('non-blocking uncertainty remains visible without weakening blocking rejection gates',async()=>{
+ const check={...review(),notes:['Alternative later institutional paths remain possible']};const {worldline:w}=await simulateMinute(args({callChat:minuteChat({check})}));assert.ok(w.simulation.limits.includes(check.notes[0]));
+ await assert.rejects(()=>simulateMinute(args({callChat:minuteChat({check:{verdict:'reject',reason:'Premise contradiction',issues:[{id:'e1',code:'PREMISE_CONTRADICTION'}]}})})),/MINUTE_REVIEW_REJECTED/);
+});
+
+test('chronology correction after audit receives only affected records and explicit eligible causes',async()=>{
+ let correction;const w=macro(),description=w.events[0].d;
+ const result=await simulateMinute(args({callChat:async(_,messages,o)=>{
+  if(o.stage==='minute-world')return {admission:admission(),world:w};
+  if(o.stage==='minute-review')return {verdict:'repair',issues:[{id:'e1',code:'FUTURE_CAUSE'}],notes:['Conditional institutional persistence'],edits:{events:[{id:'e1',c:['intervention:1','e2']}]}};
+  correction=JSON.parse(messages.at(-1).content.split('\nCONTEXT JSON:\n')[1]);
+  return {verdict:'repair',issues:[],edits:{events:[{id:'e1',c:['intervention:1','b1']}]}};
+ }}));
+ assert.equal(correction.world,undefined);assert.equal(correction.defects[0].event.id,'e1');assert.equal(correction.defects[0].forbiddenCause,'e2');assert.ok(!correction.defects[0].allowedCauseIds.includes('e2'));assert.ok(correction.defects[0].allowedCauseIds.includes('b1'));
+ assert.equal(result.worldline.events.find(e=>e.id.endsWith(':e1')).descriptionZh,description);assert.ok(result.worldline.simulation.limits.includes('Conditional institutional persistence'));
+});
+
+test('causal field patches rebuild regional membership without deleting any history',async()=>{
+ const w=macro();w.events.push({...clone(w.events.at(-1)),id:'changes-affiliation',d:'Existing regional development with its complete substantive explanation.'});
+ const {worldline:out}=await simulateMinute(args({callChat:minuteChat({draft:{admission:admission(),world:w},check:{verdict:'repair',issues:[{id:'changes-affiliation',code:'CAUSAL_LINK'}],edits:{events:[{id:'changes-affiliation',c:['intervention:1','b1']}]}}})}));
+ assert.equal(out.events.length,w.events.length);assert.equal(out.events.find(e=>e.id.endsWith(':changes-affiliation')).relationToIntervention,'direct');assert.ok(out.simulation.graph.trajectories.every(t=>!t.eventIds.includes('changes-affiliation')));assert.equal(out.events.find(e=>e.id.endsWith(':changes-affiliation')).descriptionZh,w.events.at(-1).d);
 });

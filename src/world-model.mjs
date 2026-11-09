@@ -41,7 +41,7 @@ export function sanitizeSimulation(raw){
   if(data.version===3){
    if(data.engine!=='Chronicle Minute'||data.completedThrough!==LAST_YEAR||data.quality?.status!=='reviewed'||!data.graph||!Array.isArray(data.referenceYears)||!data.timing?.completed)return null;
    if(!['pass','repair'].includes(data.quality.review?.verdict)||(data.quality.review.checks&&!['premise','causality','world','time','setting'].every(k=>data.quality.review.checks[k]===true)))return null;
-   validateMacro(data.graph,{firstYear:data.genesis.year,actions:data.actions.map((a,i)=>({...a,id:'intervention:'+(i+1)})),inherited:{events:data.referenceYears,facts:[]}});
+   validateMacro(data.graph,{firstYear:data.genesis.year,actions:data.actions.map((a,i)=>({...a,id:'intervention:'+(i+1)})),inherited:{events:data.referenceYears,facts:[]},requireRegionalDomains:!!data.outputPolicy});
   }
   return data;
  }catch{return null}
