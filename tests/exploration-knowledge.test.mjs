@@ -99,3 +99,34 @@ test('app routes core answers into branch knowledge and includes them in knowled
  assert.match(app,/const facts=\(b\?worldFacts/);
  assert.ok(!app.includes('const answer=await askCore('));
 });
+
+test('one question can resolve a forward-referenced dependency DAG and verify numerical arithmetic',()=>{
+ const parent=candidate({id:'population',firstYear:2026,validUntil:2026,entity:'A',attribute:'population',quantity:{amount:200,unit:'million people',metric:'population',period:'2025'},evidenceIds:['root']}),productivity=candidate({id:'productivity',firstYear:2026,validUntil:2026,entity:'A',attribute:'productivity',quantity:{amount:50,unit:'thousand dollars per person',metric:'gdp-per-capita',period:'2025'},evidenceIds:['root']}),total=candidate({id:'gdp',firstYear:2026,validUntil:2026,entity:'A',attribute:'GDP',quantity:{amount:10,unit:'trillion dollars',metric:'nominal-gdp',period:'2025'},calculation:{operation:'product',inputs:['population','productivity'],scale:.001,decimals:2},evidenceIds:['population','productivity']});
+ let n=0;const out=auditKnowledge({candidates:[total,parent,productivity],events:[{id:'root',year:1900}],makeId:()=> 'fact-'+(++n),requireEvidence:true});
+ assert.equal(out.accepted.length,3);assert.equal(out.rejected.length,0);const gdp=out.accepted.find(f=>f.quantity.metric==='nominal-gdp');assert.ok(gdp.calculation.inputs.every(id=>out.accepted.some(f=>f.id===id)));assert.deepEqual(sanitizeKnowledge(gdp).calculation,gdp.calculation);
+ const bad=auditKnowledge({candidates:[parent,productivity,{...total,quantity:{...total.quantity,amount:99}}],events:[{id:'root',year:1900}],makeId:()=> 'other-'+(++n),requireEvidence:true});assert.ok(bad.rejected.some(r=>r.reason==='CALCULATION_MISMATCH'));
+});
+test('dependency cycles, duplicate proposal IDs and unsupported intermediate facts cannot be admitted',()=>{
+ const out=auditKnowledge({candidates:[candidate({id:'a',evidenceIds:['b']}),candidate({id:'b',evidenceIds:['a']})],makeId:idFactory,requireEvidence:true});assert.equal(out.accepted.length,0);assert.equal(out.rejected.length,2);
+ const duplicate=auditKnowledge({candidates:[candidate({id:'a'}),candidate({id:'a'})],makeId:idFactory});assert.equal(duplicate.accepted.length,0);assert.equal(duplicate.rejected.length,2);
+ const unsupported=auditKnowledge({candidates:[candidate({id:'a',evidenceIds:[]})],makeId:idFactory,requireEvidence:true});assert.equal(unsupported.rejected[0].reason,'NO_CAUSAL_BASIS');
+});
+test('Core transactions retain long descriptions, complete evidence and more than 28 atomic settings',()=>{
+ const items=Array.from({length:45},(_,i)=>candidate({id:'p'+i,nameEn:'Setting '+i,nameZh:'设定'+i,entity:'entity-'+i,descriptionZh:'完整的世界细节与推演依据。'.repeat(200),basis:'完整机制。'.repeat(200),evidenceIds:['root']}));
+ const out=auditKnowledge({candidates:items,events:[{id:'root',year:1700}],makeId:idFactory,requireEvidence:true});assert.equal(out.accepted.length,45);assert.equal(out.accepted[0].descriptionZh,items[0].descriptionZh);assert.equal(out.accepted[0].basis,items[0].basis);
+});
+test('quantities use complete values and metric/unit/period slots for duplication and conflict detection',()=>{
+ const quantity={amount:12,unit:'trillion local dollars',metric:'nominal-gdp',period:'2025'},raw=candidate({firstYear:2026,validUntil:2026,quantity,entity:'Country A',attribute:'GDP',value:'same display value'});
+ const first=auditKnowledge({candidates:[raw],makeId:idFactory}).accepted;
+ assert.equal(auditKnowledge({candidates:[{...raw,quantity:{...quantity,amount:20}}],existing:first,makeId:idFactory}).rejected[0].reason,'CONFLICTS_WITH_WORLDLINE');
+ assert.equal(auditKnowledge({candidates:[{...raw,quantity:{...quantity,metric:'ppp-gdp'}}],existing:first,makeId:idFactory}).accepted.length,1);
+ const prefix='an identical long prefix '.repeat(20),a=auditKnowledge({candidates:[candidate({value:prefix+'A'})],makeId:idFactory}).accepted;
+ assert.equal(auditKnowledge({candidates:[candidate({value:prefix+'B'})],existing:a,makeId:idFactory}).rejected[0].reason,'CONFLICTS_WITH_WORLDLINE');
+});
+
+test('numeric decimals and signs stay significant when comparing stored quantities',()=>{
+ const base=candidate({firstYear:2026,validUntil:2026,entity:'Vehicle A',attribute:'mass',quantity:{amount:57,unit:'t',metric:'combat-mass',period:'2026'}}),known=auditKnowledge({candidates:[base],makeId:idFactory}).accepted;
+ const smaller=auditKnowledge({candidates:[{...base,quantity:{...base.quantity,amount:5.7}}],existing:known,makeId:idFactory});assert.equal(smaller.rejected[0].reason,'CONFLICTS_WITH_WORLDLINE');
+ const positive=candidate({quantity:{amount:12,unit:'C',metric:'temperature',period:'1850'}}),temperature=auditKnowledge({candidates:[positive],makeId:idFactory}).accepted;
+ assert.equal(auditKnowledge({candidates:[{...positive,quantity:{...positive.quantity,amount:-12}}],existing:temperature,makeId:idFactory}).rejected[0].reason,'CONFLICTS_WITH_WORLDLINE');
+});
