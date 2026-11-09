@@ -6,6 +6,7 @@ import {usageBillingProvider} from './deepseek-pricing.mjs';
 import {parseModelJSON,normalizeModelContent,ModelJSONError} from './structured-output.mjs';
 import {auditKnowledge,sanitizeKnowledge,summarizeKnowledge} from './exploration-knowledge.mjs';
 import {BASELINE,validYear} from './data.js';
+import {migrateTextModel} from './model-routing.mjs';
 
 export const DEFAULT_CONFIG={provider:'openrouter',endpoint:'https://openrouter.ai/api/v1/chat/completions',model:'',key:'',textEnabled:true,imageEnabled:false,imageProvider:'openrouter',imageEndpoint:'https://openrouter.ai/api/v1/images',imageModel:'',imageKey:'',remember:false};
 export const PROVIDERS={
@@ -39,7 +40,7 @@ export function safeConfig(value={}){
  // Old saved profiles with an image model remain enabled after migration.
  c.imageEnabled=typeof value?.imageEnabled==='boolean'?value.imageEnabled:!!value?.imageModel;
  c.endpoint=String(c.endpoint||'').trim();c.imageEndpoint=String(c.imageEndpoint||'').trim();
- c.model=String(c.model||'').trim().slice(0,180);c.imageModel=String(c.imageModel||'').trim().slice(0,180);
+ c.model=migrateTextModel(c.model).slice(0,180);c.imageModel=String(c.imageModel||'').trim().slice(0,180);
  c.key=String(c.key||'').trim().slice(0,1000);c.imageKey=String(c.imageKey||'').trim().slice(0,1000);
  c.remember=Boolean(c.remember);
  return c;
@@ -52,7 +53,7 @@ export function validEndpoint(value){
 export function extractJSON(content){return parseModelJSON(content)}
 export function explainError(error,lang='en'){
  const code=String(error?.code||'');
- if(code==='MINUTE_DEADLINE')return lang==='zh'?'约一分钟的推演预算已用完，未保存未完成的世界线。请重试或使用响应更快的模型。':'The one-minute inference budget expired. No incomplete worldline was saved. Retry or use a faster responding model.';
+ if(code==='MINUTE_DEADLINE')return lang==='zh'?'两分钟的推演预算已用完，未保存未完成的世界线。请重试或使用响应更快的模型。':'The two-minute inference budget expired. No incomplete worldline was saved. Retry or use a faster responding model.';
  if(code==='MINUTE_REVIEW_REJECTED')return (lang==='zh'?'这次宏观推演未通过内容审查。':'This macro history did not pass content review.')+((error.reason||error[lang==='zh'?'reasonZh':'reasonEn'])?' '+(error.reason||error[lang==='zh'?'reasonZh':'reasonEn']):'');
  if(code.startsWith('MINUTE_'))return (lang==='zh'?'模型的完整世界结果未通过检查，未保存世界线。':'The complete world result failed validation. No worldline was saved.')+' ['+code+']';
  if(code==='INTAKE_MODEL_INVALID'){
@@ -241,12 +242,13 @@ export function worldFacts(branches,branch){
 }
 export function sanitizeWorldline(input){
  if(!object(input)||typeof input.id!=='string'||!validYear(input.anchorYear)||!Array.isArray(input.events)||!Array.isArray(input.facts))return null;
+ const bodyText=s=>String(s??'').trim();
  const simulation=sanitizeSimulation(input.simulation);if(input.simulation&&!simulation)return null;
- const scrubEvent=e=>object(e)&&validYear(e.year)&&toText(e.en||e.title)&&toText(e.id)?{...e,id:truncate(e.id,120),causes:list(e.causes).map(x=>truncate(x,120)),links:list(e.links).filter(object),en:plain(e.en||e.title),zh:plain(e.zh||e.en||e.title),descriptionEn:plain(e.descriptionEn||''),descriptionZh:plain(e.descriptionZh||''),origin:e.origin==='user'?'user':'derived',category:truncate(e.category,40)}:null;
- const scrubFact=f=>object(f)&&validYear(f.firstYear)&&toText(f.id)&&toText(f.nameEn)?{...f,id:truncate(f.id,120),nameEn:plain(f.nameEn),nameZh:plain(f.nameZh||f.nameEn),descriptionEn:plain(f.descriptionEn),descriptionZh:plain(f.descriptionZh),kind:truncate(f.kind,60)}:null;
+ const scrubEvent=e=>object(e)&&validYear(e.year)&&toText(e.en||e.title)&&toText(e.id)?{...e,id:truncate(e.id,120),causes:list(e.causes).map(x=>truncate(x,120)),links:list(e.links).filter(object),en:plain(e.en||e.title),zh:plain(e.zh||e.en||e.title),descriptionEn:bodyText(e.descriptionEn||''),descriptionZh:bodyText(e.descriptionZh||''),origin:e.origin==='user'?'user':'derived',category:truncate(e.category,40)}:null;
+ const scrubFact=f=>object(f)&&validYear(f.firstYear)&&toText(f.id)&&toText(f.nameEn)?{...f,id:truncate(f.id,120),nameEn:plain(f.nameEn),nameZh:plain(f.nameZh||f.nameEn),descriptionEn:bodyText(f.descriptionEn),descriptionZh:bodyText(f.descriptionZh),kind:truncate(f.kind,60)}:null;
  const gradual=input.timeMode==='gradual',end=gradual?nYear(input.transitionEndYear):input.anchorYear;
  if(!validYear(end)||end<input.anchorYear||(gradual&&end===input.anchorYear))return null;
- return {id:truncate(input.id,100),parentId:toText(input.parentId)||null,anchorYear:input.anchorYear,timeMode:gradual?'gradual':'point',transitionEndYear:end,timeBasisEn:truncate(input.timeBasisEn||'',320),timeBasisZh:truncate(input.timeBasisZh||'',320),prompt:truncate(input.prompt,2000),type:truncate(input.type||'historical_change',50),titleEn:plain(input.titleEn),titleZh:plain(input.titleZh||input.titleEn),summaryEn:truncate(input.summaryEn,7000),summaryZh:truncate(input.summaryZh||input.summaryEn,7000),createdAt:truncate(input.createdAt,40),events:input.events.map(scrubEvent).filter(Boolean),facts:input.facts.map(scrubFact).filter(Boolean),knowledge:list(input.knowledge).map(sanitizeKnowledge).filter(Boolean),inherited:{events:list(input.inherited?.events).map(scrubEvent).filter(Boolean),facts:list(input.inherited?.facts).map(scrubFact).filter(Boolean)},impacts:list(input.impacts).slice(0,8).map(x=>plain(x)),certainty:truncate(input.certainty||'medium',20),simulation,image:object(input.image)?{data:toText(input.image.data).slice(0,5_000_000),prompt:plain(input.image.prompt)}:null};
+ return {id:truncate(input.id,100),parentId:toText(input.parentId)||null,anchorYear:input.anchorYear,timeMode:gradual?'gradual':'point',transitionEndYear:end,timeBasisEn:truncate(input.timeBasisEn||'',320),timeBasisZh:truncate(input.timeBasisZh||'',320),prompt:truncate(input.prompt,2000),type:truncate(input.type||'historical_change',50),titleEn:plain(input.titleEn),titleZh:plain(input.titleZh||input.titleEn),summaryEn:bodyText(input.summaryEn),summaryZh:bodyText(input.summaryZh||input.summaryEn),createdAt:truncate(input.createdAt,40),events:input.events.map(scrubEvent).filter(Boolean),facts:input.facts.map(scrubFact).filter(Boolean),knowledge:list(input.knowledge).map(sanitizeKnowledge).filter(Boolean),inherited:{events:list(input.inherited?.events).map(scrubEvent).filter(Boolean),facts:list(input.inherited?.facts).map(scrubFact).filter(Boolean)},impacts:list(input.impacts).slice(0,8).map(x=>plain(x)),certainty:truncate(input.certainty||'medium',20),simulation,image:object(input.image)?{data:toText(input.image.data).slice(0,5_000_000),prompt:plain(input.image.prompt)}:null};
 }
 /**
  * The public simulation entry point used by app.js.

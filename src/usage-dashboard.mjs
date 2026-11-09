@@ -39,6 +39,8 @@ export function renderUsageDashboard({lang='en',provider='custom',model='',endpo
  const stageLabels={
   'minute-world':['全球宏观推演','Global macro history'],
   'minute-review':['完整世界审查','Complete world review'],
+  'minute-repair':['审查结果修复','Audit correction'],
+  'minute-graph-repair':['因果图校正','Causal graph correction'],
   interpretation:[ '历史干预识别','Historical interpretation' ],
   'historical-window':[ '历史时段推演','Historical windows' ],
   'world-coverage':[ '全球覆盖补充','World coverage review' ],

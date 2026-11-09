@@ -62,7 +62,7 @@ The reference timeline covers approximately **3200 BCE – 1 January 2026**. Its
 4. Store the complete world, then explore and persist additional details through the Core.
 
 
-The production engine completes a macro world through 2026 in one synthesis request plus one independent review, with deterministic causal and coverage checks. It targets about one minute under a bounded budget. Settings and macro events come first; the Core adds question-driven detail to the same persistent world. Provider latency can cause a timeout, which never saves a partial world. See the [engine specification](docs/ENGINE.md) and [measurements](docs/MINUTE-EVALUATION.md).
+The production engine completes a macro world through 2026 in one synthesis request plus one independent review, with deterministic causal and coverage checks. It targets completion within two minutes, with dynamically sized historical detail and no prose/event quota. All seven regions receive their own six domain settings. The Core adds further question-driven discoveries. Provider latency can cause a timeout, which never saves a partial world. See the [engine specification](docs/ENGINE.md) and [measurements](docs/FLASH-DYNAMIC-EVALUATION.md).
 
 ## Get started
 
@@ -80,7 +80,7 @@ Open `http://localhost:8080`. The chronology is available immediately. To calcul
 | :--- | :--- |
 | Channel | Text only / Images only / Text + images |
 | Text provider | DeepSeek / OpenRouter / OpenAI / custom OpenAI-compatible API |
-| DeepSeek shortcut | **DeepSeek Flash** (`deepseek-flash`) or **DeepSeek V4 Pro** (`deepseek-v4-pro`) |
+| DeepSeek shortcut | **DeepSeek Flash** (`deepseek-flash`) |
 | DeepSeek chat endpoint | `https://api.deepseek.com/chat/completions` (filled automatically) |
 | Text API key | Your own DeepSeek or other provider key |
 | Image provider | OpenRouter / OpenAI / custom endpoint, configured separately |
