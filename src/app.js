@@ -287,6 +287,7 @@ async function submitQuestion(form){if(state.questionBusy)return;const input=for
   const explored=await exploreCore({question,branch,branches:state.branches,config,lang:state.lang,history:previous,baselineKnowledge:state.baselineKnowledge});
   const oldKnowledge=branch?(branch.knowledge||[]):state.baselineKnowledge;
   const merged=mergeKnowledge(oldKnowledge,explored.knowledge);
+  if(merged.stats.conflicts||merged.stats.invalid)throw Object.assign(new Error('EXPLORATION_COMMIT_CONFLICT'),{code:'EXPLORATION_COMMIT_CONFLICT'});
   if(branch)branch.knowledge=merged.facts;else state.baselineKnowledge=merged.facts;
   history.push({role:'assistant',content:explored.answer});
   if(!persist()){

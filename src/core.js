@@ -74,7 +74,7 @@ export function explainError(error,lang='en'){
  }
  if(['WORLD_COMPLETENESS_FAILED','HISTORICAL_SUPPORT_INSUFFICIENT','WORLD_INITIALIZATION_INVALID','WORLD_REGIONS_INCOMPLETE','WORLD_PROCESSES_INCOMPLETE','WORLD_CONDITION_INVALID','WORLD_PROCESS_INVALID','WORLD_REVIEW_INVALID','WORLD_REVIEW_INCOMPLETE','WORLD_DOMAINS_INCOMPLETE'].includes(code))
   return lang==='zh'?'该阶段的全球状态、历史覆盖或因果依据未通过审查，世界线未保存。请检查输入或更换模型后重试。':'Global state, historical coverage or causal support failed review. No worldline was saved; revise the input or retry with another model.';
- if(code.startsWith('EXPLORATION_'))return lang==='zh'?'本次局部推演未通过检查，未写入新知识。请补充问题的年代或条件后重试。':'This focused inference did not pass review. No new knowledge was stored; specify the historical year or conditions and retry.';
+ if(code.startsWith('EXPLORATION_'))return lang==='zh'?'本次世界细节补全未通过一致性检查，未写入新设定，请重试。':'This world-detail completion did not pass consistency checks. No new settings were stored; please retry.';
  if(code==='NOT_AN_EDIT')return lang==='zh'?'这是历史问答，不是历史修改；请使用演算中枢进行提问。':'This is a history question, not an edit. Ask it in the Analysis Core.';
  if(code==='OUT_OF_SCOPE'||code==='NOT_EARTH_ANCHORED')return lang==='zh'?'请输入以地球历史为起点的修改。':'Provide an edit anchored in Earth history.';
  if(code==='ANCHOR_PRECEDES_PARENT')return lang==='zh'?'修改不能早于选中世界线的分叉点。':'The edit cannot predate the selected worldline fork.';
