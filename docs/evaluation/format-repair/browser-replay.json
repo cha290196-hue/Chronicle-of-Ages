@@ -1,0 +1,25 @@
+{
+  "passed": true,
+  "liveModelRequests": false,
+  "method": "Isolated Chromium; recorded real provider output wrapped in the strict tool protocol; synthetic transport failures.",
+  "successfulRequests": 3,
+  "totalRequests": 5,
+  "events": 58,
+  "through": 2026,
+  "regions": 7,
+  "regionalDomains": 42,
+  "eventDescriptionHan": 3675,
+  "primaryHan": 6751,
+  "persistenceAfterReload": true,
+  "existingWorldPreservedOnBothFailures": true,
+  "viewportOverflow": {
+    "width": 390,
+    "scrollWidth": 390
+  },
+  "pageErrors": [],
+  "screenshots": [
+    "browser-success.png",
+    "browser-interrupted.png",
+    "browser-mobile-error.png"
+  ]
+}

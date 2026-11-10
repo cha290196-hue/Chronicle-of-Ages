@@ -73,7 +73,7 @@ test('children inherit only pre-fork records and reject edits to future discover
  const a=admission(1750);a.operations[0]={...a.operations[0],kind:'branch_fact',parentFactId:'later'};
  await assert.rejects(()=>simulateMinute(args({prompt:'公元1750年修改该政策',branches:[parent],parentId:parent.id,callChat:minuteChat({year:1750,draft:{admission:a,world:macro(1750)}})})),/UNKNOWN_BRANCH_FACT/);
 });
-test('provider receives output headroom, explicit non-thinking and no hidden retry in bounded profile',async()=>{
+test('provider receives output headroom, explicit non-thinking and no retry for length-limited output',async()=>{
  const original=globalThis.fetch,bodies=[];globalThis.fetch=async(url,o)=>{bodies.push(JSON.parse(o.body));return {ok:true,json:async()=>({choices:[{finish_reason:'stop',message:{content:'{}'}}]})}};
  const config={provider:'deepseek',endpoint:'https://api.deepseek.com/chat/completions',model:'deepseek-chat',key:'test-only'};
  try{await callChat(config,[],{json:true,maxTokens:65536,reasoning:false,profile:'minute'});await callChat(config,[],{json:true,maxTokens:16384,reasoning:false,profile:'minute'});assert.deepEqual(bodies.map(b=>b.max_tokens),[65536,16384]);assert.equal(bodies[0].thinking.type,'disabled');assert.equal(bodies[1].thinking.type,'disabled');

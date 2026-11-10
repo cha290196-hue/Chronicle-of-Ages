@@ -4,11 +4,12 @@ import {validateMacro,reindexTrajectories,structuralIssues,assembleMacro,materia
 import {MINUTE_SYSTEM,MINUTE_DRAFT,MINUTE_REVIEW,MINUTE_AUDIT_SYSTEM} from './minute-prompts.mjs';
 import {INFERENCE_BUDGET} from './inference-budget.mjs';
 import {inferenceModelConfig} from './model-routing.mjs';
+import {MINUTE_WORLD_SCHEMA,MINUTE_AUDIT_SCHEMA,strictMinuteRequest} from './minute-output-schema.mjs';
 const list=x=>Array.isArray(x)?x:[];
 const abort=()=>new DOMException('Aborted','AbortError');
 const clip=(x,n)=>String(x??'').trim().slice(0,n);
 const checksPass=x=>x===undefined||['premise','causality','world','time','setting'].every(k=>x?.[k]===true);
-const GRAPH_CORRECTION=`Correct the supplied chronological/ID defects in this SAME candidate. Return ONE JSON {verdict:"repair|reject",issues:[],notes:[],edits:{events:[{id,c,d?}]}}. For each affected event, EVERY c ID MUST be in its eligibleEvidence list. The explicitly invalid cause is FORBIDDEN, including when it sounds related. Keep valid existing causes when sufficient; otherwise select a genuinely relevant earlier supplied cause and correct the explanation. Dates are authoritative. Do not move dates, invent causes, delete events, shorten prose, retransmit unchanged records, or regenerate the world. Reject if no defensible correction exists.`;
+const GRAPH_CORRECTION=`Correct the supplied chronological/ID defects in this SAME candidate. Return the audit object defined by OUTPUT JSON SCHEMA, with verdict repair or reject, actionable issues, optional uncertainty notes, and only necessary event field patches in edits.events. For each affected event, EVERY c ID MUST be in its eligibleEvidence list. The explicitly invalid cause is FORBIDDEN, including when it sounds related. Keep valid existing causes when sufficient; otherwise select a genuinely relevant earlier supplied cause and correct the explanation. Dates are authoritative. Do not move dates, invent causes, delete events, shorten prose, retransmit unchanged records, or regenerate the world. Reject if no defensible correction exists.`;
 function focusedGraphContext(raw,structural,actions,firstYear){
  const faults=list(structural).filter(x=>['FUTURE_CAUSE','UNKNOWN_CAUSE'].includes(x.code));
  if(!faults.length||list(structural).some(x=>!['FUTURE_CAUSE','UNKNOWN_CAUSE','MINUTE_FUTURE_CAUSE','MINUTE_UNKNOWN_CAUSE'].includes(x.code)))return null;
@@ -41,7 +42,10 @@ export async function simulateMinute({prompt,branches=[],parentId=null,config,ca
   const t=now();
   let cancelPending;
   const interrupted=new Promise((_,reject)=>{cancelPending=()=>reject(expired?new MatrixError('MINUTE_DEADLINE'):abort());control.signal.addEventListener('abort',cancelPending,{once:true});});
-  try{return await Promise.race([interrupted,callChat(minuteModelConfig(config,name),[{role:'system',content:name==='minute-world'?MINUTE_SYSTEM:MINUTE_AUDIT_SYSTEM},{role:'user',content:method+'\nCONTEXT JSON:\n'+JSON.stringify(context)}],
+  const outputSchema=name==='minute-world'?MINUTE_WORLD_SCHEMA:MINUTE_AUDIT_SCHEMA;
+  const requestConfig=minuteModelConfig(config,name);
+  const formatInstruction=strictMinuteRequest(requestConfig,name)?'\nUse the supplied output tool parameters as OUTPUT JSON SCHEMA.':'\nOUTPUT JSON SCHEMA:\n'+JSON.stringify(outputSchema);
+  try{return await Promise.race([interrupted,callChat(requestConfig,[{role:'system',content:name==='minute-world'?MINUTE_SYSTEM:MINUTE_AUDIT_SYSTEM},{role:'user',content:method+formatInstruction+'\nCONTEXT JSON:\n'+JSON.stringify(context)}],
    {signal:control.signal,json:true,temperature:.2,maxTokens,purpose:'simulation',stage:name,reasoning,profile:'minute'})]);}
   finally{control.signal.removeEventListener('abort',cancelPending);requests.push({stage:name,elapsedMs:Math.max(0,now()-t),maxTokens,reasoning:!!reasoning});}
  
@@ -67,7 +71,7 @@ export async function simulateMinute({prompt,branches=[],parentId=null,config,ca
   try{checked=validateMacro(raw,{firstYear,actions,inherited,requireRegionalDomains:true});}catch(e){structural=[{code:e.code,detail:e.diagnostic},...structuralIssues(raw,firstYear,actions,inherited)];}
   if(structural&&now()<deadline-8000){
    const graphContext=focusedGraphContext(raw,structural,actions,firstYear);
-   const patch=await ask(graphContext?GRAPH_CORRECTION:`Repair only the supplied concrete mechanical defects in this SAME world. Return ONE valid JSON {verdict:"repair|reject",reason:string,edits:{events:[{id,onlyChangedFields}],conditions:[{id,onlyChangedFields}],regions:[{r,onlyChangedFields}],quietPeriods:optionalArray,trajectories:optionalArray}}. Existing records use FIELD PATCHES, not full replacements. Do not generate a second history, remove substantive events, shorten prose, or change unchanged fields. Future/missing causes must use defensible temporally eligible evidence supplied for the affected event, with a matching causal explanation. Never move an event's date merely to evade a future cause. Reject if no supported correction exists.`,
+   const patch=await ask(graphContext?GRAPH_CORRECTION:`Repair only the supplied concrete mechanical defects in this SAME world. Follow OUTPUT JSON SCHEMA with verdict repair or reject, and only necessary event, condition, regional, quiet-period or trajectory patches. Existing records use FIELD PATCHES, not full replacements. Use null or empty patch lists for unchanged fields. Do not generate a second history, remove substantive events, shorten prose, or change unchanged fields. Future/missing causes must use defensible temporally eligible evidence supplied for the affected event, with a matching causal explanation. Never move an event's date merely to evade a future cause. Reject if no supported correction exists.`,
     graphContext||{forkYear:firstYear,interventions:actions,defects:structural,events:list(raw?.events),conditions:raw?.conditions,trajectories:raw?.trajectories,regions:raw?.regions},'minute-graph-repair',INFERENCE_BUDGET.reviewTokens,false);
    if(patch?.verdict!=='repair'||!patch.edits)throw new MatrixError('MINUTE_REVIEW_REJECTED','No defensible structural correction');
    raw=reindexTrajectories(materializePeriods(assembleMacro(applyMacroEdits(raw,patch.edits),firstYear),firstYear),actions,inherited);

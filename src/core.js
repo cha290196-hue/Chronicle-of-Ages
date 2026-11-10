@@ -7,6 +7,7 @@ import {parseModelJSON,normalizeModelContent,ModelJSONError} from './structured-
 import {auditKnowledge,sanitizeKnowledge,summarizeKnowledge} from './exploration-knowledge.mjs';
 import {BASELINE,validYear} from './data.js';
 import {migrateTextModel} from './model-routing.mjs';
+import {strictMinuteRequest,outputSchemaIssue,normalizeMinuteAudit} from './minute-output-schema.mjs';
 
 export const DEFAULT_CONFIG={provider:'openrouter',endpoint:'https://openrouter.ai/api/v1/chat/completions',model:'',key:'',textEnabled:true,imageEnabled:false,imageProvider:'openrouter',imageEndpoint:'https://openrouter.ai/api/v1/images',imageModel:'',imageKey:'',remember:false};
 export const PROVIDERS={
@@ -53,6 +54,12 @@ export function validEndpoint(value){
 export function extractJSON(content){return parseModelJSON(content)}
 export function explainError(error,lang='en'){
  const code=String(error?.code||'');
+ if(code==='MODEL_COMPLETION_INTERRUPTED'){
+  const reasons={insufficient_system_resource:['模型服务资源不足，中途停止了生成。','The model service stopped generation because resources were unavailable.'],
+   aborted:['模型服务中途取消了生成。','The model service aborted generation.'],content_filter:['模型服务拦截了这次生成。','The model service filtered this generation.']};
+  return (reasons[error.reason]||['模型服务未完成本次生成。','The model service did not complete this generation.'])[lang==='zh'?0:1]+(lang==='zh'?'未保存本次结果。':' No result was saved.');
+ }
+ if(code==='MODEL_OUTPUT_CONTRACT')return lang==='zh'?'模型服务没有返回约定的完整结构，本次推演未保存。':'The provider did not return the required complete structure. No result was saved.';
  if(code==='MINUTE_DEADLINE')return lang==='zh'?'两分钟的推演预算已用完，未保存未完成的世界线。请重试或使用响应更快的模型。':'The two-minute inference budget expired. No incomplete worldline was saved. Retry or use a faster responding model.';
  if(code==='MINUTE_REVIEW_REJECTED')return (lang==='zh'?'这次宏观推演未通过内容审查。':'This macro history did not pass content review.')+((error.reason||error[lang==='zh'?'reasonZh':'reasonEn'])?' '+(error.reason||error[lang==='zh'?'reasonZh':'reasonEn']):'');
  if(code.startsWith('MINUTE_'))return (lang==='zh'?'模型的完整世界结果未通过检查，未保存世界线。':'The complete world result failed validation. No worldline was saved.')+' ['+code+']';
@@ -90,16 +97,19 @@ export function explainError(error,lang='en'){
  if(error?.message==='INVALID_JSON'||error?.message==='BAD_RESPONSE'){
   const reason=error?.reason;
   const phase=error?.minuteDiagnostics?.stage||error?.phase;
-  const phaseZh=phase==='minute-world'?'全球宏观推演':phase==='minute-review'?'完整世界审查':phase==='validation'?'历史干预识别':phase==='synthesis'?'最终世界线总结':phase==='propagation'?'历史时段推演':'结构化结果生成';
-  const phaseEn=phase==='minute-world'?'computing the complete macro history':phase==='minute-review'?'reviewing the complete world':phase==='validation'?'interpreting the historical intervention':phase==='synthesis'?'summarizing the worldline':phase==='propagation'?'modeling a historical window':'structured output';
+   const phaseZh=phase==='minute-world'?'全球宏观推演':phase==='minute-review'?'完整世界审查':['minute-graph-repair','minute-repair'].includes(phase)?'世界结果修正':phase==='validation'?'历史干预识别':phase==='synthesis'?'最终世界线总结':phase==='propagation'?'历史时段推演':'结构化结果生成';
+   const phaseEn=phase==='minute-world'?'computing the complete macro history':phase==='minute-review'?'reviewing the complete world':['minute-graph-repair','minute-repair'].includes(phase)?'correcting the world result':phase==='validation'?'interpreting the historical intervention':phase==='synthesis'?'summarizing the worldline':phase==='propagation'?'modeling a historical window':'structured output';
   const zhPrefix=phaseZh+'：',enPrefix='During '+phaseEn+': ';
-  if(lang==='zh')return zhPrefix+(reason==='truncated'
-   ?'模型输出达到长度上限，未获得完整内容。已拒绝保存不完整的历史。'
-   :reason==='empty'?'模型返回了空白结构化内容；DeepSeek JSON 模式可能出现这种情况，此次请求未获得完整内容。'
-   :'模型返回的结构化内容不合法；已拒绝把不完整结果写入世界线。');
-  return enPrefix+(reason==='truncated'?'Model output reached its length limit and no complete response was obtained.'
-   :reason==='empty'?'The model returned blank structured output; no complete result was obtained.'
-   :'The model returned malformed structured output and no incomplete history was saved.');
+   const retried=error?.attempts>1;
+   const reasons={truncated:['模型输出达到长度上限，未获得完整内容。','Model output reached its length limit.'],
+    empty:['模型返回了空白内容。','The model returned blank output.'],
+    incomplete:['模型返回的数据未完整闭合。','The model returned an incomplete JSON object.'],
+    invalid_syntax:['模型返回的数据有语法错误。','The model returned data with invalid JSON syntax.'],
+    not_object:['模型没有返回要求的数据对象。','The model did not return the required JSON object.'],
+    non_json:['模型没有按要求的数据格式返回结果。','The model did not return the required JSON data.']};
+   const detail=reasons[reason]||['模型返回的数据格式错误。','The model returned malformed structured output.'];
+   if(lang==='zh')return zhPrefix+detail[0]+(retried?'自动重试后仍未成功。':'')+'未保存本次结果，已有世界线不受影响。';
+   return enPrefix+detail[1]+(retried?' One automatic retry also failed.':'')+' No result was saved; existing worldlines are unchanged.';
  }
  if(error?.message==='INVALID_ENDPOINT')return lang==='zh'?'接口地址必须是 HTTPS（本机允许 HTTP）。':'Use an HTTPS API endpoint (HTTP allowed for localhost).';
  if(error?.message==='NOT_CONFIGURED')return lang==='zh'?'请先配置文本模型的接口、模型和密钥。':'Configure the text model endpoint, model and key first.';
@@ -123,10 +133,19 @@ export async function callChat(config,messages,{signal,json=false,temperature=.3
  if(!configured(c))throw new Error('NOT_CONFIGURED');
  if(!validEndpoint(c.endpoint))throw new Error('INVALID_ENDPOINT');
  const meteredProvider=usageBillingProvider(c.provider,c.endpoint);
+ const strict=json&&bounded?strictMinuteRequest(c,stage):null;
+ const endpoint=strict?.endpoint||c.endpoint;
  const baseBody={model:c.model,messages,temperature,max_tokens:maxTokens,stream:false};
  if(json)baseBody.response_format={type:'json_object'};
+ if(strict){
+  delete baseBody.response_format;
+  baseBody.tools=[strict.tool];
+  baseBody.tool_choice={type:'function',function:{name:strict.tool.function.name}};
+  // A forced, strict tool encodes data; it never invokes executable code.
+  baseBody.thinking={type:'disabled'};
+ }
  if(c.provider==='deepseek'){
-  const think=reasoning||(!json&&maxTokens>256);
+  const think=!strict&&(reasoning||(!json&&maxTokens>256));
   baseBody.thinking={type:think?'enabled':'disabled'};
   if(think){baseBody.max_tokens=bounded?maxTokens:Math.max(maxTokens,reasoning?32768:8192);baseBody.reasoning_effort=bounded?'low':'high';}
   // DeepSeek's max_tokens is an output ceiling, not pre-billed tokens.
@@ -150,7 +169,7 @@ export async function callChat(config,messages,{signal,json=false,temperature=.3
   const options={method:'POST',headers:{'content-type':'application/json','authorization':`Bearer ${c.key}`},body:JSON.stringify(body),signal};
   if(c.provider==='openrouter'&&typeof location!=='undefined')options.headers['HTTP-Referer']=location.origin;
   let response;
-  try{response=await fetch(c.endpoint,options)}
+  try{response=await fetch(endpoint,options)}
   catch(e){recordRequestUsage({provider:meteredProvider,model:c.model,purpose,stage,elapsedMs:elapsed(),success:false});if(signal?.aborted)throw new DOMException('Aborted','AbortError');throw e}
   if(!response.ok){
    let detail='',failurePayload=null;
@@ -166,9 +185,24 @@ export async function callChat(config,messages,{signal,json=false,temperature=.3
   recordRequestUsage({provider:meteredProvider,model:c.model,purpose,stage,elapsedMs:elapsed(),success:true,payload});
   const choice=payload?.choices?.[0];
   const message=choice?.message||{};
-  let result=normalizeModelContent(message.content??message.text??choice?.text??payload?.output_text);
+  if(['insufficient_system_resource','aborted','content_filter'].includes(choice?.finish_reason))
+   throw Object.assign(new Error('MODEL_COMPLETION_INTERRUPTED'),{code:'MODEL_COMPLETION_INTERRUPTED',reason:choice.finish_reason});
+  if(strict){
+   if(choice?.finish_reason==='length')throw Object.assign(new ModelJSONError('truncated'),{finishReason:'length'});
+   const calls=message.tool_calls;
+   if(choice?.finish_reason!=='tool_calls'||!Array.isArray(calls)||calls.length!==1||calls[0]?.type!=='function'||calls[0].function?.name!==strict.tool.function.name)
+    throw Object.assign(new Error('MODEL_OUTPUT_CONTRACT'),{code:'MODEL_OUTPUT_CONTRACT',reason:'tool_envelope'});
+   let value;
+   try{if(typeof calls[0].function.arguments!=='string')throw new TypeError('arguments');value=JSON.parse(calls[0].function.arguments)}
+   catch{throw new ModelJSONError('invalid_syntax')}
+   const field=outputSchemaIssue(value,strict.tool.function.parameters);
+   if(field)throw Object.assign(new Error('MODEL_OUTPUT_CONTRACT'),{code:'MODEL_OUTPUT_CONTRACT',reason:'schema',field});
+   return stage==='minute-world'?value:normalizeMinuteAudit(value);
+  }
+  const contentOptions={separator:json?'':'\n'};
+  let result=normalizeModelContent(message.content??message.text??choice?.text??payload?.output_text,contentOptions);
   if(!result&&Array.isArray(payload?.output)){
-   result=payload.output.map(item=>normalizeModelContent(item?.content)).filter(Boolean).join('\n');
+   result=payload.output.map(item=>normalizeModelContent(item?.content,contentOptions)).filter(Boolean).join(contentOptions.separator);
   }
   if(!result&&message.refusal)throw new Error(message.refusal);
   if(!result){
@@ -195,13 +229,19 @@ export async function callChat(config,messages,{signal,json=false,temperature=.3
  };
  try{return await doCall({format:json})}
  catch(first){
-  if(bounded||!json||signal?.aborted)throw first;
+   if(first instanceof ModelJSONError)first.attempts=1;
+   if(strict||!json||signal?.aborted)throw first;
   const unsupportedFormat=first?.status===400||first?.status===422;
   const malformed=first?.message==='INVALID_JSON';
   if(!unsupportedFormat&&!malformed)throw first;
-  // JSON-mode support varies across API-compatible providers. After one
-  // failure, retry without the strict response_format parameter.
-  try{return await doCall({format:false,recovery:true,previousFailure:first})}
+   // The minute engine supplies its shared deadline signal to BOTH attempts.
+   // Recover a format failure once, but never regenerate length-limited history
+   // or increase the bounded engine's transport capacity. Unrelated HTTP errors
+   // cannot be repaired by changing JSON mode.
+   if(bounded&&(first?.reason==='truncated'||(unsupportedFormat&&!/response_format|json[\s_-]?(?:object|mode)/i.test(first.message))))throw first;
+   // Keep JSON mode for malformed bounded output; remove it only when the
+   // provider explicitly rejects it. Preserve the legacy non-minute fallback.
+   try{return await doCall({format:bounded&&!unsupportedFormat,recovery:true,previousFailure:first})}
   catch(second){
    if(second?.message==='INVALID_JSON'&&second instanceof ModelJSONError){
     second.attempts=2;
