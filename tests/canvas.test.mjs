@@ -158,7 +158,7 @@ test('long multilingual labels are shortened by measured width with complete Uni
  assert.equal(fitCanvasText(ctx,'wide',1),'');
 });
 
-test('event and branch titles retain natural glyph widths while font size increases with zoom',()=>{
+test('event and branch labels preserve their original fixed font sizes at every zoom',()=>{
  const titleSizes=[];
  for(const zoom of [.36,12,MAX_ZOOM])for(const width of [390,1200])for(const lang of ['zh','en']){
   const records=[];
@@ -175,12 +175,14 @@ test('event and branch titles retain natural glyph widths while font size increa
   view.drawBranchTrace=()=>({curveEnd:180,y:300});
   view.branch({id:'b',titleZh:event.zh,titleEn:event.en},0);
   assert.equal(records.length,3);
+  assert.match(records[0].font,/ 10\.5px system-ui$/);
+  assert.equal(records[1].font,'9px system-ui');
+  assert.equal(records[2].font,'600 10px system-ui');
   for(const record of records){
    assert.equal(record.args.length,3,'fillText must not compress text with a maxWidth argument');
    assert.equal(record.letterSpacing,'0px');
    assert.ok(record.args[1]+record.width<=width-12+1e-9,'labels must fit the viewport at their natural width');
   }
  }
- assert.ok(Math.max(...titleSizes)>Math.min(...titleSizes));
- assert.ok(Math.min(...titleSizes)>=12);
+ assert.deepEqual([...new Set(titleSizes)],[10.5]);
 });

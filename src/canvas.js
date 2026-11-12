@@ -34,7 +34,6 @@ export class WorldCanvas{
  focus(year,zoom=this.zoom){if(Number.isFinite(year)){this.year=year;this.zoom=clamp(zoom,MIN_ZOOM,MAX_ZOOM);this.vertical=0;this.invalidate();this.onYear(this.year)}}
  fit(){this.zoom=clamp((this.width-160)/(LAST_YEAR-FIRST_YEAR),MIN_ZOOM,MAX_ZOOM);this.year=(FIRST_YEAR+LAST_YEAR)/2;this.vertical=0;this.invalidate();this.onYear(this.year)}
  zoomAt(factor,x=this.width/2){const before=this.at(x);this.zoom=clamp(this.zoom*factor,MIN_ZOOM,MAX_ZOOM);this.year=before-(x-this.width*(this.mobile?.5:.54))/this.zoom;this.invalidate();this.onYear(this.year)}
- labelSize(){return clamp(12+Math.log2(Math.max(1,this.zoom/.36))*1.2,12,22)}
  nearest(x,y){
  let tip=null,tipDist=this.mobile?24:17;
  for(const h of this.hit){if(h.kind!=='tip')continue;const d=Math.hypot(h.x-x,h.y-y);if(d<tipDist){tip=h;tipDist=d}}
@@ -133,9 +132,8 @@ nodeActive(branchId,year){
  nodes(events,y,branchId,unmuted){
   const ctx=this.ctx;
   ctx.save();ctx.letterSpacing='0px';
-  const titleSize=this.labelSize(),dateSize=clamp(titleSize-2,10,16),rowGap=Math.ceil(titleSize+dateSize+14);
-  const dateOffset=(titleSize+dateSize)/2+6;
-  const labelLimit=Math.max(0,Math.min(180+(titleSize-12)*24,this.width-24));
+  const titleSize=10.5,dateSize=9,dateOffset=16;
+  const labelLimit=Math.max(0,Math.min(170,this.width-24));
   const visible=events.filter(e=>this.x(e.year)>-25&&this.x(e.year)<this.width+25).sort((a,b)=>a.year-b.year);
   const clusters=[];
   // Coalesce nearby timestamps at this zoom. Click a group to inspect its period.
@@ -144,7 +142,7 @@ nodeActive(branchId,year){
    if(last&&x-last.firstX<18&&(this.zoom<MAX_ZOOM||x===last.firstX)){last.events.push(e);last.xSum+=x}
    else clusters.push({events:[e],firstX:x,xSum:x});
   }
-  const rows=[{dy:-48,right:-999},{dy:74,right:-999},{dy:-48-rowGap,right:-999},{dy:74+rowGap,right:-999}];
+  const rows=[{dy:-43,right:-999},{dy:70,right:-999},{dy:-83,right:-999},{dy:110,right:-999}];
   for(const group of clusters){
    const x=group.xSum/group.events.length,e=group.events[0],grouped=group.events.length>1;
    // Keep terminal events independently clickable beside the world-selection tip.
@@ -182,9 +180,9 @@ nodeActive(branchId,year){
  const p=this.drawBranchTrace(branch,i,LAST_YEAR,false);if(!p)return;
  const ctx=this.ctx,active=this.active===branch.id;
  if(p.curveEnd+18<this.width&&p.curveEnd+18>0){
-  ctx.save();ctx.letterSpacing='0px';ctx.textAlign='left';ctx.textBaseline='alphabetic';ctx.font=`600 ${clamp(this.labelSize()-2,11,18)}px system-ui`;ctx.fillStyle=active?'#292929':'#a1a19d';
+  ctx.save();ctx.letterSpacing='0px';ctx.textAlign='left';ctx.textBaseline='alphabetic';ctx.font='600 10px system-ui';ctx.fillStyle=active?'#292929':'#a1a19d';
   const left=clamp(p.curveEnd+12,12,Math.max(12,this.width-180));
-  const title=fitCanvasText(ctx,`${String(i+2).padStart(3,'0')} / ${(this.lang==='zh'?branch.titleZh:branch.titleEn)||branch.prompt}`,Math.min(360,this.width-left-12));
+  const title=fitCanvasText(ctx,`${String(i+2).padStart(3,'0')} / ${(this.lang==='zh'?branch.titleZh:branch.titleEn)||branch.prompt}`,Math.min(270,this.width-left-12));
   ctx.fillText(title,left,p.y-19);
   ctx.restore();
  }
