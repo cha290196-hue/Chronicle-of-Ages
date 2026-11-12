@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/app-icon.png?v=20261107alpha" width="68" height="68" alt="Chronicle of Ages emblem" />
+  <img src="assets/app-icon.svg?v=20261112-pixel-icon" width="68" height="68" alt="Chronicle of Ages emblem" />
 
   # CHRONICLE OF AGES
 
