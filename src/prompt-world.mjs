@@ -104,14 +104,14 @@ export async function simulatePromptWorld({prompt,branches=[],parentId=null,conf
  const start=now(),runId=makeId();
  const context={input:prompt,language:lang,endpoint:'2026-01-01',clarifications,selectedWorld:worldContext(parent),
   ancestorWorlds:ancestors(branches,parentId).filter(b=>b.id!==parentId).map(worldContext),recordedHistory:parent?null:BASELINE};
- const emit=()=>onProgress({phase:'propagation',stage:'prompt-world',engine:PROMPT_ENGINE,index:0,total:1,elapsedMs:now()-start});
- emit();const ticker=setInterval(emit,1000);
- try{
-  const modelConfig=inferenceModelConfig(config);
-  const raw=await callChat(modelConfig,[{role:'system',content:WORLD_SYSTEM},{role:'user',content:JSON.stringify(context)}],promptRequestOptions(modelConfig,'prompt-world','simulation',signal));
-  if(signal?.aborted)throw new DOMException('Aborted','AbortError');
-  return {worldline:adaptPromptWorld(raw,{prompt,parentId,branches,runId,lang,elapsedMs:now()-start})};
- }finally{clearInterval(ticker)}
+ const emit=update=>onProgress({phase:'propagation',stage:'prompt-world',engine:PROMPT_ENGINE,index:0,total:1,...update});
+ emit({status:'waiting',receivedChars:0});
+ const modelConfig=inferenceModelConfig(config);
+ const raw=await callChat(modelConfig,[{role:'system',content:WORLD_SYSTEM},{role:'user',content:JSON.stringify(context)}],{...promptRequestOptions(modelConfig,'prompt-world','simulation',signal),onProgress:emit});
+ if(signal?.aborted)throw new DOMException('Aborted','AbortError');
+ const worldline=adaptPromptWorld(raw,{prompt,parentId,branches,runId,lang,elapsedMs:now()-start});
+ emit({status:'complete'});
+ return {worldline};
 }
 export async function explorePromptWorld({question,branch,events=[],facts=[],history=[],config,callChat,makeId,signal,lang='en'}){
  if(!nonempty(question))throw new Error('EMPTY_QUESTION');

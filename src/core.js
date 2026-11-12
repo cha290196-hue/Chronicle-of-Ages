@@ -8,6 +8,7 @@ import {sanitizeKnowledge} from './exploration-knowledge.mjs';
 import {BASELINE,validYear} from './data.js';
 import {migrateTextModel} from './model-routing.mjs';
 import {strictMinuteRequest,outputSchemaIssue,normalizeMinuteAudit} from './minute-output-schema.mjs';
+import {readChatStream} from './chat-stream.mjs';
 
 export const DEFAULT_CONFIG={provider:'openrouter',endpoint:'https://openrouter.ai/api/v1/chat/completions',model:'',key:'',textEnabled:true,imageEnabled:false,imageProvider:'openrouter',imageEndpoint:'https://openrouter.ai/api/v1/images',imageModel:'',imageKey:'',remember:false};
 export const PROVIDERS={
@@ -128,7 +129,7 @@ export function explainError(error,lang='en'){
  * Recovery retries the JSON task once with a concise JSON-only instruction.
  * Never accept a partially parsed JSON object as confirmed worldline data.
  */
-export async function callChat(config,messages,{signal,json=false,temperature=.35,maxTokens=3200,purpose='other',stage='other',reasoning=false,profile=null}={}){
+export async function callChat(config,messages,{signal,json=false,temperature=.35,maxTokens=3200,purpose='other',stage='other',reasoning=false,profile=null,onProgress=null}={}){
  const bounded=profile==='minute';
  const promptLed=profile==='prompt-llm';
  const c=safeConfig(config);
@@ -138,6 +139,7 @@ export async function callChat(config,messages,{signal,json=false,temperature=.3
  const strict=json&&bounded?strictMinuteRequest(c,stage):null;
  const endpoint=strict?.endpoint||c.endpoint;
  const baseBody={model:c.model,messages,temperature,max_tokens:maxTokens,stream:false};
+ if(promptLed&&typeof onProgress==='function'){baseBody.stream=true;baseBody.stream_options={include_usage:true}}
  if(json)baseBody.response_format={type:'json_object'};
  if(strict){
   delete baseBody.response_format;
@@ -155,10 +157,13 @@ export async function callChat(config,messages,{signal,json=false,temperature=.3
   // discarding detail or paying for repeated truncation/re-generation.
   if(!bounded&&json&&purpose==='simulation')baseBody.max_tokens=Math.max(baseBody.max_tokens,8192);
  }
- const doCall=async({format=json,recovery=false,previousFailure=null,omitTokenLimit=false}={})=>{
+ const doCall=async({format=json,recovery=false,previousFailure=null,omitTokenLimit=false,omitStreamOptions=false,disableStream=false}={})=>{
   const startedAt=Date.now();
   const elapsed=()=>Math.max(0,Date.now()-startedAt);
   const body={...baseBody};
+  if(omitStreamOptions||disableStream)delete body.stream_options;
+  if(disableStream)body.stream=false;
+  onProgress?.({status:'waiting',receivedChars:0});
   if(omitTokenLimit)delete body.max_tokens;
   if(!format)delete body.response_format;
   if(recovery){
@@ -183,7 +188,8 @@ export async function callChat(config,messages,{signal,json=false,temperature=.3
    throw ex;
   }
   let payload;
-  try{payload=await response.json()}
+  try{payload=/text\/event-stream/i.test(response.headers?.get('content-type')||'')
+    ?await readChatStream(response,{signal,onProgress:onProgress||undefined}):await response.json()}
   catch(e){recordRequestUsage({provider:meteredProvider,model:c.model,purpose,stage,elapsedMs:elapsed(),success:false});throw e}
   recordRequestUsage({provider:meteredProvider,model:c.model,purpose,stage,elapsedMs:elapsed(),success:true,payload});
   const choice=payload?.choices?.[0];
@@ -238,6 +244,8 @@ export async function callChat(config,messages,{signal,json=false,temperature=.3
   const malformed=first?.message==='INVALID_JSON';
   if(promptLed){
    if(first?.reason==='truncated')throw first;
+   if(unsupportedFormat&&baseBody.stream&&/stream_options|include_usage/i.test(first.message))return doCall({omitStreamOptions:true});
+   if(unsupportedFormat&&baseBody.stream&&/\bstream(?:ing)?\b/i.test(first.message))return doCall({disableStream:true});
    if(unsupportedFormat&&/max[_ -]?(?:tokens|completion[_ -]?tokens)|output[_ -]?tokens/i.test(first.message))return doCall({omitTokenLimit:true});
    if(unsupportedFormat&&!/response_format|json[\s_-]?(?:object|mode)/i.test(first.message))throw first;
    if(unsupportedFormat||malformed)return doCall({format:!unsupportedFormat,recovery:malformed});

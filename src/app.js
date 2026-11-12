@@ -233,9 +233,19 @@ function renderOverlay(){const dest=$('overlay-root');if(state.modal==='settings
  if(state.busy)renderBusy();
 }
 function renderBusy(){let host=$('busy-overlay');if(!state.busy){host?.remove();return}if(!host){host=document.createElement('div');host.id='busy-overlay';host.className='busy-overlay';document.body.appendChild(host)}const s=state.busy;
- const review=s.stage==='minute-review'||s.stage==='minute-repair',seconds=Math.floor((s.elapsedMs||0)/1000),progress=review?85:Math.min(78,5+seconds*1.5);
+ const review=s.stage==='minute-review'||s.stage==='minute-repair';
+ // Output length is model-chosen: show stream activity, never a time-based percentage.
+ const complete=s.status==='complete',received=Math.max(0,Number(s.receivedChars)||0);
+ const width=complete?100:received?22:0,offset=complete?0:(received/16)%78;
  const title=state.lang==='zh'?(review?'审查全球历史与因果':'推演完整世界历史'):(review?'Reviewing global history and causes':'Computing the complete world history');
- host.innerHTML=`<div class="busy-card"><div class="busy-index">${h(tr('loading'))} &nbsp;/&nbsp; ${review?'02':'01'}</div><div class="busy-title">${h(title)}</div><p class="panel-body" style="margin-bottom:0">${h(s.input)}</p><div class="busy-line"><span style="width:${progress}%"></span></div><div class="busy-foot"><span>${state.lang==='zh'?`已用 ${seconds} 秒`:`${seconds}s elapsed`}</span><button type="button" data-action="stop" id="stop-calculation">${h(tr('abort'))}</button></div></div>`;host.querySelector('[data-action="stop"]').addEventListener('click',()=>state.controller?.abort());
+ const progressLabel=state.lang==='zh'?(complete?'推演完成':received?'正在接收模型输出':'等待模型输出'):(complete?'Simulation complete':received?'Receiving model output':'Waiting for model output');
+ const line=host.querySelector('.busy-line');
+ if(line&&host.dataset.lang===state.lang){
+  line.setAttribute('aria-valuetext',progressLabel);if(complete)line.setAttribute('aria-valuenow','100');else line.removeAttribute('aria-valuenow');
+  line.firstElementChild.style.width=width+'%';line.firstElementChild.style.marginLeft=offset+'%';return;
+ }
+ host.dataset.lang=state.lang;
+ host.innerHTML=`<div class="busy-card"><div class="busy-index">${h(tr('loading'))} &nbsp;/&nbsp; ${review?'02':'01'}</div><div class="busy-title">${h(title)}</div><p class="panel-body" style="margin-bottom:0">${h(s.input)}</p><div class="busy-line" role="progressbar" aria-label="${h(tr('loading'))}" aria-valuetext="${h(progressLabel)}"${complete?' aria-valuenow="100"':''}><span style="width:${width}%;margin-left:${offset}%"></span></div><div class="busy-foot"><button type="button" data-action="stop" id="stop-calculation" style="margin-left:auto">${h(tr('abort'))}</button></div></div>`;host.querySelector('[data-action="stop"]').addEventListener('click',()=>state.controller?.abort());
 }
 function handleClick(event){const btn=event.target.closest('[data-action]');if(!btn)return;const action=btn.dataset.action,val=btn.dataset.value;
  if(action==='clarification-choice'){const input=$('clarify-'+btn.dataset.question);if(input&&state.pendingClarification){input.value=btn.dataset.answer||'';input.setCustomValidity('');state.pendingClarification.values[btn.dataset.question]=input.value;input.focus()}return}
