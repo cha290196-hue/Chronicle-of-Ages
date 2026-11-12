@@ -1,6 +1,7 @@
 /** Read-only versioned world state and evidence retrieval. Legacy inference lives in archive/. */
 import {validYear,tick,LAST_YEAR} from './worldline-contract.mjs';
 import {REGIONS,DOMAINS,validateMacro} from './minute-world.mjs';
+import {sanitizePromptSimulation} from './prompt-world.mjs';
 export {REGIONS,DOMAINS};
 const list=x=>Array.isArray(x)?x:[];
 const clone=x=>JSON.parse(JSON.stringify(x));
@@ -28,6 +29,7 @@ export function causalContext({world,events=[],facts=[],actions=[],query='',limi
 }
 
 export function sanitizeSimulation(raw){
+ if(raw?.version===4)return sanitizePromptSimulation(raw);
  if(!raw||![2,3].includes(raw.version)||!Array.isArray(raw.snapshots)||!raw.genesis)return null;
  try{
   const data=clone(raw);

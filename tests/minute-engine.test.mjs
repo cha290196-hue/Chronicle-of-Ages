@@ -11,7 +11,7 @@ import {createHash} from 'node:crypto';
 const args=(extra={})=>({prompt:'公元1024年发生重大制度改变',makeId:()=> 'test-world',autoComplete:true,callChat:minuteChat(),...extra});
 const validate=w=>validateMacro(w,{firstYear:1024,actions:compileInterventions(admission()).map((a,i)=>({...a,id:'intervention:'+(i+1)}))});
 
-test('complete public flow uses two bounded calls, full horizon, causal ledger and persistent round trip',async()=>{
+test('legacy Minute replay uses two bounded calls and preserves its causal ledger and stored format',async()=>{
  const calls=[];const {worldline:w}=await simulateMinute(args({callChat:minuteChat({calls})}));
  assert.deepEqual(calls.map(x=>x.options.stage),['minute-world','minute-review']);
  assert.equal(calls[1].context.interventions[0].id,'intervention:1');assert.ok(calls[1].context.recordYears.some(r=>r.id==='intervention:1'&&r.year===1024));
@@ -80,8 +80,8 @@ test('provider receives output headroom, explicit non-thinking and no retry for 
  globalThis.fetch=async()=>({ok:true,json:async()=>({choices:[{finish_reason:'length',message:{content:'{}'}}]})});await assert.rejects(()=>callChat(config,[],{json:true,profile:'minute'}),e=>e.reason==='truncated');
  }finally{globalThis.fetch=original;}
 });
-test('public entry reaches new algorithm and frozen archive has exact digest',async()=>{
- const adapter=await readFile('src/chronicle-adapter.mjs','utf8');assert.ok(adapter.includes('./minute-simulation.mjs'));assert.ok(!adapter.includes('ucm-omega'));
+test('public entry bypasses the archived engine and frozen archive has exact digest',async()=>{
+ const adapter=await readFile('src/chronicle-adapter.mjs','utf8');assert.ok(adapter.includes('./prompt-world.mjs'));assert.ok(!adapter.includes('ucm-omega'));
  const bytes=await readFile('archive/ucm-omega-v2/source-f3f0266.zip');assert.equal(createHash('sha256').update(bytes).digest('hex'),'cdac81ca795b032dc988dae224e88a69fc1707b9b8039880d6529bea5a4e199c');
  assert.match(explainError({code:'MINUTE_DEADLINE'},'zh'),/未保存/);
 });

@@ -39,7 +39,7 @@ The reference timeline covers approximately **3200 BCE – 1 January 2026**. Its
 | Surface | Operation |
 | :--- | :--- |
 | **Chronology** | Navigate a pan-and-zoom timeline with recorded events and diverging branches. |
-| **Worldline computation** | Validate an Earth-specific change, complete global macro history, validate causal links and review the resulting world state. |
+| **Worldline computation** | Let the model interpret and complete a premise, then develop its alternate history. |
 | **World database** | Inspect, search, add, edit or delete derived records, including new knowledge produced by a divergence. |
 | **Computation Core** | Ask questions grounded in a selected world's event ledger and knowledge records. |
 | **Visual generation** | Generate a world illustration with a configured image-generation endpoint. |
@@ -48,21 +48,20 @@ The reference timeline covers approximately **3200 BCE – 1 January 2026**. Its
 
 ### Timeline rules
 
-- The reference world is Earth. A valid edit must modify Earth history, an actual physical constant, or introduce an event **on Earth at an explicit historical date**.
-- A newly invented external planet or unsupported off-world history cannot be modified as an independently established reference fact.
+- The reference world is Earth. The model interprets the premise against that historical context.
+- Missing dates, scope and background are completed by the model, with material assumptions retained in the world.
 - Branch-generated entities become available within that branch and its descendants. A subsequent change can refer to this new local knowledge.
 - All divergence is bounded by the recorded-history start and **1 January 2026**. Editing a branch never rewrites the original reference chronology.
 - Generated consequences are model-based scenarios. Historical records and generated facts retain separate provenance.
 
 ## Computation pipeline
 
-1. Interpret the historical intervention and synthesize a complete macro world.
-2. Validate exact dates, ancestry, causal references, worldwide and temporal coverage.
-3. Independently review and apply bounded explicit corrections.
-4. Store the complete world, then explore and persist additional details through the Core.
+1. The model interprets and enriches the user premise.
+2. The same response develops the history, choosing its own events, settings and amount of text.
+3. The application adapts dates and records for the existing display and saves the full authored content.
+4. Each Core question receives a model-authored answer and any new settings to save in that world.
 
-
-The production engine completes a macro world through 2026 in one synthesis request plus one independent review, with deterministic causal and coverage checks. It targets completion within two minutes, with dynamically sized historical detail and no prose/event quota. All seven regions receive their own six domain settings. The Core adds further question-driven discoveries. Provider latency can cause a timeout, which never saves a partial world. See the [engine specification](docs/ENGINE.md) and [measurements](docs/FLASH-DYNAMIC-EVALUATION.md).
+There is no production admission classifier, causal-graph audit, coverage quota, checkpoint schedule, mechanical numerical gate or mandatory review loop. There is no application inference deadline. Provider context and output capacity remain finite; incomplete transport is reported rather than saved as a completed world. See the [engine specification](docs/ENGINE.md). Historical measurement documents describe the previous engines.
 
 ## Get started
 
@@ -137,4 +136,4 @@ Architecture and interface patterns were informed by the following materials; im
 <div align="center"><sub>CHRONICLE OF AGES &nbsp; / &nbsp; UNIFIED COMPUTATION MATRIX</sub></div>
 ## Stateful simulation
 
-The production engine is **Chronicle Minute / 3**. It creates a complete global macro history, reviews the same causal ledger and stores the accepted world. The Core extends details through later questions. Existing saved worlds remain readable. The previous algorithm is fully [archived](archive/ucm-omega-v2/README.md), with no production fallback. This balances speed and macro quality rather than claiming unlimited fine-grained inference. [Implementation and limits](docs/ENGINE.md).
+The production engine is **Prompt LLM / 4**. One normal model response interprets and expands the premise, chooses the narrative volume and creates the world. The Core likewise answers and develops world settings in one response. Production no longer uses admission rules, graph audits, fixed region/domain grids, checkpoints, mechanical numerical gates or review/repair pipelines. Code adapts the result to the existing display and storage, without pruning prose or imposing an inference deadline. Provider context/output limits still apply. Old worlds and frozen source archives remain readable, with no production fallback. The pre-rewrite project is preserved on `archive/pre-prompt-llm-20261112`. [Implementation and limits](docs/ENGINE.md).

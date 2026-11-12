@@ -1,10 +1,10 @@
 import {sanitizeSimulation} from './world-model.mjs';
-import {exploreWorld} from './world-exploration.mjs';
-import { simulateMinute } from './chronicle-adapter.mjs';
+import {simulatePromptWorld,explorePromptWorld} from './chronicle-adapter.mjs';
+import {sanitizePromptWorldline} from './prompt-world.mjs';
 import {recordRequestUsage} from './usage-meter.mjs';
 import {usageBillingProvider} from './deepseek-pricing.mjs';
 import {parseModelJSON,normalizeModelContent,ModelJSONError} from './structured-output.mjs';
-import {auditKnowledge,sanitizeKnowledge,summarizeKnowledge} from './exploration-knowledge.mjs';
+import {sanitizeKnowledge} from './exploration-knowledge.mjs';
 import {BASELINE,validYear} from './data.js';
 import {migrateTextModel} from './model-routing.mjs';
 import {strictMinuteRequest,outputSchemaIssue,normalizeMinuteAudit} from './minute-output-schema.mjs';
@@ -54,6 +54,7 @@ export function validEndpoint(value){
 export function extractJSON(content){return parseModelJSON(content)}
 export function explainError(error,lang='en'){
  const code=String(error?.code||'');
+ if(code==='PROMPT_OUTPUT_INVALID')return lang==='zh'?'模型返回的结果缺少显示或保存所需的数据格式，请重试。':'The model response is missing data needed for display or storage. Please retry.';
  if(code==='MODEL_COMPLETION_INTERRUPTED'){
   const reasons={insufficient_system_resource:['模型服务资源不足，中途停止了生成。','The model service stopped generation because resources were unavailable.'],
    aborted:['模型服务中途取消了生成。','The model service aborted generation.'],content_filter:['模型服务拦截了这次生成。','The model service filtered this generation.']};
@@ -129,6 +130,7 @@ export function explainError(error,lang='en'){
  */
 export async function callChat(config,messages,{signal,json=false,temperature=.35,maxTokens=3200,purpose='other',stage='other',reasoning=false,profile=null}={}){
  const bounded=profile==='minute';
+ const promptLed=profile==='prompt-llm';
  const c=safeConfig(config);
  if(!configured(c))throw new Error('NOT_CONFIGURED');
  if(!validEndpoint(c.endpoint))throw new Error('INVALID_ENDPOINT');
@@ -153,10 +155,11 @@ export async function callChat(config,messages,{signal,json=false,temperature=.3
   // discarding detail or paying for repeated truncation/re-generation.
   if(!bounded&&json&&purpose==='simulation')baseBody.max_tokens=Math.max(baseBody.max_tokens,8192);
  }
- const doCall=async({format=json,recovery=false,previousFailure=null}={})=>{
+ const doCall=async({format=json,recovery=false,previousFailure=null,omitTokenLimit=false}={})=>{
   const startedAt=Date.now();
   const elapsed=()=>Math.max(0,Date.now()-startedAt);
   const body={...baseBody};
+  if(omitTokenLimit)delete body.max_tokens;
   if(!format)delete body.response_format;
   if(recovery){
    const retryNote='The previous reply did not produce a valid complete JSON object. Re-evaluate the original instructions and return ONE complete syntactically correct JSON object only. No markdown, preamble, commentary or code fences. Preserve ALL substantive events, dependencies, historical detail and required keys; never delete events or substitute empty arrays to make the format pass. Do not modify the original user intervention.';
@@ -233,6 +236,13 @@ export async function callChat(config,messages,{signal,json=false,temperature=.3
    if(strict||!json||signal?.aborted)throw first;
   const unsupportedFormat=first?.status===400||first?.status===422;
   const malformed=first?.message==='INVALID_JSON';
+  if(promptLed){
+   if(first?.reason==='truncated')throw first;
+   if(unsupportedFormat&&/max[_ -]?(?:tokens|completion[_ -]?tokens)|output[_ -]?tokens/i.test(first.message))return doCall({omitTokenLimit:true});
+   if(unsupportedFormat&&!/response_format|json[\s_-]?(?:object|mode)/i.test(first.message))throw first;
+   if(unsupportedFormat||malformed)return doCall({format:!unsupportedFormat,recovery:malformed});
+   throw first;
+  }
   if(!unsupportedFormat&&!malformed)throw first;
    // The minute engine supplies its shared deadline signal to BOTH attempts.
    // Recover a format failure once, but never regenerate length-limited history
@@ -281,6 +291,7 @@ export function worldFacts(branches,branch){
  return uniq(items);
 }
 export function sanitizeWorldline(input){
+ if(input?.simulation?.version===4)return sanitizePromptWorldline(input);
  if(!object(input)||typeof input.id!=='string'||!validYear(input.anchorYear)||!Array.isArray(input.events)||!Array.isArray(input.facts))return null;
  const bodyText=s=>String(s??'').trim();
  const simulation=sanitizeSimulation(input.simulation);if(input.simulation&&!simulation)return null;
@@ -292,15 +303,15 @@ export function sanitizeWorldline(input){
 }
 /**
  * The public simulation entry point used by app.js.
- * Chronicle Minute creates a complete macro history and independently reviews it
- * within a bounded budget. The previous generators are sealed in archive/.
+ * One model-led generation creates the world; code only adapts display/storage.
+ * Legacy admission, graph, coverage and review engines are not called here.
  */
 export async function simulate({prompt,branches=[],parentId=null,config,lang='en',signal,onProgress=()=>{},autoComplete=false,clarifications=[],budgetMs}) {
  if(!configured(config))throw new Error('NOT_CONFIGURED');
  try{
-  const {worldline}=await simulateMinute({
+  const {worldline}=await simulatePromptWorld({
    prompt,branches,parentId,baseline:BASELINE,config,lang,signal,onProgress,
-   callChat,makeId,autoComplete,clarifications,budgetMs
+   callChat,makeId,clarifications
   });
   return worldline;
  }catch(error){
@@ -337,15 +348,13 @@ export function sanitizeChats(input,branchIds){
  return result;
 }
 /**
- * Every analysis-core question launches a branch-scoped local inference.
- * The returned draft records are audited separately from the answer. This
- * function DOES NOT mutate state; the app commits knowledge with the dialogue.
+ * The model answers and supplies world settings in the same response.
+ * This function does not mutate state; the app saves settings with the dialogue.
  */
 export async function exploreCore({question,branch,branches=[],config,lang='en',history=[],signal,baselineKnowledge=[]}){
  question=truncate(question,1800).trim();if(!question)throw new Error('EMPTY_QUESTION');
- const relatedDialogue=dialogueEntries(history).map(entry=>({entry,score:rank(question,entry)})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score).slice(0,6).map(x=>x.entry);
- return exploreWorld({question,branch,events:worldEvents(branches,branch),
-  facts:branch?worldFacts(branches,branch):baselineKnowledge,config,lang,history,relatedDialogue,signal,callChat,makeId});
+ return explorePromptWorld({question,branch,events:worldEvents(branches,branch),
+  facts:branch?worldFacts(branches,branch):baselineKnowledge,config,lang,history,signal,callChat,makeId});
 }
 export async function askCore(options){return (await exploreCore(options)).answer}
 

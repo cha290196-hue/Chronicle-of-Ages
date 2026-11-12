@@ -90,14 +90,13 @@ test('future evidence remains forbidden during Core completion',()=>{
  const out=auditKnowledge({candidates:[candidate({evidenceIds:['future']})],events:[{id:'future',year:1900}],makeId:()=> 'k'});assert.equal(out.rejected[0].reason,'EVIDENCE_IN_FUTURE');
 });
 test('the public Core bridge retains older relevant dialogue and uses Flash for every official request',async()=>{
- const originalFetch=globalThis.fetch,requests=[],fake=chat({proposals:[]});
+ const originalFetch=globalThis.fetch,requests=[];
  globalThis.fetch=async(_,init)=>{
-  const body=JSON.parse(init.body),method=body.messages.at(-1).content;
-  const stage=method.startsWith('Plan the')?'question-plan':method.startsWith('Carry out')?'question-inference':method.startsWith('Review these')?'question-review':'question-answer';
-  requests.push(body);const result=await fake({},body.messages,{stage});return {ok:true,json:async()=>({choices:[{message:{content:JSON.stringify(result)}}]})};
+  const body=JSON.parse(init.body);requests.push(body);
+  return {ok:true,json:async()=>({choices:[{finish_reason:'stop',message:{content:JSON.stringify({answer:'The guild adapted to the continuing industrial history.',knowledge:[]})}}]})};
  };
  const history=[{role:'user',content:'Explain the astronomical guild'},{role:'assistant',content:'The guild was founded in 1500.'}];for(let i=0;i<10;i++)history.push({role:'user',content:'Unrelated '+i},{role:'assistant',content:'Reply '+i});
- try{await exploreCore({question:'How did the astronomical guild change?',branch,branches:[branch],history,config:{provider:'deepseek',endpoint:'https://api.deepseek.com/chat/completions',model:'deepseek-v4-pro',key:'test-only'}});assert.match(requests[0].messages.at(-1).content,/The guild was founded in 1500/);assert.ok(requests.every(r=>r.model==='deepseek-flash'&&r.thinking.type==='disabled'));}finally{globalThis.fetch=originalFetch;}
+ try{await exploreCore({question:'How did the astronomical guild change?',branch,branches:[branch],history,config:{provider:'deepseek',endpoint:'https://api.deepseek.com/chat/completions',model:'deepseek-v4-pro',key:'test-only'}});assert.match(requests[0].messages.at(-1).content,/The guild was founded in 1500/);assert.equal(requests.length,1);assert.ok(requests.every(r=>r.model==='deepseek-flash'&&r.thinking.type==='enabled'&&!r.tools));}finally{globalThis.fetch=originalFetch;}
 });
 test('chat rejects a late knowledge conflict atomically instead of displaying an answer whose facts were discarded',async()=>{
  const source=await readFile('src/app.js','utf8'),code=source.slice(source.indexOf('async function submitQuestion('),source.indexOf('async function submitImage('));

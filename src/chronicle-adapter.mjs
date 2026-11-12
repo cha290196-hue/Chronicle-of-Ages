@@ -1,2 +1,2 @@
-/** Formal entry: new whole-horizon, budgeted engine. No archived fallback. */
-export {simulateMinute} from './minute-simulation.mjs';
+/** Production inference is model-led; legacy engines have no active fallback. */
+export {simulatePromptWorld,explorePromptWorld} from './prompt-world.mjs';

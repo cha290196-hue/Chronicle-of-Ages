@@ -1,5 +1,6 @@
 /** Branch-local Core discoveries. Review establishes world canon, never real historical truth. */
 import {validYear,tick} from './worldline-contract.mjs';
+import {sanitizePromptKnowledge} from './prompt-world.mjs';
 const list=x=>Array.isArray(x)?x:[];
 const text=x=>String(x??'').trim();
 const clip=(v,n=550)=>text(v).slice(0,n);
@@ -34,6 +35,7 @@ function ranking(x){
  return {metric:text(x.metric),label:text(x.label||x.metric),unit:text(x.unit),period:text(x.period),year:x.year,scope:text(x.scope||'global'),entityType:text(x.entityType||'other'),order:ascending?'ascending':'descending',coverage:text(x.coverage),entries};
 }
 export function sanitizeKnowledge(x){
+ if(x?.source==='prompt-llm')return sanitizePromptKnowledge(x);
  if(!isObject(x)||typeof x.id!=='string'||!validYear(x.firstYear))return null;
  const nameEn=clip(x.nameEn||x.nameZh,210),nameZh=clip(x.nameZh||x.nameEn,210),end=validYear(x.validUntil)?x.validUntil:x.firstYear;
  if(!nameEn||!nameZh||tick(end)<tick(x.firstYear))return null;
@@ -99,6 +101,10 @@ export function mergeKnowledge(existing=[],incoming=[]){
  const out=list(existing).map(sanitizeKnowledge).filter(Boolean),stats={added:0,duplicates:0,conflicts:0,invalid:0};
  for(const raw of list(incoming)){
   const x=sanitizeKnowledge(raw);if(!x){stats.invalid++;continue;}
+  if(x.source==='prompt-llm'){
+   const index=out.findIndex(y=>y.id===x.id);if(index>=0){out[index]=x;stats.duplicates++}else{out.push(x);stats.added++}
+   continue;
+  }
   if(out.some(y=>equivalent(x,y))){stats.duplicates++;continue;}
   if(out.some(y=>opposite(x,y))){stats.conflicts++;continue;}
   out.push(x);stats.added++;
