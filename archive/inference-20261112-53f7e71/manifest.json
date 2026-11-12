@@ -1,0 +1,209 @@
+{
+  "sourceCommit": "53f7e7146216eb868d2af42219445cf87dbe79cc",
+  "archiveBranch": "archive/inference-before-ui-20261112",
+  "purpose": "Preserve the current inference source before subsequent UI-only work. The active inference engine is unchanged.",
+  "archive": "source-53f7e71.zip",
+  "archiveSha256": "d115913b7b9bbaa2b3d6f47cc12cb98633de03b49ca21c339302f1ba62181a72",
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "5a499504e3a2f4b1dca690f018742163455572251f75e760bca87958a88e305b"
+    },
+    {
+      "path": "docs/ENGINE.md",
+      "sha256": "20f196489b742f0af9a55758c70cb67ad47658068f1bfa69b3940a26fd3cad1b"
+    },
+    {
+      "path": "docs/STRUCTURED-OUTPUT-FIX.md",
+      "sha256": "855d5cb11cc4c6e60c7024f15fabeafd6988923da23b7a5a8ff618920d688642"
+    },
+    {
+      "path": "package.json",
+      "sha256": "827d77ae09172b4bbee4be45eb9dfb05e1c774d796efd19e284524d0764d80f2"
+    },
+    {
+      "path": "scripts/prepare-pages.mjs",
+      "sha256": "15d87c277515edfc435c0dbd1120d433177703847aaa18d03c14316023dbc0f8"
+    },
+    {
+      "path": "src/answer-format.js",
+      "sha256": "0fa6b66eb5cd38c2a07597ad4319bc9316a49f44542fc8db2f4c140a3e7bf8df"
+    },
+    {
+      "path": "src/app.js",
+      "sha256": "f9dee6246f40576707b9d99ace18aa840874b057d94ffbd60ab9c3347b15437f"
+    },
+    {
+      "path": "src/canvas.js",
+      "sha256": "550f4b1513f6e2578089f829dea50b2e71a6a398aeadc5e158308f7c03583202"
+    },
+    {
+      "path": "src/chronicle-adapter.mjs",
+      "sha256": "55d0e0017ff26b01654684bb7784bcad09009d8ffea5e3793062a1fe66edc2f5"
+    },
+    {
+      "path": "src/clarification.mjs",
+      "sha256": "e098861f602ca12a48885df1fc15fd725b1943c0e306d4bd3889b86a182c32da"
+    },
+    {
+      "path": "src/core-resolution.mjs",
+      "sha256": "9d9537b4380053a63ede48515b186dff06d53d9958eb73ff5d02de81708aae52"
+    },
+    {
+      "path": "src/core.js",
+      "sha256": "b8c31ed8ab3934ef9f7fb4f1598a9c4d419f41b577b1ce55b5b074a0c702e65f"
+    },
+    {
+      "path": "src/data.js",
+      "sha256": "9c35c276da1267f724ff1bfcfb2f4cba22fdfc7c0e5fc7f2b3478794e11dd6cc"
+    },
+    {
+      "path": "src/deepseek-pricing.mjs",
+      "sha256": "781ae1e10019c2a3302a355b9f98ce3eb058c3ba33562655b3533cc7391a9438"
+    },
+    {
+      "path": "src/examples.js",
+      "sha256": "2f8f54f4ce937359c182a801d59922e71a25ffb14e085800ebcf1a8d396f8e52"
+    },
+    {
+      "path": "src/exploration-knowledge.mjs",
+      "sha256": "74c2af9b61432876c67a7e09c24a15264ac22bbaf6c46a8c5a86a8fa5847398d"
+    },
+    {
+      "path": "src/historical-intent.mjs",
+      "sha256": "6d00c440ed5d19b64a6787adeb05e090be2d08ff1a73d8e31fabc1f5b0994bec"
+    },
+    {
+      "path": "src/i18n.js",
+      "sha256": "d6e333ea5c336e699771a72001dfa02d20fa671cbc91b14937cfb7698570386b"
+    },
+    {
+      "path": "src/inference-budget.mjs",
+      "sha256": "a3b5bcc4d8a2937d185c62ab40e87f727ad8e7b701f1af8dfea80b8a801b0969"
+    },
+    {
+      "path": "src/minute-output-schema.mjs",
+      "sha256": "7b5cb9b978718f12ac174b6aa40e3782b0f797f4ffd141bc360de87f27a448ac"
+    },
+    {
+      "path": "src/minute-prompts.mjs",
+      "sha256": "7ec1293e4ee6e78067acc1d143d8096e2553366c0fbd5724ff082de416f816da"
+    },
+    {
+      "path": "src/minute-simulation.mjs",
+      "sha256": "0f24c3e70717710963e626fb7f9f9dba42dcc07775f59f071f310878fbe9b9c7"
+    },
+    {
+      "path": "src/minute-world.mjs",
+      "sha256": "1ebdecba080b65c73f231f61f35607cc5fd2971c3db445c51237b7dc24888580"
+    },
+    {
+      "path": "src/model-routing.mjs",
+      "sha256": "3ba4f2a6a9c47546e6252c2da80da226492b5d51bd18cd9d38ecc3c312382c3f"
+    },
+    {
+      "path": "src/structured-output.mjs",
+      "sha256": "d0795661963bbf8ab24118357469b3fe89009e0ebb336302d9ebc09d0b79c4c2"
+    },
+    {
+      "path": "src/usage-dashboard.mjs",
+      "sha256": "f11960f97c9b80dc0517538d5046f13243b1b6d9d921b6eab7dc51d6f63f127d"
+    },
+    {
+      "path": "src/usage-meter.mjs",
+      "sha256": "bd8b0df16ad289afb4281a3f7d9a064f61d229565ac84f0cc189889fc3631bde"
+    },
+    {
+      "path": "src/world-exploration.mjs",
+      "sha256": "5d3db72b834279912f7a5d3f57f7b153fea92410bb50947b88e79170c7568c36"
+    },
+    {
+      "path": "src/world-model.mjs",
+      "sha256": "f55243fc2b1387c139d33060b407f6911752f44b0a98e6ce3d792303c258aaf5"
+    },
+    {
+      "path": "src/world-output-policy.mjs",
+      "sha256": "01d973a54d7e0891afde759fdf438c32375ef647eff5c9fcddb6160c855c0748"
+    },
+    {
+      "path": "src/worldline-contract.mjs",
+      "sha256": "85e9b348de7d81ea325f559f47ef7500a8ccfc9c2bd7a4e1c75d2eda609cc236"
+    },
+    {
+      "path": "src/worldline-deletion.mjs",
+      "sha256": "ca281d64e9a99c9b28210565a0ee7acff4a79298489585286c7bb9a9fe399eed"
+    },
+    {
+      "path": "tests/answer-format.test.mjs",
+      "sha256": "a6dbd861966cb5843e142b73526bae89e3d4f90731fe09914fed39651519cd93"
+    },
+    {
+      "path": "tests/canvas.test.mjs",
+      "sha256": "4f576aade5c0195fbd011dc4d1341877ae574e195945ba5134f80ba0e577c1ba"
+    },
+    {
+      "path": "tests/core-provider-regression.test.mjs",
+      "sha256": "ccc4a12111ab5938d85ba6a465101e0dde8c12fc8bf3f49eba4965cede803cc4"
+    },
+    {
+      "path": "tests/core.test.mjs",
+      "sha256": "1386295f6a11cc0a6a776e265ef2a2369de9cf6f0c5e771c2199769208049b59"
+    },
+    {
+      "path": "tests/database.test.mjs",
+      "sha256": "62916c31623a4afcad78f014c4a2da0dd6ee7a083562d84819438ffb58ec8421"
+    },
+    {
+      "path": "tests/deepseek-pricing.test.mjs",
+      "sha256": "012a76b803112b93818f7ff7a1aab8eb2976b21ef1a11f28cc93d37ee61a8707"
+    },
+    {
+      "path": "tests/exploration-knowledge.test.mjs",
+      "sha256": "dedfe248754ea90425659babd49ff35f3369076d801bc4bb7854f33d96c03fdb"
+    },
+    {
+      "path": "tests/fixtures/intake-preservation-failure.json",
+      "sha256": "6ace62036f7cfb92afc56fd35f58bcb7f2afb7d9bff109ed11327408720c9696"
+    },
+    {
+      "path": "tests/fixtures/minute-world.mjs",
+      "sha256": "33e528fcfe632daa62b15a75ffa0a94ceb64902999617b43666286915e8ae631"
+    },
+    {
+      "path": "tests/minute-engine.test.mjs",
+      "sha256": "451e800c5d0daf20a018677f86def3180de96c67ee68181932180de898597f6e"
+    },
+    {
+      "path": "tests/minute-output-schema.test.mjs",
+      "sha256": "a3d8b90472ddcc3599fd09de5d1ef38c900dd6e69f80d2af95dd191f1a59a029"
+    },
+    {
+      "path": "tests/pages-build.test.mjs",
+      "sha256": "abe4af090ace610b37d8239c21e0b13600d1046c406e12310256dd29c6d0c0fe"
+    },
+    {
+      "path": "tests/real-response-regression.test.mjs",
+      "sha256": "d75878e504307a897dbe1f5cd50bcc04e9c530fd590cc3d7720d3de54e41be69"
+    },
+    {
+      "path": "tests/structured-output.test.mjs",
+      "sha256": "5e5f019ceccb8dfbeb567ae6ddd6cf483760b5ef3b40dc7d37aae6511630a499"
+    },
+    {
+      "path": "tests/usage-dashboard.test.mjs",
+      "sha256": "a3eb610afba374d5b921a65a4e67969e9bfdd7926e6bfd16b91721b44d9f6d34"
+    },
+    {
+      "path": "tests/world-exploration.test.mjs",
+      "sha256": "60d9d336fe0ac1afe39f447e164d3daece267a6adb253c5a11912f7d1a024c79"
+    },
+    {
+      "path": "tests/world-view.test.mjs",
+      "sha256": "ce5ed97167da97ba1331807091e2992d917092353ec04ec7a5c43844dcb5931f"
+    },
+    {
+      "path": "tests/worldline-deletion.test.mjs",
+      "sha256": "84b0fffa649ee0565af408dd98e26ca912b60555d5c7157b9c22a15c9ddc9b7c"
+    }
+  ]
+}

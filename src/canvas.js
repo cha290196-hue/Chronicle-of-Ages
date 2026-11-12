@@ -1,6 +1,16 @@
 import {BASELINE,FIRST_YEAR,LAST_YEAR,displayYear,eventLabel} from './data.js';
 
 const clamp=(n,lo,hi)=>Math.min(hi,Math.max(lo,n));
+export const MIN_ZOOM=.025;
+export const MAX_ZOOM=240;
+export function fitCanvasText(ctx,value,maxWidth){
+ const text=String(value??'');
+ if(ctx.measureText(text).width<=maxWidth)return text;
+ if(ctx.measureText('…').width>maxWidth)return '';
+ const characters=Array.from(text);let low=0,high=characters.length;
+ while(low<high){const middle=Math.ceil((low+high)/2);if(ctx.measureText(characters.slice(0,middle).join('')+'…').width<=maxWidth)low=middle;else high=middle-1}
+ return characters.slice(0,low).join('')+'…';
+}
 export class WorldCanvas{
  constructor(element,{onEvent=()=>{},onBranch=()=>{},onYear=()=>{},onCluster=null}={}){
   this.el=element;this.ctx=element.getContext('2d');this.onEvent=onEvent;this.onBranch=onBranch;this.onYear=onYear;this.onCluster=onCluster;
@@ -21,9 +31,10 @@ export class WorldCanvas{
  at(x){return this.year+(x-this.width*(this.mobile?.5:.54))/this.zoom}
  baseY(){return (this.mobile?(this.height-68)*.5:this.height*.59)+this.vertical}
  laneY(index){return this.baseY()-144-index*114}
- focus(year,zoom=this.zoom){if(Number.isFinite(year)){this.year=year;this.zoom=clamp(zoom,.025,12);this.vertical=0;this.invalidate();this.onYear(this.year)}}
- fit(){this.zoom=clamp((this.width-160)/(LAST_YEAR-FIRST_YEAR),.025,12);this.year=(FIRST_YEAR+LAST_YEAR)/2;this.vertical=0;this.invalidate();this.onYear(this.year)}
- zoomAt(factor,x=this.width/2){const before=this.at(x);this.zoom=clamp(this.zoom*factor,.025,12);this.year=before-(x-this.width*(this.mobile?.5:.54))/this.zoom;this.invalidate();this.onYear(this.year)}
+ focus(year,zoom=this.zoom){if(Number.isFinite(year)){this.year=year;this.zoom=clamp(zoom,MIN_ZOOM,MAX_ZOOM);this.vertical=0;this.invalidate();this.onYear(this.year)}}
+ fit(){this.zoom=clamp((this.width-160)/(LAST_YEAR-FIRST_YEAR),MIN_ZOOM,MAX_ZOOM);this.year=(FIRST_YEAR+LAST_YEAR)/2;this.vertical=0;this.invalidate();this.onYear(this.year)}
+ zoomAt(factor,x=this.width/2){const before=this.at(x);this.zoom=clamp(this.zoom*factor,MIN_ZOOM,MAX_ZOOM);this.year=before-(x-this.width*(this.mobile?.5:.54))/this.zoom;this.invalidate();this.onYear(this.year)}
+ labelSize(){return clamp(12+Math.log2(Math.max(1,this.zoom/.36))*1.2,12,22)}
  nearest(x,y){
  let tip=null,tipDist=this.mobile?24:17;
  for(const h of this.hit){if(h.kind!=='tip')continue;const d=Math.hypot(h.x-x,h.y-y);if(d<tipDist){tip=h;tipDist=d}}
@@ -48,8 +59,8 @@ nodeActive(branchId,year){
  return i>=0&&year>=lineage[i].anchorYear&&year<(lineage[i+1]?.anchorYear??LAST_YEAR+1)
 }
  zoomCluster(item){const events=item?.cluster;if(!events?.length)return;const from=events[0].year,to=events.at(-1).year;
-  if(this.onCluster){this.onCluster(events,item.branchId);if(from===to||this.zoom>=11.99)return}
-  if(this.zoom>=11.99){this.onEvent(events[0],item.branchId);return}this.focus(Math.round((from+to)/2),Math.max(this.zoom*2.8,Math.min(12,72/Math.max(to-from,1))))}
+  if(this.onCluster){this.onCluster(events,item.branchId);if(from===to||this.zoom>=MAX_ZOOM)return}
+  if(this.zoom>=MAX_ZOOM){this.onEvent(events[0],item.branchId);return}this.focus(Math.round((from+to)/2),Math.max(this.zoom*2.8,Math.min(MAX_ZOOM,72/Math.max(to-from,1))))}
  pointerDown(e){if(e.button!==0&&e.pointerType==='mouse')return;this.clearTooltip();this.el.setPointerCapture?.(e.pointerId);this.pointers.set(e.pointerId,{x:e.offsetX,y:e.offsetY});if(this.pointers.size===2){const p=[...this.pointers.values()];this.pinching={distance:Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y),zoom:this.zoom};this.drag=null;return}this.drag={x:e.offsetX,y:e.offsetY,year:this.year,vertical:this.vertical,moved:false};this.el.style.cursor='grabbing'}
  pointerMove(e){if(this.pointers.has(e.pointerId))this.pointers.set(e.pointerId,{x:e.offsetX,y:e.offsetY});if(this.pointers.size>=2&&this.pinching){const p=[...this.pointers.values()],d=Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y);const mid=(p[0].x+p[1].x)/2;this.zoomAt((this.pinching.zoom*clamp(d/Math.max(this.pinching.distance,1),.25,4))/this.zoom,mid);return}
  if(this.drag){const dx=e.offsetX-this.drag.x,dy=e.offsetY-this.drag.y;if(Math.hypot(dx,dy)>5)this.drag.moved=true;this.year=this.drag.year-dx/this.zoom;this.vertical=clamp(this.drag.vertical+dy,-900,900);this.invalidate();this.onYear(this.year)}else{if(this.mobile||e.pointerType==='touch'){this.clearTooltip();return}const item=this.nearest(e.offsetX,e.offsetY);this.hover=item;this.el.style.cursor=item?'pointer':'grab';this.invalidate();const tip=document.getElementById('canvas-tooltip');if(tip){if(item){tip.hidden=false;tip.textContent=item.kind==='tip'?(this.lang==='zh'?'切换世界线':'Select worldline'):item.cluster?(item.cluster.length+' '+(this.lang==='zh'?'个事件 · 点击放大':'events · click to zoom')):item.event?`${displayYear(item.event.year,this.lang)} · ${eventLabel(item.event,this.lang)}`:(this.lang==='zh'?'选择世界线':'Select worldline');tip.style.left=`${clamp(e.offsetX+18,8,this.width-230)}px`;tip.style.top=`${clamp(e.offsetY-20,8,this.height-54)}px`}else tip.hidden=true}}
@@ -109,27 +120,31 @@ nodeActive(branchId,year){
   const rowBase=this.baseY();for(let y=((rowBase%114)+114)%114;y<h;y+=114){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke()}
   let interval=[1,2,5,10,20,50,100,200,500,1000,2000].find(v=>v*this.zoom>=96)||2000;
   const start=Math.floor(this.at(0)/interval)*interval;
-  ctx.font='10px "Inter",system-ui,sans-serif';ctx.textAlign='center';ctx.textBaseline='top';
+  ctx.letterSpacing='0px';ctx.font='10px "Inter",system-ui,sans-serif';ctx.textAlign='center';ctx.textBaseline='top';
   for(let year=start;year<=this.at(w)+interval;year+=interval){const tickYear=year===0?1:year;const x=this.x(tickYear);if(x<0||x>w)continue;const eraOrigin=this.mobile&&year===0;ctx.strokeStyle=eraOrigin?'#b9b9b4':'#e9e9e6';ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();ctx.fillStyle=eraOrigin?'#41413d':'#ababaa';ctx.font=eraOrigin?'600 11px system-ui':'10px system-ui';ctx.fillText(displayYear(tickYear,this.lang),x,Math.max(12,Math.min(this.baseY()+43,h-36)))}
   ctx.setLineDash([]);
  }
  worldline(from,to,y,muted){const ctx=this.ctx,x1=this.x(from),x2=this.x(to);if(x2<0||x1>this.width)return;
  ctx.lineCap='round';ctx.strokeStyle=muted?'#c8c8c6':'#21211f';ctx.lineWidth=muted?1.5:2.3;ctx.beginPath();ctx.moveTo(x1,y);ctx.lineTo(x2,y);ctx.stroke();
  ctx.fillStyle=muted?'#b8b8b7':'#21211f';ctx.beginPath();ctx.arc(clamp(x1,-100,this.width+100),y,3,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.arc(clamp(x2,-100,this.width+100),y,4,0,Math.PI*2);ctx.fill();
- if(x1<this.width-90&&x2>0){ctx.font='600 10px system-ui';ctx.letterSpacing='1px';ctx.textAlign='left';ctx.fillStyle=muted?'#aaa':'#414141';ctx.fillText(this.lang==='zh'?'现实世界线 / 001':'REALITY / 001',clamp(x1+22,16,this.width-150),y-23)}
+ if(x1<this.width-90&&x2>0){ctx.save();ctx.font='600 10px system-ui';ctx.letterSpacing='1px';ctx.textAlign='left';ctx.fillStyle=muted?'#aaa':'#414141';ctx.fillText(this.lang==='zh'?'现实世界线 / 001':'REALITY / 001',clamp(x1+22,16,this.width-150),y-23);ctx.restore()}
  }
 
  nodes(events,y,branchId,unmuted){
   const ctx=this.ctx;
+  ctx.save();ctx.letterSpacing='0px';
+  const titleSize=this.labelSize(),dateSize=clamp(titleSize-2,10,16),rowGap=Math.ceil(titleSize+dateSize+14);
+  const dateOffset=(titleSize+dateSize)/2+6;
+  const labelLimit=Math.max(0,Math.min(180+(titleSize-12)*24,this.width-24));
   const visible=events.filter(e=>this.x(e.year)>-25&&this.x(e.year)<this.width+25).sort((a,b)=>a.year-b.year);
   const clusters=[];
   // Coalesce nearby timestamps at this zoom. Click a group to inspect its period.
   for(const e of visible){
    const x=this.x(e.year),last=clusters.at(-1);
-   if(last&&x-last.firstX<18&&(this.zoom<11.99||x===last.firstX)){last.events.push(e);last.xSum+=x}
+   if(last&&x-last.firstX<18&&(this.zoom<MAX_ZOOM||x===last.firstX)){last.events.push(e);last.xSum+=x}
    else clusters.push({events:[e],firstX:x,xSum:x});
   }
-  const rows=[{dy:-43,right:-999},{dy:70,right:-999},{dy:-83,right:-999},{dy:110,right:-999}];
+  const rows=[{dy:-48,right:-999},{dy:74,right:-999},{dy:-48-rowGap,right:-999},{dy:74+rowGap,right:-999}];
   for(const group of clusters){
    const x=group.xSum/group.events.length,e=group.events[0],grouped=group.events.length>1;
    // Keep terminal events independently clickable beside the world-selection tip.
@@ -143,30 +158,34 @@ nodeActive(branchId,year){
    if(!grouped){ctx.beginPath();ctx.arc(x,nodeY,1.2,0,Math.PI*2);ctx.fillStyle=isActive?'#1d1d1d':'#bcbcbc';ctx.fill()}
    this.hit.push(grouped?{x,y:nodeY,cluster:group.events,branchId}:{x,y:nodeY,event:e,branchId});
    if(grouped){
-    if(group.events.length>1){ctx.textAlign='center';ctx.textBaseline='bottom';ctx.font='600 9px system-ui';ctx.fillStyle=isActive?'#656563':'#b4b4b1';ctx.fillText(String(group.events.length),x,nodeY-11)}
+    if(group.events.length>1){ctx.textAlign='center';ctx.textBaseline='bottom';ctx.font=`600 ${dateSize}px system-ui`;ctx.fillStyle=isActive?'#656563':'#b4b4b1';ctx.fillText(String(group.events.length),x,nodeY-11)}
     continue;
    }
    if(this.zoom<.14||x<12||x>this.width-12)continue;
-   const title=eventLabel(e,this.lang),maxLength=this.zoom<.45?19:26;
-   const shortened=title.length>maxLength?title.slice(0,maxLength-1)+'…':title;
-   ctx.font='500 10.5px system-ui';const width=Math.min(170,Math.max(66,ctx.measureText(shortened).width+5));
+   const titleFont=`${current?'600':'500'} ${titleSize}px system-ui`,dateFont=`${dateSize}px system-ui`;
+   ctx.font=titleFont;const shortened=fitCanvasText(ctx,eventLabel(e,this.lang),labelLimit),titleWidth=ctx.measureText(shortened).width;
+   ctx.font=dateFont;const date=fitCanvasText(ctx,displayYear(e.year,this.lang),labelLimit);
+   const width=Math.max(titleWidth,ctx.measureText(date).width);
    const left=clamp(x+10,12,Math.max(12,this.width-width-12));
    const row=rows.find(track=>y+track.dy>38&&y+track.dy<this.height-80&&left>track.right+16);
    if(!row)continue;
    const top=y+row.dy;
    ctx.strokeStyle=isActive?'#c4c4c1':'#e0e0dd';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x,y-8);ctx.lineTo(x,top+14);ctx.lineTo(left-2,top+14);ctx.stroke();
-   ctx.textAlign='left';ctx.textBaseline='middle';ctx.fillStyle=isActive?'#40403c':'#9a9a96';ctx.font=(current?'600':'500')+' 10.5px system-ui';ctx.fillText(shortened,left,top,width);
-   ctx.font='9px system-ui';ctx.fillStyle=isActive?'#999994':'#c1c1bd';ctx.fillText(displayYear(e.year,this.lang),left,top+16,width);
+   ctx.textAlign='left';ctx.textBaseline='middle';ctx.fillStyle=isActive?'#40403c':'#9a9a96';ctx.font=titleFont;ctx.fillText(shortened,left,top);
+   ctx.font=dateFont;ctx.fillStyle=isActive?'#999994':'#c1c1bd';ctx.fillText(date,left,top+dateOffset);
    row.right=left+width;
   }
+  ctx.restore();
  }
 
  branch(branch,i){
  const p=this.drawBranchTrace(branch,i,LAST_YEAR,false);if(!p)return;
  const ctx=this.ctx,active=this.active===branch.id;
  if(p.curveEnd+18<this.width&&p.curveEnd+18>0){
-  ctx.save();ctx.textAlign='left';ctx.textBaseline='alphabetic';ctx.font='600 10px system-ui';ctx.fillStyle=active?'#292929':'#a1a19d';
-  ctx.fillText(`${String(i+2).padStart(3,'0')} / ${(this.lang==='zh'?branch.titleZh:branch.titleEn)||branch.prompt}`.slice(0,60),clamp(p.curveEnd+12,12,Math.max(12,this.width-180)),p.y-19,270);
+  ctx.save();ctx.letterSpacing='0px';ctx.textAlign='left';ctx.textBaseline='alphabetic';ctx.font=`600 ${clamp(this.labelSize()-2,11,18)}px system-ui`;ctx.fillStyle=active?'#292929':'#a1a19d';
+  const left=clamp(p.curveEnd+12,12,Math.max(12,this.width-180));
+  const title=fitCanvasText(ctx,`${String(i+2).padStart(3,'0')} / ${(this.lang==='zh'?branch.titleZh:branch.titleEn)||branch.prompt}`,Math.min(360,this.width-left-12));
+  ctx.fillText(title,left,p.y-19);
   ctx.restore();
  }
 }
