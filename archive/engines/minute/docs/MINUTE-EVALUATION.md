@@ -29,7 +29,7 @@ Final completed runs are recorded below after full-horizon generation, independe
 
 The milestone column above records the selector at the time of those API runs. Final deterministic selection also counts cross-region influence transmitted through the accepted descendants of a locally originating event; replaying the **same recorded ledgers** yields 27 and 17 milestones respectively. This adds no generated events or extra model requests. These replay counts are saved separately as `finalMilestones`, and must not be confused with another API latency measurement.
 
-The Ming case used 8,666 input and 4,855 output tokens. [Exact Ming responses](evaluation/ming-20261108.json). The first completed case used 10,473 input tokens (2,176 cached) and 6,905 output tokens across two requests. [Exact provider responses and measurements](evaluation/christianity-20261108.json) are saved for inspection and protocol regression replay. Timings are from the real browser run, not that replay.
+The Ming case used 8,666 input and 4,855 output tokens. [Exact Ming responses](../evaluation/ming-20261108.json). The first completed case used 10,473 input tokens (2,176 cached) and 6,905 output tokens across two requests. [Exact provider responses and measurements](../evaluation/christianity-20261108.json) are saved for inspection and protocol regression replay. Timings are from the real browser run, not that replay.
 
 The displayed independence count is graph reachability, not proof that all those events would historically be unaffected. Inspection still finds arguable institutional analogies and real-history carry-over. These are limits of the model-based macro inference; this report does not turn a successful structural check into historical ground truth.
 

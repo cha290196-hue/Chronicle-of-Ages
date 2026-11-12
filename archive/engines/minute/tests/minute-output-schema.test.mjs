@@ -1,14 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {callChat,explainError,sanitizeWorldline} from '../src/core.js';
-import {parseModelJSON} from '../src/structured-output.mjs';
+import {sanitizeWorldline} from '../../../../src/core.js';
+import {callChat,explainError} from '../src/chat-transport.mjs';
+import {parseModelJSON} from '../../../../src/structured-output.mjs';
 import {simulateMinute} from '../src/minute-simulation.mjs';
 import {MINUTE_WORLD_SCHEMA,MINUTE_AUDIT_SCHEMA,strictMinuteRequest,outputSchemaIssue,normalizeMinuteAudit} from '../src/minute-output-schema.mjs';
 import {MINUTE_DRAFT,MINUTE_REVIEW} from '../src/minute-prompts.mjs';
 
 const config={provider:'deepseek',endpoint:'https://api.deepseek.com/chat/completions',model:'deepseek-flash',key:'synthetic-test-key'};
-const saved=JSON.parse(await readFile('docs/evaluation/flash-dynamic-ming-final-20261109.json','utf8'));
+const saved=JSON.parse(await readFile('archive/engines/minute/evaluation/flash-dynamic-ming-final-20261109.json','utf8'));
 const draft=JSON.parse(saved.responses[0].content);
 const args={json:true,profile:'minute',stage:'minute-world',purpose:'simulation',maxTokens:65536};
 const toolReply=(value,name='submit_complete_world',finish='tool_calls')=>({ok:true,json:async()=>({choices:[{finish_reason:finish,message:{content:null,
@@ -51,7 +52,7 @@ test('official creation forces the strict named tool at the beta endpoint and re
 });
 
 test('recorded Christianity generation fits the strict contract with all 100 events and 42 domain accounts',async()=>{
- const recorded=JSON.parse(await readFile('docs/evaluation/failures/christianity-final-timeout-20261109.json','utf8'));
+ const recorded=JSON.parse(await readFile('archive/engines/minute/evaluation/failures/christianity-final-timeout-20261109.json','utf8'));
  const value=JSON.parse(recorded.responses[0].content);
  assert.equal(outputSchemaIssue(value,MINUTE_WORLD_SCHEMA),null);
  assert.equal(value.world.trajectories.flatMap(r=>r.events).length+value.world.effects.length,100);

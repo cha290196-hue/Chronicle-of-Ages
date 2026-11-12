@@ -61,7 +61,7 @@ The reference timeline covers approximately **3200 BCE – 1 January 2026**. Its
 3. The application adapts dates and records for the existing display and saves the full authored content.
 4. Each Core question receives a model-authored answer and any new settings to save in that world.
 
-There is no production admission classifier, causal-graph audit, coverage quota, checkpoint schedule, mechanical numerical gate or mandatory review loop. There is no application inference deadline. Provider context and output capacity remain finite; incomplete transport is reported rather than saved as a completed world. See the [engine specification](docs/ENGINE.md). Historical measurement documents describe the previous engines.
+The current engine, storage compatibility and API behavior are described in the [engine documentation](docs/ENGINE.md). Retired implementations and their evaluation data are kept in the [archive](archive/README.md).
 
 ## Get started
 
@@ -111,15 +111,19 @@ Worldlines are kept in browser-local storage. Exporting is recommended before cl
 | :--- | :--- |
 | Interface | HTML · CSS · JavaScript ES modules |
 | Chronology | High-DPI Canvas 2D · pointer interaction · bounded chronology |
-| Simulation | LLM chat completions · structured JSON records · checkpointed state |
+| Simulation | LLM chat completions · streaming transport · versioned world records |
 | Data | Curated reference events · branch-local event and concept ledgers |
 | Storage | Browser localStorage · JSON archives |
 | Deployment | GitHub Pages · GitHub Actions |
 | Tests | Node.js built-in test runner |
 
 ```bash
-npm test
+npm test                 # current application and archived regressions
+npm run test:current     # current application
+npm run test:archive     # retired engine and historical replays
 ```
+
+[Repository layout and development](docs/DEVELOPMENT.md).
 
 ### References
 
@@ -134,6 +138,3 @@ Architecture and interface patterns were informed by the following materials; im
 ---
 
 <div align="center"><sub>CHRONICLE OF AGES &nbsp; / &nbsp; UNIFIED COMPUTATION MATRIX</sub></div>
-## Stateful simulation
-
-The production engine is **Prompt LLM / 4**. One normal model response interprets and expands the premise, chooses the narrative volume and creates the world. The Core likewise answers and develops world settings in one response. Production no longer uses admission rules, graph audits, fixed region/domain grids, checkpoints, mechanical numerical gates or review/repair pipelines. Code adapts the result to the existing display and storage, without pruning prose or imposing an inference deadline. Provider context/output limits still apply. Old worlds and frozen source archives remain readable, with no production fallback. The pre-rewrite project is preserved on `archive/pre-prompt-llm-20261112`. [Implementation and limits](docs/ENGINE.md).

@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {simulateMinute,minuteModelConfig} from '../src/minute-simulation.mjs';
-import {simulate,sanitizeWorldline,worldEvents,callChat,explainError} from '../src/core.js';
+import {simulate,sanitizeWorldline,worldEvents} from '../../../../src/core.js';
+import {callChat,explainError} from '../src/chat-transport.mjs';
 import {validateMacro,assembleMacro,materializePeriods,applyMacroEdits,checkpointYears} from '../src/minute-world.mjs';
 import {compileInterventions,tick,untick,resolveAncestry} from '../src/worldline-contract.mjs';
-import {stateAt} from '../src/world-model.mjs';
+import {stateAt} from '../src/world-context.mjs';
 import {admission,macro,review,minuteChat,clone} from './fixtures/minute-world.mjs';
 import {readFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
@@ -82,7 +83,7 @@ test('provider receives output headroom, explicit non-thinking and no retry for 
 });
 test('public entry bypasses the archived engine and frozen archive has exact digest',async()=>{
  const adapter=await readFile('src/chronicle-adapter.mjs','utf8');assert.ok(adapter.includes('./prompt-world.mjs'));assert.ok(!adapter.includes('ucm-omega'));
- const bytes=await readFile('archive/ucm-omega-v2/source-f3f0266.zip');assert.equal(createHash('sha256').update(bytes).digest('hex'),'cdac81ca795b032dc988dae224e88a69fc1707b9b8039880d6529bea5a4e199c');
+ const bytes=await readFile('archive/engines/ucm-omega-v2/source-f3f0266.zip');assert.equal(createHash('sha256').update(bytes).digest('hex'),'cdac81ca795b032dc988dae224e88a69fc1707b9b8039880d6529bea5a4e199c');
  assert.match(explainError({code:'MINUTE_DEADLINE'},'zh'),/未保存/);
 });
 

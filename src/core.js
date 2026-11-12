@@ -7,7 +7,6 @@ import {parseModelJSON,normalizeModelContent,ModelJSONError} from './structured-
 import {sanitizeKnowledge} from './exploration-knowledge.mjs';
 import {BASELINE,validYear} from './data.js';
 import {migrateTextModel} from './model-routing.mjs';
-import {strictMinuteRequest,outputSchemaIssue,normalizeMinuteAudit} from './minute-output-schema.mjs';
 import {readChatStream} from './chat-stream.mjs';
 
 export const DEFAULT_CONFIG={provider:'openrouter',endpoint:'https://openrouter.ai/api/v1/chat/completions',model:'',key:'',textEnabled:true,imageEnabled:false,imageProvider:'openrouter',imageEndpoint:'https://openrouter.ai/api/v1/images',imageModel:'',imageKey:'',remember:false};
@@ -62,39 +61,6 @@ export function explainError(error,lang='en'){
   return (reasons[error.reason]||['模型服务未完成本次生成。','The model service did not complete this generation.'])[lang==='zh'?0:1]+(lang==='zh'?'未保存本次结果。':' No result was saved.');
  }
  if(code==='MODEL_OUTPUT_CONTRACT')return lang==='zh'?'模型服务没有返回约定的完整结构，本次推演未保存。':'The provider did not return the required complete structure. No result was saved.';
- if(code==='MINUTE_DEADLINE')return lang==='zh'?'两分钟的推演预算已用完，未保存未完成的世界线。请重试或使用响应更快的模型。':'The two-minute inference budget expired. No incomplete worldline was saved. Retry or use a faster responding model.';
- if(code==='MINUTE_REVIEW_REJECTED')return (lang==='zh'?'这次宏观推演未通过内容审查。':'This macro history did not pass content review.')+((error.reason||error[lang==='zh'?'reasonZh':'reasonEn'])?' '+(error.reason||error[lang==='zh'?'reasonZh':'reasonEn']):'');
- if(code.startsWith('MINUTE_'))return (lang==='zh'?'模型的完整世界结果未通过检查，未保存世界线。':'The complete world result failed validation. No worldline was saved.')+' ['+code+']';
- if(code==='INTAKE_MODEL_INVALID'){
-  const cause=String(error.causeCode||'INTAKE_INVALID');
-  return (lang==='zh'?'模型对输入的解析在自动修正后仍未通过检查，请重试；这不表示你的历史设想无效。':'The model could not encode the input after automatic repair. Retry; this does not establish that your premise is invalid.')+' ['+cause+']';
- }
- if(code==='AUTOCOMPLETE_INCOMPLETE')return lang==='zh'?'模型未能完成自动补全，请重试或关闭自动补全后手动填写条件。':'The model could not complete the missing premises. Retry or turn off auto-completion to specify them.';
- if(['INTERVENTION_REJECTED','INTERVENTION_CLARIFY','INTERVENTION_NEGLIGIBLE','UNSUPPORTED_CAUSAL_BRIDGE','INTAKE_INVALID','UNSUPPORTED_PHYSICAL_MODEL','EXPLICIT_YEAR_MISMATCH'].includes(code)){
-  const defaults={INTERVENTION_REJECTED:['该输入无法建立有依据的地球历史分叉。','This input cannot establish a supported Earth-history divergence.'],
-   INTERVENTION_CLARIFY:['请补充决定地球影响的时间、地点或必要参数。','Please specify the time, location or parameters that determine its effect on Earth.'],
-   INTERVENTION_NEGLIGIBLE:['该变化没有足以建立世界线的可支持历史影响。','No supported material historical effect can be established.'],
-   UNSUPPORTED_CAUSAL_BRIDGE:['通向地球历史影响的因果过程缺少依据。','The causal path to a material Earth-history effect is unsupported.'],
-   INTAKE_INVALID:['模型未完成可靠的输入判断，请重试。','The model did not complete a valid admission assessment.'],
-   UNSUPPORTED_PHYSICAL_MODEL:['此物理规律修改需要当前未提供的定量模型。','This physical-law intervention requires a quantitative model that is not available.'],
-   EXPLICIT_YEAR_MISMATCH:['模型没有保留你明确指定的年份，已停止生成。','The model changed your explicit year; generation was stopped.']};
-  const reason=(lang==='zh'?error.reasonZh:error.reasonEn)||defaults[code][lang==='zh'?0:1];
-  return [reason,...list(error.questions).map(q=>typeof q==='string'?q:lang==='zh'?q.zh:q.en)].filter(Boolean).join(' ');
- }
- if(['WORLD_COMPLETENESS_FAILED','HISTORICAL_SUPPORT_INSUFFICIENT','WORLD_INITIALIZATION_INVALID','WORLD_REGIONS_INCOMPLETE','WORLD_PROCESSES_INCOMPLETE','WORLD_CONDITION_INVALID','WORLD_PROCESS_INVALID','WORLD_REVIEW_INVALID','WORLD_REVIEW_INCOMPLETE','WORLD_DOMAINS_INCOMPLETE'].includes(code))
-  return lang==='zh'?'该阶段的全球状态、历史覆盖或因果依据未通过审查，世界线未保存。请检查输入或更换模型后重试。':'Global state, historical coverage or causal support failed review. No worldline was saved; revise the input or retry with another model.';
- if(code.startsWith('EXPLORATION_'))return lang==='zh'?'本次世界细节补全未通过一致性检查，未写入新设定，请重试。':'This world-detail completion did not pass consistency checks. No new settings were stored; please retry.';
- if(code==='NOT_AN_EDIT')return lang==='zh'?'这是历史问答，不是历史修改；请使用演算中枢进行提问。':'This is a history question, not an edit. Ask it in the Analysis Core.';
- if(code==='OUT_OF_SCOPE'||code==='NOT_EARTH_ANCHORED')return lang==='zh'?'请输入以地球历史为起点的修改。':'Provide an edit anchored in Earth history.';
- if(code==='ANCHOR_PRECEDES_PARENT')return lang==='zh'?'修改不能早于选中世界线的分叉点。':'The edit cannot predate the selected worldline fork.';
- if(code==='INVALID_YEAR')return lang==='zh'?'年份须在公元前3200年至2026年之间，且不存在公元0年。':'Years must be within 3200 BCE–2026 CE; there is no year zero.';
- if(['ANCHOR_INVALID','INVALID_TIME_RANGE','UNKNOWN_BRANCH_FACT','UNKNOWN_BRANCH_FACT_AT_ANCHOR','CONTRADICTORY_INTERVENTIONS','EMPTY_OR_EXCESSIVE_INTERVENTION','UNKNOWN_INTERVENTION_KIND','INVALID_TIME_MODE','MISSING_TARGET'].includes(code))
-  return (lang==='zh'?'干预的时间或事实引用未通过检查，请查看检查详情。':'The intervention time or fact reference failed validation. See admission details.')+' ['+code+']';
- if(code==='NO_VALID_TRAJECTORY')return lang==='zh'?'模型未能生成可通过因果校验的结果，请重新推演。':'The model could not produce a causally valid result. Try again.';
- if(['WINDOW_EXPANSION_LIMIT','WINDOW_SCOPE_TOO_DENSE'].includes(code))
-  return lang==='zh'?'该历史时段已自动按时间、地区和领域拆分，但当前模型仍无法完整生成某个子任务。系统没有用空数据替代历史，请检查模型输出上限或换用容量更高的模型。':'The engine split this historical period by time, region and domain, but the model still could not complete a subsection. No partial or empty history was substituted; check the output capacity.';
- if(code==='GLOBAL_CAUSAL_AUDIT_FAILED')
-  return lang==='zh'?'所有子推演已完成，但全局因果一致性复核未通过。世界线未保存，请重新推演。':'Global causal review found inconsistent cross-window dependencies. No partial worldline was saved.';
  if(error?.name==='AbortError'||error?.message==='ABORTED')return lang==='zh'?'推演已停止。':'Simulation stopped.';
  if(error?.message==='INVALID_JSON'||error?.message==='BAD_RESPONSE'){
   const reason=error?.reason;
@@ -124,38 +90,29 @@ export function explainError(error,lang='en'){
  return msg.slice(0,360);
 }
 /**
- * OpenAI-compatible chat bridge shared by the bounded engine and progressive discovery.
+ * OpenAI-compatible transport for world creation and Core exploration.
  * A bad 200-OK JSON body is a model format problem, not an API connection problem.
  * Recovery retries the JSON task once with a concise JSON-only instruction.
  * Never accept a partially parsed JSON object as confirmed worldline data.
  */
 export async function callChat(config,messages,{signal,json=false,temperature=.35,maxTokens=3200,purpose='other',stage='other',reasoning=false,profile=null,onProgress=null}={}){
- const bounded=profile==='minute';
  const promptLed=profile==='prompt-llm';
  const c=safeConfig(config);
  if(!configured(c))throw new Error('NOT_CONFIGURED');
  if(!validEndpoint(c.endpoint))throw new Error('INVALID_ENDPOINT');
  const meteredProvider=usageBillingProvider(c.provider,c.endpoint);
- const strict=json&&bounded?strictMinuteRequest(c,stage):null;
- const endpoint=strict?.endpoint||c.endpoint;
+ const endpoint=c.endpoint;
  const baseBody={model:c.model,messages,temperature,max_tokens:maxTokens,stream:false};
  if(promptLed&&typeof onProgress==='function'){baseBody.stream=true;baseBody.stream_options={include_usage:true}}
  if(json)baseBody.response_format={type:'json_object'};
- if(strict){
-  delete baseBody.response_format;
-  baseBody.tools=[strict.tool];
-  baseBody.tool_choice={type:'function',function:{name:strict.tool.function.name}};
-  // A forced, strict tool encodes data; it never invokes executable code.
-  baseBody.thinking={type:'disabled'};
- }
  if(c.provider==='deepseek'){
-  const think=!strict&&(reasoning||(!json&&maxTokens>256));
+  const think=reasoning||(!json&&maxTokens>256);
   baseBody.thinking={type:think?'enabled':'disabled'};
-  if(think){baseBody.max_tokens=bounded?maxTokens:Math.max(maxTokens,reasoning?32768:8192);baseBody.reasoning_effort=bounded?'low':'high';}
+  if(think){baseBody.max_tokens=Math.max(maxTokens,reasoning?32768:8192);baseBody.reasoning_effort='high';}
   // DeepSeek's max_tokens is an output ceiling, not pre-billed tokens.
   // Give structured historical tasks enough room to finish JSON without
   // discarding detail or paying for repeated truncation/re-generation.
-  if(!bounded&&json&&purpose==='simulation')baseBody.max_tokens=Math.max(baseBody.max_tokens,8192);
+  if(json&&purpose==='simulation')baseBody.max_tokens=Math.max(baseBody.max_tokens,8192);
  }
  const doCall=async({format=json,recovery=false,previousFailure=null,omitTokenLimit=false,omitStreamOptions=false,disableStream=false}={})=>{
   const startedAt=Date.now();
@@ -196,18 +153,6 @@ export async function callChat(config,messages,{signal,json=false,temperature=.3
   const message=choice?.message||{};
   if(['insufficient_system_resource','aborted','content_filter'].includes(choice?.finish_reason))
    throw Object.assign(new Error('MODEL_COMPLETION_INTERRUPTED'),{code:'MODEL_COMPLETION_INTERRUPTED',reason:choice.finish_reason});
-  if(strict){
-   if(choice?.finish_reason==='length')throw Object.assign(new ModelJSONError('truncated'),{finishReason:'length'});
-   const calls=message.tool_calls;
-   if(choice?.finish_reason!=='tool_calls'||!Array.isArray(calls)||calls.length!==1||calls[0]?.type!=='function'||calls[0].function?.name!==strict.tool.function.name)
-    throw Object.assign(new Error('MODEL_OUTPUT_CONTRACT'),{code:'MODEL_OUTPUT_CONTRACT',reason:'tool_envelope'});
-   let value;
-   try{if(typeof calls[0].function.arguments!=='string')throw new TypeError('arguments');value=JSON.parse(calls[0].function.arguments)}
-   catch{throw new ModelJSONError('invalid_syntax')}
-   const field=outputSchemaIssue(value,strict.tool.function.parameters);
-   if(field)throw Object.assign(new Error('MODEL_OUTPUT_CONTRACT'),{code:'MODEL_OUTPUT_CONTRACT',reason:'schema',field});
-   return stage==='minute-world'?value:normalizeMinuteAudit(value);
-  }
   const contentOptions={separator:json?'':'\n'};
   let result=normalizeModelContent(message.content??message.text??choice?.text??payload?.output_text,contentOptions);
   if(!result&&Array.isArray(payload?.output)){
@@ -239,7 +184,7 @@ export async function callChat(config,messages,{signal,json=false,temperature=.3
  try{return await doCall({format:json})}
  catch(first){
    if(first instanceof ModelJSONError)first.attempts=1;
-   if(strict||!json||signal?.aborted)throw first;
+   if(!json||signal?.aborted)throw first;
   const unsupportedFormat=first?.status===400||first?.status===422;
   const malformed=first?.message==='INVALID_JSON';
   if(promptLed){
@@ -252,14 +197,7 @@ export async function callChat(config,messages,{signal,json=false,temperature=.3
    throw first;
   }
   if(!unsupportedFormat&&!malformed)throw first;
-   // The minute engine supplies its shared deadline signal to BOTH attempts.
-   // Recover a format failure once, but never regenerate length-limited history
-   // or increase the bounded engine's transport capacity. Unrelated HTTP errors
-   // cannot be repaired by changing JSON mode.
-   if(bounded&&(first?.reason==='truncated'||(unsupportedFormat&&!/response_format|json[\s_-]?(?:object|mode)/i.test(first.message))))throw first;
-   // Keep JSON mode for malformed bounded output; remove it only when the
-   // provider explicitly rejects it. Preserve the legacy non-minute fallback.
-   try{return await doCall({format:bounded&&!unsupportedFormat,recovery:true,previousFailure:first})}
+   try{return await doCall({format:false,recovery:true,previousFailure:first})}
   catch(second){
    if(second?.message==='INVALID_JSON'&&second instanceof ModelJSONError){
     second.attempts=2;
@@ -328,17 +266,6 @@ export async function simulate({prompt,branches=[],parentId=null,config,lang='en
  }
 }
 
-function terms(text){
- const words=String(text).toLowerCase().match(/[a-z0-9]{3,}|[\u3400-\u9fff]{2,}/g)||[],out=[];
- const common=new Set(['什么','如何','这个','世界','是否','为什么','请问','哪些','情况','怎么']);
- for(const word of words){if(/[\u3400-\u9fff]/.test(word)){if(word.length<=8&&!common.has(word))out.push(word);for(let i=0;i<word.length-1;i++){const part=word.slice(i,i+2);if(!common.has(part))out.push(part)}}else out.push(word)}
- return [...new Set(out)].slice(0,60)
-}
-function rank(query,item){const hay=JSON.stringify(item).toLowerCase();return terms(query).reduce((score,term)=>score+(hay.includes(term)?term.length:0),0)}
-export function retrieveWorld(branches,branch,query,limit=24){
- const events=worldEvents(branches,branch),facts=worldFacts(branches,branch);
- return {events:[...events].sort((a,b)=>rank(query,b)-rank(query,a)).slice(0,limit),facts:[...facts].sort((a,b)=>rank(query,b)-rank(query,a)).slice(0,limit)};
-}
 export function dialogueEntries(history){
  const entries=[];let pending=null;
  for(let i=0;i<(Array.isArray(history)?history.length:0);i++){

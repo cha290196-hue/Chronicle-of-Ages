@@ -4,8 +4,10 @@
   "version": "3.1.0",
   "type": "module",
   "scripts": {
-    "test": "node --test tests/*.mjs",
-    "serve": "python3 -m http.server 8080"
+    "test": "node --test tests/*.mjs archive/engines/minute/tests/*.mjs",
+    "serve": "python3 -m http.server 8080",
+    "test:current": "node --test tests/*.mjs",
+    "test:archive": "node --test archive/engines/minute/tests/*.mjs"
   },
   "engines": {
     "node": ">=20"

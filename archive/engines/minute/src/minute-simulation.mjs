@@ -3,7 +3,7 @@ import {resolveAncestry,compileInterventions,validYear,tick,LAST_YEAR,MatrixErro
 import {validateMacro,reindexTrajectories,structuralIssues,assembleMacro,materializePeriods,applyMacroEdits,buildMinuteWorld,CHECKPOINTS,REGIONS,DOMAINS,checkpointYears} from './minute-world.mjs';
 import {MINUTE_SYSTEM,MINUTE_DRAFT,MINUTE_REVIEW,MINUTE_AUDIT_SYSTEM} from './minute-prompts.mjs';
 import {INFERENCE_BUDGET} from './inference-budget.mjs';
-import {inferenceModelConfig} from './model-routing.mjs';
+import {inferenceModelConfig} from '../../../../src/model-routing.mjs';
 import {MINUTE_WORLD_SCHEMA,MINUTE_AUDIT_SCHEMA,strictMinuteRequest} from './minute-output-schema.mjs';
 const list=x=>Array.isArray(x)?x:[];
 const abort=()=>new DOMException('Aborted','AbortError');

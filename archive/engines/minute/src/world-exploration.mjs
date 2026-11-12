@@ -1,7 +1,7 @@
 import {auditKnowledge,sanitizeKnowledge} from './exploration-knowledge.mjs';
-import {causalContext,REGIONS,DOMAINS} from './world-model.mjs';
+import {causalContext,REGIONS,DOMAINS} from './world-context.mjs';
 import {validYear,tick,LAST_YEAR,MatrixError} from './worldline-contract.mjs';
-import {inferenceModelConfig} from './model-routing.mjs';
+import {inferenceModelConfig} from '../../../../src/model-routing.mjs';
 import {CORE_SYSTEM,CORE_PLAN,CORE_INFERENCE,CORE_COMPLETION,CORE_REVIEW,CORE_ANSWER,resolveComparison,rankingFact,renderRanking,renderQuantities} from './core-resolution.mjs';
 const list=x=>Array.isArray(x)?x:[];
 const text=x=>String(x??'').trim();

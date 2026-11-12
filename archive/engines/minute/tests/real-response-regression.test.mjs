@@ -4,13 +4,13 @@ import {readFile,readdir} from 'node:fs/promises';
 import {simulateMinute} from '../src/minute-simulation.mjs';
 import {assembleMacro,materializePeriods,applyMacroEdits,validateMacro,buildMinuteWorld} from '../src/minute-world.mjs';
 import {admitIntervention} from '../src/historical-intent.mjs';
-import {sanitizeWorldline,extractJSON} from '../src/core.js';
+import {sanitizeWorldline,extractJSON} from '../../../../src/core.js';
 // Replays measured provider responses to catch protocol/storage regressions.
 // These mocked replays do not measure generation speed or historical accuracy.
-for(const filename of await readdir('docs/evaluation')){
+for(const filename of await readdir('archive/engines/minute/evaluation')){
  if(!filename.endsWith('.json'))continue;
  test('measured full-world response still passes the production contract: '+filename,async()=>{
-  const saved=JSON.parse(await readFile('docs/evaluation/'+filename,'utf8'));
+  const saved=JSON.parse(await readFile('archive/engines/minute/evaluation/'+filename,'utf8'));
   let w;
   if(saved.outputPolicy==='dynamic-earth-v1'){
    let n=0;({worldline:w}=await simulateMinute({prompt:saved.input,lang:'zh',autoComplete:true,makeId:()=> 'replay-'+filename,callChat:async(_,messages,options)=>{const response=saved.responses[n++];assert.equal(options.stage,response.stage);assert.equal(response.model,'deepseek-flash');return extractJSON(response.content);}}));assert.equal(n,saved.responses.length);assert.equal(w.simulation.graph.regions.reduce((count,r)=>count+r.domains.length,0),42);
@@ -26,7 +26,7 @@ for(const filename of await readdir('docs/evaluation')){
 }
 
 test('recorded stale-index failure now replays without losing historical content',async()=>{
- const saved=JSON.parse(await readFile('docs/evaluation/failures/ming-stale-index-20261109.json','utf8'));let n=0;
+ const saved=JSON.parse(await readFile('archive/engines/minute/evaluation/failures/ming-stale-index-20261109.json','utf8'));let n=0;
  const {worldline:w}=await simulateMinute({prompt:saved.input,lang:'zh',autoComplete:true,makeId:()=> 'index-regression',callChat:async(_,messages,options)=>{const r=saved.responses[n++];assert.equal(options.stage,r.stage);return extractJSON(r.content);}});
  assert.equal(n,saved.responses.length);assert.ok(sanitizeWorldline(w));assert.equal(w.simulation.completedThrough,2026);assert.equal(w.simulation.graph.regions.reduce((n,r)=>n+r.domains.length,0),42);
 });

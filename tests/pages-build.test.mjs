@@ -11,6 +11,7 @@ test('Pages release versions every local module and stylesheet without changing 
   try {
     const build = spawnSync(process.execPath, ['scripts/prepare-pages.mjs', dir, version], { encoding: 'utf8' });
     assert.equal(build.status, 0, build.stderr);
+    assert.deepEqual((await readdir(dir)).sort(), ['.nojekyll', 'assets', 'index.html', 'src']);
     const html = await readFile(join(dir, 'index.html'), 'utf8');
     assert.match(html, new RegExp(`src="\\./src/app\\.m?js\\?v=${version}"`));
     assert.match(html, new RegExp(`href="\\./assets/style\\.css\\?v=${version}"`));

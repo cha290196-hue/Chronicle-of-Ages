@@ -21,6 +21,6 @@ The Flash route, 120-second total deadline, dynamic prose/event scope, seven reg
 - Both simulated provider interruption and ignored strict output leave the existing world unchanged. Desktop and 390-pixel mobile screenshots were inspected; the mobile error view has no horizontal document overflow and there are no page errors.
 - An unauthenticated OPTIONS preflight to the official strict endpoint returned HTTP 200 with the site's origin, POST and authorization/content-type headers allowed. This confirms browser CORS access without using a key or generating model output.
 
-The browser replay uses recorded model output and a synthetic credential. It does **not** measure a fresh live inference, provider reliability, latency or historical accuracy. The [browser replay report](evaluation/format-repair/browser-replay.json) records the checks. Local screenshots are retained with the verification artifacts; API credentials and raw new private model responses are not recorded.
+The browser replay uses recorded model output and a synthetic credential. It does **not** measure a fresh live inference, provider reliability, latency or historical accuracy. The [browser replay report](../evaluation/format-repair/browser-replay.json) records the checks. Local screenshots are retained with the verification artifacts; API credentials and raw new private model responses are not recorded.
 
 Provider references: [strict tool output](https://api-docs.deepseek.com/guides/tool_calls/), [completion finish reasons](https://api-docs.deepseek.com/api/create-chat-completion/).

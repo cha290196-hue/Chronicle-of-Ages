@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {runInNewContext} from 'node:vm';
 import {exploreWorld} from '../src/world-exploration.mjs';
-import {exploreCore,sanitizeWorldline} from '../src/core.js';
+import {exploreCore,sanitizeWorldline} from '../../../../src/core.js';
 import {auditKnowledge,mergeKnowledge} from '../src/exploration-knowledge.mjs';
 import {resolveComparison} from '../src/core-resolution.mjs';
 import {contextOf} from './fixtures/minute-world.mjs';

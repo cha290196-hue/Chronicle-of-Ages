@@ -10,4 +10,4 @@ cdac81ca795b032dc988dae224e88a69fc1707b9b8039880d6529bea5a4e199c
 
 Extract the ZIP, enter `ucm-omega-v2`, and run `npm test` to reproduce its tests. This archive is for comparison and recovery; the production application never imports it and has no fallback to its generators. Existing v2 user worlds remain readable through the versioned storage adapter.
 
-The active engine is documented in [docs/ENGINE.md](../../docs/ENGINE.md). Historical design and benchmark documents in the ZIP describe the old engine, not the current production path.
+The active engine is documented in [docs/ENGINE.md](../../../docs/ENGINE.md). Historical design and benchmark documents in the ZIP describe the old engine, not the current production path.

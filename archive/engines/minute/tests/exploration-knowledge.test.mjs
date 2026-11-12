@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {auditKnowledge,mergeKnowledge,sanitizeKnowledge} from '../src/exploration-knowledge.mjs';
-import {exploreCore,worldFacts,sanitizeWorldline,worldEvents} from '../src/core.js';
+import {exploreCore,worldFacts,sanitizeWorldline,worldEvents} from '../../../../src/core.js';
 import {resolveAncestry,compileInterventions} from '../src/worldline-contract.mjs';
 import {readFile} from 'node:fs/promises';
 
