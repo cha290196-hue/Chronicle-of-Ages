@@ -43,15 +43,13 @@ test('malformed cyclic parent references cannot trap deletion in an infinite loo
  assert.deepEqual(result.branches.map(x=>x.id),['Z']);
  assert.deepEqual(Object.keys(result.chats),['Z']);
 });
-test('composer displays a delete action only for an active branch and handles it without form submit',async()=>{
+test('composer omits removed UI while inspector deletion keeps confirmation and storage checks',async()=>{
  const app=await readFile('src/app.js','utf8');
  const css=await readFile('assets/style.css','utf8');
- assert.match(app,/active\(\)\?\x60<button type="button" class="composer-delete"/);
- assert.match(app,/data-action="delete-selected-worldline"/);
- assert.match(app,/action==='delete-selected-worldline'\?state\.activeId/);
+ assert.doesNotMatch(app,/composer-parent|composer-delete|composer-hint|timeline-density|delete-selected-worldline/);
+ assert.doesNotMatch(css,/composer-parent|composer-delete|composer-hint|timeline-density/);
+ assert.match(app,/if\(action==='delete-branch'\)\{deleteBranch\(btn\.dataset\.id\)/);
  assert.match(app,/const plan=planWorldlineDeletion\(state\.branches,id,state\.chats\)/);
  assert.match(app,/if\(!confirm\(message\)\)return/);
  assert.match(app,/if\(!persist\(\)\)/);
- assert.match(css,/\.composer-parent-name\{overflow:hidden;text-overflow:ellipsis/);
- assert.match(css,/\.composer-delete:disabled/);
 });
