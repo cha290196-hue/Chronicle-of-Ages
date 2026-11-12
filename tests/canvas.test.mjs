@@ -12,6 +12,46 @@ test('terminal events have a distinct hit target from the worldline selection ti
  assert.equal(canvas.nearest(1000,400).kind,'tip');
 });
 
+test('upper, lower and terminal event leaders stay outside circles and paint behind every marker',()=>{
+ for(const terminal of [false,true])for(const hovered of [false,true]){
+  const operations=[];let path=[];
+  const ctx=new Proxy({
+   measureText:()=>({width:130}),beginPath(){path=[]},
+   moveTo(x,y){path.push({kind:'move',x,y})},lineTo(x,y){path.push({kind:'line',x,y})},
+   arc(x,y,radius){path.push({kind:'arc',x,y,radius})},
+   stroke(){operations.push({kind:'stroke',path:[...path]})},
+   fill(){operations.push({kind:'fill',path:[...path]})}
+  },{get:(o,k)=>k in o?o[k]:()=>{}});
+  const view=Object.create(WorldCanvas.prototype);
+  const events=[{id:'one',year:2000,en:'First event'},{id:'two',year:2001,en:'Second event'}];
+  Object.assign(view,{ctx,width:1200,height:800,zoom:1,lang:'en',hit:[],hover:hovered?{event:events[1]}:null,x:year=>year===2026?(terminal?400:1000):400+(year-2000)*24,nodeActive:()=>true});
+  view.nodes(events,400,'B',true);
+  const leaders=operations.filter(o=>o.kind==='stroke'&&o.path.some(p=>p.kind==='line'));
+  const circles=operations.filter(o=>o.kind==='fill'&&o.path[0]?.kind==='arc'&&o.path[0].radius>2);
+  assert.equal(circles.length,2);
+  assert.ok(leaders.some(o=>o.path[1].y<400));
+  assert.ok(leaders.some(o=>o.path[1].y>400));
+  const firstCircle=operations.indexOf(circles[0]);
+  assert.ok(leaders.every(o=>operations.indexOf(o)<firstCircle),'leaders must be behind the opaque node fills');
+  for(const circle of circles){
+   const {x,y,radius}=circle.path[0];
+   for(const leader of leaders){
+    const [start,end]=leader.path;
+    if(start.x!==x||end.x!==x)continue;
+    const low=Math.min(start.y,end.y),high=Math.max(start.y,end.y);
+    assert.ok(high<=y-radius||low>=y+radius,'a node leader must not cross its own circle');
+   }
+  }
+ }
+});
+
+test('baseline and branch leaders share one marker pass above all lines',()=>{
+ const order=[],view=Object.create(WorldCanvas.prototype);
+ Object.assign(view,{ctx:{clearRect(){},fillRect(){}},width:1200,height:800,active:null,branches:[{id:'B',events:[]}],grid(){},selectedLineage:()=>[],baseY:()=>400,worldline(){},branch(){},laneY:()=>260,x:()=>1000,endCaps(){},drawTip(){order.push('tip')},nodes(_events,_y,branchId,_active,markers){order.push('leader:'+branchId);markers.push({branchId})},drawEventMarker:marker=>order.push('marker:'+marker.branchId)});
+ view.draw();
+ assert.deepEqual(order,['leader:null','leader:B','marker:null','marker:B','tip','tip']);
+});
+
 test('same-year clusters expose every event through a list instead of repeatedly selecting the first',()=>{
  const events=[{id:'a',year:1700},{id:'b',year:1700},{id:'c',year:1700}];
  let opened=null,focused=false;
