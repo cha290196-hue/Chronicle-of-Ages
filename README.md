@@ -7,7 +7,7 @@
 
   Earth history · Divergent worldlines · Causal simulation
 
-  [Open web application](https://cha290196-hue.github.io/Chronicle-of-Ages/) · [Source code](https://github.com/cha290196-hue/Chronicle-of-Ages) · [Report an issue](https://github.com/cha290196-hue/Chronicle-of-Ages/issues)
+  [Open web application](https://qindanan.github.io/Chronicle-of-Ages/) · [Source code](https://github.com/QinDanan/Chronicle-of-Ages) · [Report an issue](https://github.com/QinDanan/Chronicle-of-Ages/issues)
 
   <a href="README.md"><b>English</b></a> &nbsp; · &nbsp; <a href="README.zh-CN.md"><b>简体中文</b></a>
 
@@ -87,7 +87,7 @@ Explore Earth's recorded history, introduce a change and follow the world that d
 
 ## Start exploring
 
-**[Open Chronicle of Ages →](https://cha290196-hue.github.io/Chronicle-of-Ages/)**
+**[Open Chronicle of Ages →](https://qindanan.github.io/Chronicle-of-Ages/)**
 
 | Step | What to do |
 | :--- | :--- |
@@ -156,7 +156,7 @@ The reference chronology contains selected milestones. Generated worlds are alte
 Serve the repository with **Python 3**. No package installation or frontend build is required.
 
 ```bash
-git clone https://github.com/cha290196-hue/Chronicle-of-Ages.git
+git clone https://github.com/QinDanan/Chronicle-of-Ages.git
 cd Chronicle-of-Ages
 python3 -m http.server 8080
 ```
@@ -190,7 +190,7 @@ The application uses JavaScript ES modules, Canvas 2D and browser storage. The i
 
 <p align="center">
   <a href="LICENSE">MIT License</a> &nbsp; · &nbsp;
-  <a href="https://github.com/cha290196-hue/Chronicle-of-Ages/issues">Report an issue</a> &nbsp; · &nbsp;
+  <a href="https://github.com/QinDanan/Chronicle-of-Ages/issues">Report an issue</a> &nbsp; · &nbsp;
   <a href="README.zh-CN.md">简体中文</a>
 </p>
 <p align="center"><sub>CHRONICLE OF AGES &nbsp; / &nbsp; UNIFIED COMPUTATION MATRIX</sub></p>

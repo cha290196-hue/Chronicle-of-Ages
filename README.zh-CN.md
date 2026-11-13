@@ -7,7 +7,7 @@
 
   地球历史 · 分支世界线 · 因果推演
 
-  [打开网页版](https://cha290196-hue.github.io/Chronicle-of-Ages/) · [查看源码](https://github.com/cha290196-hue/Chronicle-of-Ages) · [反馈问题](https://github.com/cha290196-hue/Chronicle-of-Ages/issues)
+  [打开网页版](https://qindanan.github.io/Chronicle-of-Ages/) · [查看源码](https://github.com/QinDanan/Chronicle-of-Ages) · [反馈问题](https://github.com/QinDanan/Chronicle-of-Ages/issues)
 
   <a href="README.md"><b>English</b></a> &nbsp; · &nbsp; <a href="README.zh-CN.md"><b>简体中文</b></a>
 
@@ -86,7 +86,7 @@
 
 ## 开始探索
 
-**[打开岁月史书 →](https://cha290196-hue.github.io/Chronicle-of-Ages/)**
+**[打开岁月史书 →](https://qindanan.github.io/Chronicle-of-Ages/)**
 
 | 步骤 | 操作 |
 | :--- | :--- |
@@ -155,7 +155,7 @@
 使用 **Python 3** 启动静态服务，无需安装依赖或构建前端。
 
 ```bash
-git clone https://github.com/cha290196-hue/Chronicle-of-Ages.git
+git clone https://github.com/QinDanan/Chronicle-of-Ages.git
 cd Chronicle-of-Ages
 python3 -m http.server 8080
 ```
@@ -189,7 +189,7 @@ npm run test:archive     # 旧引擎及历史数据回放
 
 <p align="center">
   <a href="LICENSE">MIT 许可证</a> &nbsp; · &nbsp;
-  <a href="https://github.com/cha290196-hue/Chronicle-of-Ages/issues">反馈问题</a> &nbsp; · &nbsp;
+  <a href="https://github.com/QinDanan/Chronicle-of-Ages/issues">反馈问题</a> &nbsp; · &nbsp;
   <a href="README.md">English</a>
 </p>
 <p align="center"><sub>岁月史书 &nbsp; / &nbsp; 统合演算矩阵</sub></p>
